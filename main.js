@@ -1282,10 +1282,27 @@ var require_view = __commonJS({
           await this.reload();
         }
         async reload() {
+          this._cancelDrag();
           this.cards = await this.plugin.collectCards(this.boardId);
           this.applyTheme();
           this.renderFilters();
           this.renderContent();
+        }
+        _cancelDrag() {
+          if (!this._drag) return;
+          this._drag.ghost.remove();
+          if (this._drag.placeholder.parentElement) this._drag.placeholder.remove();
+          this._drag.cardEl.classList.remove("is-dragging-source");
+          this._drag = null;
+          if (this._onMoveHandler) {
+            document.removeEventListener("pointermove", this._onMoveHandler);
+            this._onMoveHandler = null;
+          }
+          if (this._onUpHandler) {
+            document.removeEventListener("pointerup", this._onUpHandler);
+            document.removeEventListener("pointercancel", this._onUpHandler);
+            this._onUpHandler = null;
+          }
         }
         renderContent() {
           if (this.viewMode === "table") this.renderTable();
@@ -2058,9 +2075,13 @@ var require_view = __commonJS({
             document.removeEventListener("pointermove", onMove);
             document.removeEventListener("pointerup", onUp);
             document.removeEventListener("pointercancel", onUp);
+            this._onMoveHandler = null;
+            this._onUpHandler = null;
             if (!started) return;
             await this._finishDrag();
           };
+          this._onMoveHandler = onMove;
+          this._onUpHandler = onUp;
           document.addEventListener("pointermove", onMove);
           document.addEventListener("pointerup", onUp);
           document.addEventListener("pointercancel", onUp);
@@ -2077,7 +2098,7 @@ var require_view = __commonJS({
           placeholder.className = "smart-kanban-drop-placeholder";
           placeholder.style.height = `${rect.height}px`;
           cardEl.parentElement.insertBefore(placeholder, cardEl);
-          cardEl.style.display = "none";
+          cardEl.classList.add("is-dragging-source");
           this._drag = {
             card,
             cardEl,
@@ -2085,7 +2106,8 @@ var require_view = __commonJS({
             placeholder,
             offsetX: startX - rect.left,
             offsetY: startY - rect.top,
-            targetStatus: card.status || "Todo"
+            targetStatus: card.status || "Todo",
+            isOverValidTarget: true
           };
         }
         _moveDrag(cx, cy) {
@@ -2103,10 +2125,14 @@ var require_view = __commonJS({
               break;
             }
           }
-          if (!targetList) return;
+          if (!targetList) {
+            d.isOverValidTarget = false;
+            return;
+          }
+          d.isOverValidTarget = true;
           d.targetStatus = targetList.dataset.status;
           targetList.classList.add("is-drag-target");
-          const cardEls = [...targetList.querySelectorAll(".smart-kanban-card:not([style*='display: none'])")];
+          const cardEls = [...targetList.querySelectorAll(".smart-kanban-card:not(.is-dragging-source)")];
           let insertBefore = null;
           for (const c of cardEls) {
             const cr = c.getBoundingClientRect();
@@ -2127,14 +2153,13 @@ var require_view = __commonJS({
           this._drag = null;
           d.ghost.remove();
           this.boardEl.querySelectorAll(".is-drag-target").forEach((el) => el.classList.remove("is-drag-target"));
-          const targetStatus = d.targetStatus;
-          if (!targetStatus) {
+          if (!d.isOverValidTarget) {
             d.placeholder.replaceWith(d.cardEl);
-            d.cardEl.style.display = "";
+            d.cardEl.classList.remove("is-dragging-source");
             return;
           }
           d.placeholder.replaceWith(d.cardEl);
-          d.cardEl.style.display = "";
+          d.cardEl.classList.remove("is-dragging-source");
           if (!this.plugin.settings.cardOrder) this.plugin.settings.cardOrder = {};
           const allLists = this.boardEl.querySelectorAll(".smart-kanban-card-list");
           for (const list of allLists) {
@@ -2146,6 +2171,7 @@ var require_view = __commonJS({
           }
           await this.plugin.saveSettings();
           const oldStatus = d.card.status || "Todo";
+          const targetStatus = d.targetStatus;
           if (targetStatus !== oldStatus) {
             await this.plugin.updateCardStatus(d.card, targetStatus);
           }
@@ -2153,6 +2179,11 @@ var require_view = __commonJS({
           this._dragReloadTimer = setTimeout(() => this.reload(), 1500);
         }
         async onClose() {
+          this._cancelDrag();
+          if (this._dragReloadTimer) {
+            clearTimeout(this._dragReloadTimer);
+            this._dragReloadTimer = null;
+          }
           if (this._clickOutsideHandler) {
             document.removeEventListener("click", this._clickOutsideHandler);
           }

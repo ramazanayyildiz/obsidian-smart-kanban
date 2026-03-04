@@ -413,6 +413,11 @@
   border-radius: 6px;
 }
 
+/* Hidden source card during drag */
+.smart-kanban-card.is-dragging-source {
+  display: none;
+}
+
 /* Placeholder gap — shows where the card will land */
 .smart-kanban-drop-placeholder {
   border: 2px dashed var(--sk-accent, var(--interactive-accent));
@@ -421,7 +426,6 @@
   margin: 4px 0;
   pointer-events: none;
   box-sizing: border-box;
-  transition: height 0.1s ease;
 }
 
 /* Quick add per lane */

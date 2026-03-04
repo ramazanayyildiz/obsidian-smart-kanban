@@ -154,10 +154,28 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
     }
 
     async reload() {
+      this._cancelDrag();
       this.cards = await this.plugin.collectCards(this.boardId);
       this.applyTheme();
       this.renderFilters();
       this.renderContent();
+    }
+
+    _cancelDrag() {
+      if (!this._drag) return;
+      this._drag.ghost.remove();
+      if (this._drag.placeholder.parentElement) this._drag.placeholder.remove();
+      this._drag.cardEl.classList.remove("is-dragging-source");
+      this._drag = null;
+      if (this._onMoveHandler) {
+        document.removeEventListener("pointermove", this._onMoveHandler);
+        this._onMoveHandler = null;
+      }
+      if (this._onUpHandler) {
+        document.removeEventListener("pointerup", this._onUpHandler);
+        document.removeEventListener("pointercancel", this._onUpHandler);
+        this._onUpHandler = null;
+      }
     }
 
     renderContent() {
@@ -1050,11 +1068,15 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         document.removeEventListener("pointermove", onMove);
         document.removeEventListener("pointerup", onUp);
         document.removeEventListener("pointercancel", onUp);
+        this._onMoveHandler = null;
+        this._onUpHandler = null;
 
         if (!started) return;
         await this._finishDrag();
       };
 
+      this._onMoveHandler = onMove;
+      this._onUpHandler = onUp;
       document.addEventListener("pointermove", onMove);
       document.addEventListener("pointerup", onUp);
       document.addEventListener("pointercancel", onUp);
@@ -1078,7 +1100,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
       /* insert placeholder where the card currently is, then hide card */
       cardEl.parentElement.insertBefore(placeholder, cardEl);
-      cardEl.style.display = "none";
+      cardEl.classList.add("is-dragging-source");
 
       this._drag = {
         card,
@@ -1088,6 +1110,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         offsetX: startX - rect.left,
         offsetY: startY - rect.top,
         targetStatus: card.status || "Todo",
+        isOverValidTarget: true,
       };
     }
 
@@ -1112,13 +1135,17 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         }
       }
 
-      if (!targetList) return;
+      if (!targetList) {
+        d.isOverValidTarget = false;
+        return;
+      }
 
+      d.isOverValidTarget = true;
       d.targetStatus = targetList.dataset.status;
       targetList.classList.add("is-drag-target");
 
-      /* find insertion point among real cards (skip placeholder) */
-      const cardEls = [...targetList.querySelectorAll(".smart-kanban-card:not([style*='display: none'])")];
+      /* find insertion point among real cards (skip hidden source card) */
+      const cardEls = [...targetList.querySelectorAll(".smart-kanban-card:not(.is-dragging-source)")];
       let insertBefore = null;
       for (const c of cardEls) {
         const cr = c.getBoundingClientRect();
@@ -1144,18 +1171,16 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       d.ghost.remove();
       this.boardEl.querySelectorAll(".is-drag-target").forEach((el) => el.classList.remove("is-drag-target"));
 
-      const targetStatus = d.targetStatus;
-
-      if (!targetStatus) {
-        /* no valid target — restore card to original position */
+      if (!d.isOverValidTarget) {
+        /* pointer was outside all lanes — restore card to original position */
         d.placeholder.replaceWith(d.cardEl);
-        d.cardEl.style.display = "";
+        d.cardEl.classList.remove("is-dragging-source");
         return;
       }
 
       /* move the real card element to where the placeholder is */
       d.placeholder.replaceWith(d.cardEl);
-      d.cardEl.style.display = "";
+      d.cardEl.classList.remove("is-dragging-source");
 
       /* read DOM order for ALL visible lanes and persist to data.json */
       if (!this.plugin.settings.cardOrder) this.plugin.settings.cardOrder = {};
@@ -1171,6 +1196,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
       /* update status if moved to a different lane */
       const oldStatus = d.card.status || "Todo";
+      const targetStatus = d.targetStatus;
       if (targetStatus !== oldStatus) {
         await this.plugin.updateCardStatus(d.card, targetStatus);
       }
@@ -1181,6 +1207,11 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
     }
 
     async onClose() {
+      this._cancelDrag();
+      if (this._dragReloadTimer) {
+        clearTimeout(this._dragReloadTimer);
+        this._dragReloadTimer = null;
+      }
       if (this._clickOutsideHandler) {
         document.removeEventListener("click", this._clickOutsideHandler);
       }
