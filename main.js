@@ -1151,6 +1151,7 @@ var require_view = __commonJS({
           this._dropdownCleanups = [];
           this.collapsedLanes = /* @__PURE__ */ new Set();
           this.viewMode = "board";
+          this._drag = null;
         }
         getViewType() {
           return VIEW_TYPE_SMART_KANBAN2;
@@ -1718,69 +1719,6 @@ var require_view = __commonJS({
             if (!isCollapsed) {
               const list = lane.createDiv({ cls: "smart-kanban-card-list" });
               list.dataset.status = status;
-              let dropInsertBeforeId = null;
-              list.addEventListener("dragover", (event) => {
-                event.preventDefault();
-                list.addClass("is-drag-target");
-                lane.addClass("is-drag-target");
-                const indicator = list.querySelector(".smart-kanban-drop-indicator");
-                if (indicator) indicator.remove();
-                const cardEls = [...list.querySelectorAll(".smart-kanban-card")];
-                let insertBefore = null;
-                for (const c of cardEls) {
-                  const cRect = c.getBoundingClientRect();
-                  if (event.clientY < cRect.top + cRect.height / 2) {
-                    insertBefore = c;
-                    break;
-                  }
-                }
-                dropInsertBeforeId = insertBefore ? insertBefore.dataset.cardId : null;
-                const line = document.createElement("div");
-                line.className = "smart-kanban-drop-indicator";
-                if (insertBefore) {
-                  list.insertBefore(line, insertBefore);
-                } else {
-                  list.appendChild(line);
-                }
-              });
-              list.addEventListener("dragleave", (event) => {
-                if (!list.contains(event.relatedTarget)) {
-                  list.removeClass("is-drag-target");
-                  lane.removeClass("is-drag-target");
-                  const indicator = list.querySelector(".smart-kanban-drop-indicator");
-                  if (indicator) indicator.remove();
-                }
-              });
-              list.addEventListener("drop", async (event) => {
-                event.preventDefault();
-                list.removeClass("is-drag-target");
-                lane.removeClass("is-drag-target");
-                const indicator = list.querySelector(".smart-kanban-drop-indicator");
-                if (indicator) indicator.remove();
-                document.querySelectorAll(".is-drag-target").forEach((el) => el.removeClass ? el.removeClass("is-drag-target") : el.classList.remove("is-drag-target"));
-                const id = event.dataTransfer.getData("text/plain");
-                if (!id) return;
-                const card = this.cards.find((c) => c.id === id);
-                if (!card) return;
-                const targetCards = laneCards.filter((c) => c.id !== card.id);
-                let newSort = 0;
-                if (targetCards.length === 0) {
-                  newSort = 0;
-                } else if (!dropInsertBeforeId) {
-                  newSort = (targetCards[targetCards.length - 1].kanbanSort || 0) + 1e3;
-                } else {
-                  const idx = targetCards.findIndex((c) => c.id === dropInsertBeforeId);
-                  if (idx <= 0) {
-                    newSort = (targetCards[0].kanbanSort || 0) - 1e3;
-                  } else {
-                    const prev = targetCards[idx - 1].kanbanSort || 0;
-                    const next = targetCards[idx].kanbanSort || 0;
-                    newSort = (prev + next) / 2;
-                  }
-                }
-                await this.plugin.updateCardSortOrder(card, newSort, status);
-                await this.reload();
-              });
               for (const card of laneCards) {
                 this.renderCard(list, card);
               }
@@ -1904,14 +1842,12 @@ var require_view = __commonJS({
         renderCard(parent, card) {
           const cardEl = parent.createDiv({ cls: "smart-kanban-card" });
           cardEl.dataset.cardId = card.id;
-          cardEl.setAttr("draggable", "true");
           cardEl.setAttr("tabindex", "0");
-          cardEl.addEventListener("dragstart", (event) => {
-            event.dataTransfer.setData("text/plain", card.id);
-            cardEl.addClass("is-dragging");
-          });
-          cardEl.addEventListener("dragend", () => {
-            cardEl.removeClass("is-dragging");
+          cardEl.addEventListener("pointerdown", (e) => {
+            if (e.button !== 0) return;
+            if (e.target.closest("a, button, select, input")) return;
+            e.preventDefault();
+            this._startDrag(e, cardEl, card);
           });
           if (card.dueInfo && card.dueInfo.cls) {
             cardEl.addClass(card.dueInfo.cls);
@@ -2099,6 +2035,124 @@ var require_view = __commonJS({
             }
             return true;
           });
+        }
+        /* ── Pointer-based drag & drop ── */
+        _startDrag(e, cardEl, card) {
+          const startX = e.clientX;
+          const startY = e.clientY;
+          const threshold = 5;
+          let started = false;
+          const onMove = (me) => {
+            const dx = me.clientX - startX;
+            const dy = me.clientY - startY;
+            if (!started) {
+              if (Math.abs(dx) < threshold && Math.abs(dy) < threshold) return;
+              started = true;
+              this._initDragOverlay(cardEl, card, startX, startY);
+            }
+            this._moveDrag(me.clientX, me.clientY);
+          };
+          const onUp = async (ue) => {
+            document.removeEventListener("pointermove", onMove);
+            document.removeEventListener("pointerup", onUp);
+            document.removeEventListener("pointercancel", onUp);
+            if (!started) return;
+            await this._finishDrag(ue.clientX, ue.clientY);
+          };
+          document.addEventListener("pointermove", onMove);
+          document.addEventListener("pointerup", onUp);
+          document.addEventListener("pointercancel", onUp);
+        }
+        _initDragOverlay(cardEl, card, startX, startY) {
+          const rect = cardEl.getBoundingClientRect();
+          const ghost = cardEl.cloneNode(true);
+          ghost.className = "smart-kanban-card smart-kanban-drag-ghost";
+          ghost.style.cssText = `position:fixed;z-index:9999;width:${rect.width}px;pointer-events:none;opacity:0.85;transform:rotate(2deg);box-shadow:0 8px 24px rgba(0,0,0,0.18);`;
+          ghost.style.left = `${rect.left}px`;
+          ghost.style.top = `${rect.top}px`;
+          document.body.appendChild(ghost);
+          cardEl.addClass("is-dragging");
+          this._drag = {
+            card,
+            cardEl,
+            ghost,
+            offsetX: startX - rect.left,
+            offsetY: startY - rect.top,
+            insertBeforeId: null,
+            targetStatus: null
+          };
+        }
+        _moveDrag(cx, cy) {
+          const d = this._drag;
+          if (!d) return;
+          d.ghost.style.left = `${cx - d.offsetX}px`;
+          d.ghost.style.top = `${cy - d.offsetY}px`;
+          this.boardEl.querySelectorAll(".smart-kanban-drop-indicator").forEach((el) => el.remove());
+          this.boardEl.querySelectorAll(".is-drag-target").forEach((el) => el.classList.remove("is-drag-target"));
+          const lists = [...this.boardEl.querySelectorAll(".smart-kanban-card-list")];
+          let targetList = null;
+          for (const list of lists) {
+            const lr = list.getBoundingClientRect();
+            if (cx >= lr.left && cx <= lr.right && cy >= lr.top - 20 && cy <= lr.bottom + 20) {
+              targetList = list;
+              break;
+            }
+          }
+          if (!targetList) {
+            d.targetStatus = null;
+            d.insertBeforeId = null;
+            return;
+          }
+          d.targetStatus = targetList.dataset.status;
+          targetList.classList.add("is-drag-target");
+          const cardEls = [...targetList.querySelectorAll(".smart-kanban-card:not(.is-dragging)")];
+          let insertBefore = null;
+          for (const c of cardEls) {
+            const cr = c.getBoundingClientRect();
+            if (cy < cr.top + cr.height / 2) {
+              insertBefore = c;
+              break;
+            }
+          }
+          d.insertBeforeId = insertBefore ? insertBefore.dataset.cardId : null;
+          const indicator = document.createElement("div");
+          indicator.className = "smart-kanban-drop-indicator";
+          if (insertBefore) {
+            targetList.insertBefore(indicator, insertBefore);
+          } else {
+            targetList.appendChild(indicator);
+          }
+        }
+        async _finishDrag(cx, cy) {
+          const d = this._drag;
+          if (!d) return;
+          this._drag = null;
+          d.ghost.remove();
+          d.cardEl.removeClass("is-dragging");
+          this.boardEl.querySelectorAll(".smart-kanban-drop-indicator").forEach((el) => el.remove());
+          this.boardEl.querySelectorAll(".is-drag-target").forEach((el) => el.classList.remove("is-drag-target"));
+          if (!d.targetStatus) return;
+          const filtered = this.filteredCards();
+          const targetLaneCards = this.plugin.sortCards(
+            filtered.filter((c) => (c.status || "Todo") === d.targetStatus && c.id !== d.card.id)
+          );
+          let newSort = 0;
+          if (targetLaneCards.length === 0) {
+            newSort = 0;
+          } else if (!d.insertBeforeId) {
+            newSort = (targetLaneCards[targetLaneCards.length - 1].kanbanSort || 0) + 1e3;
+          } else {
+            const idx = targetLaneCards.findIndex((c) => c.id === d.insertBeforeId);
+            if (idx <= 0) {
+              newSort = (targetLaneCards[0].kanbanSort || 0) - 1e3;
+            } else {
+              const prev = targetLaneCards[idx - 1].kanbanSort || 0;
+              const next = targetLaneCards[idx].kanbanSort || 0;
+              newSort = (prev + next) / 2;
+            }
+          }
+          await this.plugin.updateCardSortOrder(d.card, newSort, d.targetStatus);
+          await this.reload();
         }
         async onClose() {
           if (this._clickOutsideHandler) {

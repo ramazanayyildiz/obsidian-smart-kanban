@@ -248,6 +248,7 @@
   border-radius: 8px;
   padding: 8px 10px;
   cursor: grab;
+  touch-action: none;
   transition: opacity 0.15s, box-shadow 0.15s;
 }
 
@@ -401,9 +402,14 @@
   background: var(--background-primary);
 }
 
-/* Drag ghost */
+/* Drag states */
 .smart-kanban-card.is-dragging {
-  opacity: 0.3;
+  opacity: 0.25;
+  border-style: dashed;
+}
+
+.smart-kanban-drag-ghost {
+  transition: none;
 }
 
 /* Drop zone highlighting */
