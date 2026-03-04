@@ -191,6 +191,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
     renderContent() {
       if (this.viewMode === "table") this.renderTable();
+      else if (this.viewMode === "feed") this.renderFeed();
       else if (this.viewMode === "list") this.renderList();
       else this.renderBoard();
     }
@@ -199,7 +200,9 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       this.headerEl.empty();
 
       const left = this.headerEl.createDiv({ cls: "smart-kanban-header-left" });
-      left.createEl("h2", { text: "Smart Kanban", cls: "smart-kanban-title" });
+      const board = this.boardId ? this.plugin.getBoard(this.boardId) : null;
+      left.createEl("h2", { text: board?.name || "Todo", cls: "smart-kanban-title" });
+      this.buildViewModeTabs(left);
 
       const toolbar = this.headerEl.createDiv({ cls: "smart-kanban-toolbar" });
 
@@ -213,7 +216,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       searchInput.addEventListener("input", () => {
         this.filters.text = searchInput.value.trim().toLowerCase();
         this.currentPreset = "";
-        this.renderBoard();
+        this.renderContent();
       });
       const searchIcon = searchWrap.createSpan({ cls: "smart-kanban-search-icon" });
       setIcon(searchIcon, "search");
@@ -225,46 +228,30 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       this.createIconBtn(toolbar, "plus", "New Task", () => this.createTaskInteractive());
       this.createIconBtn(toolbar, "refresh-cw", "Refresh", () => this.reload());
       this.createIconBtn(toolbar, "settings", "Configure Board", () => this.configureBoardInteractive());
-      this.buildViewModeToggle(toolbar);
     }
 
-    buildViewModeToggle(parent) {
-      const wrap = parent.createDiv({ cls: "smart-kanban-viewmode-wrap" });
+    buildViewModeTabs(parent) {
+      const wrap = parent.createDiv({ cls: "smart-kanban-viewmode-tabs" });
       const modes = [
-        { key: "board", icon: "kanban-square", label: "View as board" },
-        { key: "table", icon: "table", label: "View as table" },
-        { key: "list", icon: "list", label: "View as list" },
+        { key: "board", icon: "kanban-square", label: "Board" },
+        { key: "table", icon: "table", label: "Table" },
+        { key: "feed", icon: "activity", label: "Feed" },
+        { key: "list", icon: "list", label: "List" },
       ];
-      const currentMode = modes.find((m) => m.key === this.viewMode) || modes[0];
-      const btn = wrap.createEl("button", { cls: "smart-kanban-icon-btn", attr: { title: currentMode.label } });
-      setIcon(btn, currentMode.icon);
-
-      const dropdown = wrap.createDiv({ cls: "smart-kanban-viewmode-dropdown" });
-      dropdown.style.display = "none";
-
       for (const mode of modes) {
-        const item = dropdown.createDiv({ cls: `smart-kanban-viewmode-item ${this.viewMode === mode.key ? "is-active" : ""}` });
-        const iconEl = item.createSpan({ cls: "smart-kanban-viewmode-item-icon" });
+        const item = wrap.createEl("button", {
+          cls: `smart-kanban-viewmode-tab ${this.viewMode === mode.key ? "is-active" : ""}`,
+          attr: { title: `View as ${mode.label.toLowerCase()}` },
+        });
+        const iconEl = item.createSpan({ cls: "smart-kanban-viewmode-tab-icon" });
         setIcon(iconEl, mode.icon);
         item.createSpan({ text: mode.label });
-        if (this.viewMode === mode.key) {
-          const check = item.createSpan({ cls: "smart-kanban-viewmode-check" });
-          setIcon(check, "check");
-        }
         item.addEventListener("click", () => {
           this.viewMode = mode.key;
-          dropdown.style.display = "none";
           this.buildHeader();
           this.renderContent();
         });
       }
-
-      const closeDropdown = (e) => { if (!wrap.contains(e.target)) dropdown.style.display = "none"; };
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        dropdown.style.display = dropdown.style.display === "none" ? "" : "none";
-        document.addEventListener("click", closeDropdown, { once: true });
-      });
     }
 
     createIconBtn(parent, icon, title, onClick) {
@@ -351,14 +338,15 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       }
 
       const tags = splitCsv(tagsInput);
+      const eff = this.plugin.getEffectiveSettings(this.boardId);
 
       await this.plugin.createTaskEntry(title.trim(), {
-        [this.plugin.settings.statusField]: (status || defaultStatus).trim() || defaultStatus,
-        [this.plugin.settings.categoryField]: category.trim(),
-        [this.plugin.settings.priorityField]: priority.trim(),
-        [this.plugin.settings.dueDateField]: dueDate,
-        [this.plugin.settings.tagsField]: tags,
-      });
+        [eff.statusField]: (status || defaultStatus).trim() || defaultStatus,
+        [eff.categoryField]: category.trim(),
+        [eff.priorityField]: priority.trim(),
+        [eff.dueDateField]: dueDate,
+        [eff.tagsField]: tags,
+      }, this.boardId);
 
       await this.reload();
     }
@@ -390,7 +378,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         clearBtn.addEventListener("click", () => {
           this.clearFilters();
           this.renderFilters();
-          this.renderBoard();
+          this.renderContent();
         });
       }
 
@@ -506,7 +494,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
           this.filters[key] = [];
           this.currentPreset = "";
           this.renderFilters();
-          this.renderBoard();
+          this.renderContent();
         });
       }
     }
@@ -519,7 +507,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       this.filters[key] = [...selected].sort((a, b) => a.localeCompare(b));
       this.currentPreset = "";
       this.renderFilters();
-      this.renderBoard();
+      this.renderContent();
     }
 
     applyPreset(name) {
@@ -534,7 +522,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       this.filters = this.plugin.cloneFilters(preset);
       this.currentPreset = name;
       this.renderFilters();
-      this.renderBoard();
+      this.renderContent();
     }
 
     async savePresetInteractive() {
@@ -628,11 +616,11 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         const emptyEl = this.boardEl.createDiv({ cls: "smart-kanban-empty-state" });
         emptyEl.createEl("p", { text: "No tasks match current filters." });
         const clearBtn = emptyEl.createEl("button", { text: "Clear Filters" });
-        clearBtn.addEventListener("click", () => {
-          this.clearFilters();
-          this.renderFilters();
-          this.renderBoard();
-        });
+          clearBtn.addEventListener("click", () => {
+            this.clearFilters();
+            this.renderFilters();
+            this.renderContent();
+          });
         return;
       }
 
@@ -645,14 +633,10 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
         const laneHeader = lane.createDiv({ cls: "smart-kanban-lane-header" });
         const laneColor = this.plugin.getResolvedLaneColor(status);
-        if (laneColor.bg) laneHeader.style.backgroundColor = laneColor.bg;
-        if (laneColor.text) laneHeader.style.color = laneColor.text;
+        if (laneColor.bg) laneHeader.style.setProperty("--sk-lane-accent-bg", laneColor.bg);
+        if (laneColor.text) laneHeader.style.setProperty("--sk-lane-accent-text", laneColor.text);
 
-        const collapseIcon = laneHeader.createSpan({
-          text: isCollapsed ? "\u25B6" : "\u25BC",
-          cls: "smart-kanban-collapse-icon",
-        });
-        laneHeader.createEl("h3", { text: status });
+        const laneTitle = laneHeader.createEl("h3", { text: status });
 
         laneHeader.addEventListener("click", () => {
           if (this.collapsedLanes.has(status)) this.collapsedLanes.delete(status);
@@ -663,12 +647,12 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         let laneCards = filteredCards.filter((card) => (card.status || "Todo") === status);
         laneCards = this.plugin.sortCards(laneCards);
 
-        const countWrap = laneHeader.createDiv({ cls: "smart-kanban-count-wrap" });
-        countWrap.createEl("span", { text: String(laneCards.length), cls: "smart-kanban-count" });
+        /* count right next to the title, no wrapper */
+        laneHeader.createEl("span", { text: String(laneCards.length), cls: "smart-kanban-count" });
 
         const wipLimit = this.plugin.getWipLimit(status);
         if (wipLimit > 0) {
-          const wip = countWrap.createEl("span", {
+          const wip = laneHeader.createEl("span", {
             text: `${laneCards.length}/${wipLimit}`,
             cls: "smart-kanban-wip",
           });
@@ -688,31 +672,63 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
             this.renderCard(list, card);
           }
 
+          /* Notion-style "+ New page" that expands to inline input */
           const quickAdd = lane.createDiv({ cls: "smart-kanban-quick-add" });
+          const quickLabel = quickAdd.createEl("span", {
+            text: "+ New page",
+            cls: "smart-kanban-quick-add-label",
+          });
+          if (laneColor.bg) quickLabel.style.color = laneColor.bg;
+
           const quickInput = quickAdd.createEl("input", {
             type: "text",
-            placeholder: "Add task...",
+            placeholder: "Untitled",
             cls: "smart-kanban-quick-add-input",
           });
-          const quickBtn = quickAdd.createEl("button", { text: "+", cls: "smart-kanban-quick-add-btn" });
+          quickInput.style.display = "none";
+
+          quickLabel.addEventListener("click", () => {
+            quickLabel.style.display = "none";
+            quickInput.style.display = "";
+            quickInput.focus();
+          });
 
           const doQuickAdd = async () => {
             const title = quickInput.value.trim();
-            if (!title) return;
-            const s = this.plugin.settings;
+            if (!title) {
+              quickInput.style.display = "none";
+              quickLabel.style.display = "";
+              return;
+            }
+            const s = this.plugin.getEffectiveSettings(this.boardId);
             await this.plugin.createTaskEntry(title, {
               [s.statusField]: status,
               [s.categoryField]: "",
               [s.priorityField]: "",
               [s.dueDateField]: "",
               [s.tagsField]: "",
-            });
+            }, this.boardId);
             quickInput.value = "";
+            quickInput.style.display = "none";
+            quickLabel.style.display = "";
             await this.reload();
           };
-          quickBtn.addEventListener("click", doQuickAdd);
+
           quickInput.addEventListener("keydown", (e) => {
             if (e.key === "Enter") { e.preventDefault(); doQuickAdd(); }
+            if (e.key === "Escape") {
+              quickInput.value = "";
+              quickInput.style.display = "none";
+              quickLabel.style.display = "";
+            }
+          });
+          quickInput.addEventListener("blur", () => {
+            /* small delay so Enter can fire before blur */
+            setTimeout(() => {
+              if (quickInput.style.display !== "none") {
+                doQuickAdd();
+              }
+            }, 150);
           });
         }
       }
@@ -795,8 +811,8 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         const section = this.boardEl.createDiv({ cls: "smart-kanban-list-section" });
         const header = section.createDiv({ cls: "smart-kanban-list-section-header" });
         const laneColor = this.plugin.getResolvedLaneColor(status);
-        if (laneColor.bg) header.style.borderLeftColor = laneColor.bg;
-        header.createSpan({ text: status, cls: "smart-kanban-list-section-title" });
+        const listTitle = header.createSpan({ text: status, cls: "smart-kanban-list-section-title" });
+        if (laneColor.bg) listTitle.style.color = laneColor.bg;
         header.createSpan({ text: String(laneCards.length), cls: "smart-kanban-list-section-count" });
 
         for (const card of laneCards) {
@@ -819,6 +835,40 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
           for (const tag of card.tags || []) {
             badges.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
           }
+        }
+      }
+    }
+
+    renderFeed() {
+      this.boardEl.empty();
+      this.boardEl.removeClass("smart-kanban-board");
+      this.boardEl.addClass("smart-kanban-list-wrap");
+
+      const sorted = this.plugin.sortCards(this.filteredCards());
+      if (!sorted.length) {
+        this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: "No tasks found." });
+        return;
+      }
+
+      for (const card of sorted) {
+        const row = this.boardEl.createDiv({ cls: "smart-kanban-list-item" });
+        const link = row.createEl("a", { text: card.title, href: "#", cls: "smart-kanban-list-item-title" });
+        link.addEventListener("click", async (e) => {
+          e.preventDefault();
+          const file = this.app.vault.getAbstractFileByPath(card.path);
+          if (file instanceof TFile) await this.app.workspace.getLeaf(true).openFile(file);
+        });
+
+        const badges = row.createDiv({ cls: "smart-kanban-list-item-badges" });
+        badges.createSpan({ text: card.status || "Todo", cls: "smart-kanban-badge smart-kanban-badge-category" });
+        if (card.category) badges.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+        if (card.priority) {
+          const slug = card.priority.toLowerCase().replace(/\s+/g, "-");
+          badges.createSpan({ text: card.priority, cls: `smart-kanban-badge smart-kanban-priority-badge smart-kanban-priority-${slug}` });
+        }
+        if (card.dueInfo) badges.createSpan({ text: card.dueInfo.label, cls: "smart-kanban-badge smart-kanban-due-badge" });
+        for (const tag of card.tags || []) {
+          badges.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
         }
       }
     }
@@ -919,7 +969,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       const completeItem = menu.createDiv({ text: "Mark Done", cls: "smart-kanban-menu-item" });
       completeItem.addEventListener("click", async () => {
         menu.style.display = "none";
-        await this.plugin.updateCardStatus(card, "Done");
+        await this.plugin.updateCardStatus(card, "Done", this.boardId);
         await this.reload();
         new Notice(`Completed: ${card.title}`);
       });
@@ -937,7 +987,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       moveSelect.addEventListener("change", async () => {
         if (!moveSelect.value) return;
         menu.style.display = "none";
-        await this.plugin.updateCardStatus(card, moveSelect.value);
+        await this.plugin.updateCardStatus(card, moveSelect.value, this.boardId);
         await this.reload();
       });
 
@@ -972,6 +1022,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
     }
 
     async editCardInteractive(card) {
+      const eff = this.plugin.getEffectiveSettings(this.boardId);
       const categories = this.uniqueValues("category");
       const priorities = this.uniqueValues("priority");
       const values = await this.plugin.openFormModal({
@@ -1019,11 +1070,11 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       const nextTags = splitCsv(nextTagsInput);
 
       await this.plugin.updateCardFields(card, {
-        [this.plugin.settings.categoryField]: nextCategory.trim(),
-        [this.plugin.settings.priorityField]: nextPriority.trim(),
-        [this.plugin.settings.dueDateField]: nextDue || "",
-        [this.plugin.settings.tagsField]: nextTags,
-      });
+        [eff.categoryField]: nextCategory.trim(),
+        [eff.priorityField]: nextPriority.trim(),
+        [eff.dueDateField]: nextDue || "",
+        [eff.tagsField]: nextTags,
+      }, this.boardId);
 
       await this.reload();
     }
@@ -1216,7 +1267,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       const oldStatus = d.card.status || "Todo";
       const targetStatus = d.targetStatus;
       if (targetStatus !== oldStatus) {
-        await this.plugin.updateCardStatus(d.card, targetStatus);
+        await this.plugin.updateCardStatus(d.card, targetStatus, this.boardId);
       }
 
       /* delayed reload to sync metadata changes without flickering */

@@ -360,21 +360,22 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     }
   }
 
-  async createTaskEntry(title, fields) {
-    if (this.settings.sourceMode === "tasks") {
-      await this.createTaskLine(title, fields);
+  async createTaskEntry(title, fields, boardId = "") {
+    const eff = this.getEffectiveSettings(boardId || "");
+    if (eff.sourceMode === "tasks") {
+      await this.createTaskLine(title, fields, eff);
       return;
     }
 
-    const file = await this.createTaskNote(title, fields);
+    const file = await this.createTaskNote(title, fields, eff);
     if (file) {
       await this.app.workspace.getLeaf(true).openFile(file);
       new Notice(`Created task note: ${file.basename}`);
     }
   }
 
-  async createTaskNote(title, fields) {
-    const folderPath = String(this.settings.sourceFolder || "").trim();
+  async createTaskNote(title, fields, eff = this.settings) {
+    const folderPath = String(eff.sourceFolder || "").trim();
     if (!folderPath) {
       new Notice("Source folder is empty.");
       return null;
@@ -388,8 +389,8 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     return await this.app.vault.create(filePath, `${frontmatter}\n# ${title}\n`);
   }
 
-  async createTaskLine(title, fields) {
-    const inboxFile = String(this.settings.taskInboxFile || "").trim();
+  async createTaskLine(title, fields, eff = this.settings) {
+    const inboxFile = String(eff.taskInboxFile || "").trim();
     if (!inboxFile) {
       new Notice("Task inbox file is empty.");
       return;
@@ -398,11 +399,11 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     const file = await ensureFile(this.app, inboxFile, "# Todo Tasks\n\n");
 
     const line = buildTaskChecklistLine(title, {
-      statusField: this.settings.statusField,
-      categoryField: this.settings.categoryField,
-      priorityField: this.settings.priorityField,
-      tagsField: this.settings.tagsField,
-      dueDateField: this.settings.dueDateField,
+      statusField: eff.statusField,
+      categoryField: eff.categoryField,
+      priorityField: eff.priorityField,
+      tagsField: eff.tagsField,
+      dueDateField: eff.dueDateField,
       fields,
     });
 
@@ -549,10 +550,11 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     return cards;
   }
 
-  async updateCardStatus(card, nextStatus) {
+  async updateCardStatus(card, nextStatus, boardId = "") {
+    const eff = this.getEffectiveSettings(boardId || "");
     await this.updateCardFields(card, {
-      [this.settings.statusField]: String(nextStatus || "").trim() || "Todo",
-    });
+      [eff.statusField]: String(nextStatus || "").trim() || "Todo",
+    }, boardId);
   }
 
   async saveCardOrder(cardId, sortValue) {
@@ -635,16 +637,17 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     await this.app.vault.modify(file, lines.join("\n"));
   }
 
-  async updateCardFields(card, updates) {
+  async updateCardFields(card, updates, boardId = "") {
     if (!card) return;
+    const eff = this.getEffectiveSettings(boardId || "");
     if (card.kind === "task") {
-      await this.updateTaskCardFields(card, updates);
+      await this.updateTaskCardFields(card, updates, eff);
       return;
     }
-    await this.updateNoteCardFields(card, updates);
+    await this.updateNoteCardFields(card, updates, eff);
   }
 
-  async updateNoteCardFields(card, updates) {
+  async updateNoteCardFields(card, updates, _eff = this.settings) {
     const file = this.app.vault.getAbstractFileByPath(card.path);
     if (!(file instanceof TFile)) {
       new Notice(`File not found: ${card.path}`);
@@ -666,7 +669,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     });
   }
 
-  async updateTaskCardFields(card, updates) {
+  async updateTaskCardFields(card, updates, _eff = this.settings) {
     const file = this.app.vault.getAbstractFileByPath(card.path);
     if (!(file instanceof TFile)) {
       new Notice(`File not found: ${card.path}`);

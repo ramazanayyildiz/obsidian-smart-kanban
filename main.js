@@ -1067,9 +1067,10 @@ var require_modals = __commonJS({
             if (field.type === "select") {
               input = row.createEl("select");
               const options = Array.isArray(field.options) ? field.options : [];
+              const optionLabels = field.optionLabels || {};
               for (const optionValue of options) {
                 const value = String(optionValue != null ? optionValue : "");
-                const optionText = value === "" ? field.optionLabelEmpty || "None" : value;
+                const optionText = Object.prototype.hasOwnProperty.call(optionLabels, value) ? optionLabels[value] : value === "" ? field.optionLabelEmpty || "None" : value;
                 input.createEl("option", { text: optionText, value });
               }
               input.value = String(field.value || "");
@@ -1313,13 +1314,16 @@ var require_view = __commonJS({
         }
         renderContent() {
           if (this.viewMode === "table") this.renderTable();
+          else if (this.viewMode === "feed") this.renderFeed();
           else if (this.viewMode === "list") this.renderList();
           else this.renderBoard();
         }
         buildHeader() {
           this.headerEl.empty();
           const left = this.headerEl.createDiv({ cls: "smart-kanban-header-left" });
-          left.createEl("h2", { text: "Smart Kanban", cls: "smart-kanban-title" });
+          const board = this.boardId ? this.plugin.getBoard(this.boardId) : null;
+          left.createEl("h2", { text: (board == null ? void 0 : board.name) || "Todo", cls: "smart-kanban-title" });
+          this.buildViewModeTabs(left);
           const toolbar = this.headerEl.createDiv({ cls: "smart-kanban-toolbar" });
           const searchWrap = toolbar.createDiv({ cls: "smart-kanban-search-wrap" });
           const searchInput = searchWrap.createEl("input", {
@@ -1331,7 +1335,7 @@ var require_view = __commonJS({
           searchInput.addEventListener("input", () => {
             this.filters.text = searchInput.value.trim().toLowerCase();
             this.currentPreset = "";
-            this.renderBoard();
+            this.renderContent();
           });
           const searchIcon = searchWrap.createSpan({ cls: "smart-kanban-search-icon" });
           setIcon2(searchIcon, "search");
@@ -1342,44 +1346,29 @@ var require_view = __commonJS({
           this.createIconBtn(toolbar, "plus", "New Task", () => this.createTaskInteractive());
           this.createIconBtn(toolbar, "refresh-cw", "Refresh", () => this.reload());
           this.createIconBtn(toolbar, "settings", "Configure Board", () => this.configureBoardInteractive());
-          this.buildViewModeToggle(toolbar);
         }
-        buildViewModeToggle(parent) {
-          const wrap = parent.createDiv({ cls: "smart-kanban-viewmode-wrap" });
+        buildViewModeTabs(parent) {
+          const wrap = parent.createDiv({ cls: "smart-kanban-viewmode-tabs" });
           const modes = [
-            { key: "board", icon: "kanban-square", label: "View as board" },
-            { key: "table", icon: "table", label: "View as table" },
-            { key: "list", icon: "list", label: "View as list" }
+            { key: "board", icon: "kanban-square", label: "Board" },
+            { key: "table", icon: "table", label: "Table" },
+            { key: "feed", icon: "activity", label: "Feed" },
+            { key: "list", icon: "list", label: "List" }
           ];
-          const currentMode = modes.find((m) => m.key === this.viewMode) || modes[0];
-          const btn = wrap.createEl("button", { cls: "smart-kanban-icon-btn", attr: { title: currentMode.label } });
-          setIcon2(btn, currentMode.icon);
-          const dropdown = wrap.createDiv({ cls: "smart-kanban-viewmode-dropdown" });
-          dropdown.style.display = "none";
           for (const mode of modes) {
-            const item = dropdown.createDiv({ cls: `smart-kanban-viewmode-item ${this.viewMode === mode.key ? "is-active" : ""}` });
-            const iconEl = item.createSpan({ cls: "smart-kanban-viewmode-item-icon" });
+            const item = wrap.createEl("button", {
+              cls: `smart-kanban-viewmode-tab ${this.viewMode === mode.key ? "is-active" : ""}`,
+              attr: { title: `View as ${mode.label.toLowerCase()}` }
+            });
+            const iconEl = item.createSpan({ cls: "smart-kanban-viewmode-tab-icon" });
             setIcon2(iconEl, mode.icon);
             item.createSpan({ text: mode.label });
-            if (this.viewMode === mode.key) {
-              const check = item.createSpan({ cls: "smart-kanban-viewmode-check" });
-              setIcon2(check, "check");
-            }
             item.addEventListener("click", () => {
               this.viewMode = mode.key;
-              dropdown.style.display = "none";
               this.buildHeader();
               this.renderContent();
             });
           }
-          const closeDropdown = (e) => {
-            if (!wrap.contains(e.target)) dropdown.style.display = "none";
-          };
-          btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            dropdown.style.display = dropdown.style.display === "none" ? "" : "none";
-            document.addEventListener("click", closeDropdown, { once: true });
-          });
         }
         createIconBtn(parent, icon, title, onClick) {
           const btn = parent.createEl("button", { cls: "smart-kanban-icon-btn", attr: { title, "aria-label": title } });
@@ -1461,13 +1450,14 @@ var require_view = __commonJS({
             return;
           }
           const tags = splitCsv2(tagsInput);
+          const eff = this.plugin.getEffectiveSettings(this.boardId);
           await this.plugin.createTaskEntry(title.trim(), {
-            [this.plugin.settings.statusField]: (status || defaultStatus).trim() || defaultStatus,
-            [this.plugin.settings.categoryField]: category.trim(),
-            [this.plugin.settings.priorityField]: priority.trim(),
-            [this.plugin.settings.dueDateField]: dueDate,
-            [this.plugin.settings.tagsField]: tags
-          });
+            [eff.statusField]: (status || defaultStatus).trim() || defaultStatus,
+            [eff.categoryField]: category.trim(),
+            [eff.priorityField]: priority.trim(),
+            [eff.dueDateField]: dueDate,
+            [eff.tagsField]: tags
+          }, this.boardId);
           await this.reload();
         }
         renderFilters() {
@@ -1492,7 +1482,7 @@ var require_view = __commonJS({
             clearBtn.addEventListener("click", () => {
               this.clearFilters();
               this.renderFilters();
-              this.renderBoard();
+              this.renderContent();
             });
           }
           const presetNames = Object.keys(this.plugin.settings.filterPresets || {});
@@ -1596,7 +1586,7 @@ var require_view = __commonJS({
               this.filters[key] = [];
               this.currentPreset = "";
               this.renderFilters();
-              this.renderBoard();
+              this.renderContent();
             });
           }
         }
@@ -1607,7 +1597,7 @@ var require_view = __commonJS({
           this.filters[key] = [...selected].sort((a, b) => a.localeCompare(b));
           this.currentPreset = "";
           this.renderFilters();
-          this.renderBoard();
+          this.renderContent();
         }
         applyPreset(name) {
           const preset = this.plugin.getFilterPreset(name);
@@ -1620,7 +1610,7 @@ var require_view = __commonJS({
           this.filters = this.plugin.cloneFilters(preset);
           this.currentPreset = name;
           this.renderFilters();
-          this.renderBoard();
+          this.renderContent();
         }
         async savePresetInteractive() {
           const values = await this.plugin.openFormModal({
@@ -1704,7 +1694,7 @@ var require_view = __commonJS({
             clearBtn.addEventListener("click", () => {
               this.clearFilters();
               this.renderFilters();
-              this.renderBoard();
+              this.renderContent();
             });
             return;
           }
@@ -1715,13 +1705,9 @@ var require_view = __commonJS({
             if (isCollapsed) lane.addClass("is-collapsed");
             const laneHeader = lane.createDiv({ cls: "smart-kanban-lane-header" });
             const laneColor = this.plugin.getResolvedLaneColor(status);
-            if (laneColor.bg) laneHeader.style.backgroundColor = laneColor.bg;
-            if (laneColor.text) laneHeader.style.color = laneColor.text;
-            const collapseIcon = laneHeader.createSpan({
-              text: isCollapsed ? "\u25B6" : "\u25BC",
-              cls: "smart-kanban-collapse-icon"
-            });
-            laneHeader.createEl("h3", { text: status });
+            if (laneColor.bg) laneHeader.style.setProperty("--sk-lane-accent-bg", laneColor.bg);
+            if (laneColor.text) laneHeader.style.setProperty("--sk-lane-accent-text", laneColor.text);
+            const laneTitle = laneHeader.createEl("h3", { text: status });
             laneHeader.addEventListener("click", () => {
               if (this.collapsedLanes.has(status)) this.collapsedLanes.delete(status);
               else this.collapsedLanes.add(status);
@@ -1729,11 +1715,10 @@ var require_view = __commonJS({
             });
             let laneCards = filteredCards.filter((card) => (card.status || "Todo") === status);
             laneCards = this.plugin.sortCards(laneCards);
-            const countWrap = laneHeader.createDiv({ cls: "smart-kanban-count-wrap" });
-            countWrap.createEl("span", { text: String(laneCards.length), cls: "smart-kanban-count" });
+            laneHeader.createEl("span", { text: String(laneCards.length), cls: "smart-kanban-count" });
             const wipLimit = this.plugin.getWipLimit(status);
             if (wipLimit > 0) {
-              const wip = countWrap.createEl("span", {
+              const wip = laneHeader.createEl("span", {
                 text: `${laneCards.length}/${wipLimit}`,
                 cls: "smart-kanban-wip"
               });
@@ -1749,32 +1734,59 @@ var require_view = __commonJS({
                 this.renderCard(list, card);
               }
               const quickAdd = lane.createDiv({ cls: "smart-kanban-quick-add" });
+              const quickLabel = quickAdd.createEl("span", {
+                text: "+ New page",
+                cls: "smart-kanban-quick-add-label"
+              });
+              if (laneColor.bg) quickLabel.style.color = laneColor.bg;
               const quickInput = quickAdd.createEl("input", {
                 type: "text",
-                placeholder: "Add task...",
+                placeholder: "Untitled",
                 cls: "smart-kanban-quick-add-input"
               });
-              const quickBtn = quickAdd.createEl("button", { text: "+", cls: "smart-kanban-quick-add-btn" });
+              quickInput.style.display = "none";
+              quickLabel.addEventListener("click", () => {
+                quickLabel.style.display = "none";
+                quickInput.style.display = "";
+                quickInput.focus();
+              });
               const doQuickAdd = async () => {
                 const title = quickInput.value.trim();
-                if (!title) return;
-                const s = this.plugin.settings;
+                if (!title) {
+                  quickInput.style.display = "none";
+                  quickLabel.style.display = "";
+                  return;
+                }
+                const s = this.plugin.getEffectiveSettings(this.boardId);
                 await this.plugin.createTaskEntry(title, {
                   [s.statusField]: status,
                   [s.categoryField]: "",
                   [s.priorityField]: "",
                   [s.dueDateField]: "",
                   [s.tagsField]: ""
-                });
+                }, this.boardId);
                 quickInput.value = "";
+                quickInput.style.display = "none";
+                quickLabel.style.display = "";
                 await this.reload();
               };
-              quickBtn.addEventListener("click", doQuickAdd);
               quickInput.addEventListener("keydown", (e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
                   doQuickAdd();
                 }
+                if (e.key === "Escape") {
+                  quickInput.value = "";
+                  quickInput.style.display = "none";
+                  quickLabel.style.display = "";
+                }
+              });
+              quickInput.addEventListener("blur", () => {
+                setTimeout(() => {
+                  if (quickInput.style.display !== "none") {
+                    doQuickAdd();
+                  }
+                }, 150);
               });
             }
           }
@@ -1841,8 +1853,8 @@ var require_view = __commonJS({
             const section = this.boardEl.createDiv({ cls: "smart-kanban-list-section" });
             const header = section.createDiv({ cls: "smart-kanban-list-section-header" });
             const laneColor = this.plugin.getResolvedLaneColor(status);
-            if (laneColor.bg) header.style.borderLeftColor = laneColor.bg;
-            header.createSpan({ text: status, cls: "smart-kanban-list-section-title" });
+            const listTitle = header.createSpan({ text: status, cls: "smart-kanban-list-section-title" });
+            if (laneColor.bg) listTitle.style.color = laneColor.bg;
             header.createSpan({ text: String(laneCards.length), cls: "smart-kanban-list-section-count" });
             for (const card of laneCards) {
               const row = section.createDiv({ cls: "smart-kanban-list-item" });
@@ -1862,6 +1874,36 @@ var require_view = __commonJS({
               for (const tag of card.tags || []) {
                 badges.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
               }
+            }
+          }
+        }
+        renderFeed() {
+          this.boardEl.empty();
+          this.boardEl.removeClass("smart-kanban-board");
+          this.boardEl.addClass("smart-kanban-list-wrap");
+          const sorted = this.plugin.sortCards(this.filteredCards());
+          if (!sorted.length) {
+            this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: "No tasks found." });
+            return;
+          }
+          for (const card of sorted) {
+            const row = this.boardEl.createDiv({ cls: "smart-kanban-list-item" });
+            const link = row.createEl("a", { text: card.title, href: "#", cls: "smart-kanban-list-item-title" });
+            link.addEventListener("click", async (e) => {
+              e.preventDefault();
+              const file = this.app.vault.getAbstractFileByPath(card.path);
+              if (file instanceof TFile2) await this.app.workspace.getLeaf(true).openFile(file);
+            });
+            const badges = row.createDiv({ cls: "smart-kanban-list-item-badges" });
+            badges.createSpan({ text: card.status || "Todo", cls: "smart-kanban-badge smart-kanban-badge-category" });
+            if (card.category) badges.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+            if (card.priority) {
+              const slug = card.priority.toLowerCase().replace(/\s+/g, "-");
+              badges.createSpan({ text: card.priority, cls: `smart-kanban-badge smart-kanban-priority-badge smart-kanban-priority-${slug}` });
+            }
+            if (card.dueInfo) badges.createSpan({ text: card.dueInfo.label, cls: "smart-kanban-badge smart-kanban-due-badge" });
+            for (const tag of card.tags || []) {
+              badges.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
             }
           }
         }
@@ -1947,7 +1989,7 @@ var require_view = __commonJS({
           const completeItem = menu.createDiv({ text: "Mark Done", cls: "smart-kanban-menu-item" });
           completeItem.addEventListener("click", async () => {
             menu.style.display = "none";
-            await this.plugin.updateCardStatus(card, "Done");
+            await this.plugin.updateCardStatus(card, "Done", this.boardId);
             await this.reload();
             new Notice2(`Completed: ${card.title}`);
           });
@@ -1964,7 +2006,7 @@ var require_view = __commonJS({
           moveSelect.addEventListener("change", async () => {
             if (!moveSelect.value) return;
             menu.style.display = "none";
-            await this.plugin.updateCardStatus(card, moveSelect.value);
+            await this.plugin.updateCardStatus(card, moveSelect.value, this.boardId);
             await this.reload();
           });
           const deleteItem = menu.createDiv({ text: "Delete", cls: "smart-kanban-menu-item smart-kanban-menu-delete" });
@@ -1995,6 +2037,7 @@ var require_view = __commonJS({
           new Notice2(`Deleted: ${card.title}`);
         }
         async editCardInteractive(card) {
+          const eff = this.plugin.getEffectiveSettings(this.boardId);
           const categories = this.uniqueValues("category");
           const priorities = this.uniqueValues("priority");
           const values = await this.plugin.openFormModal({
@@ -2038,11 +2081,11 @@ var require_view = __commonJS({
           const nextTagsInput = String(values.tags || "");
           const nextTags = splitCsv2(nextTagsInput);
           await this.plugin.updateCardFields(card, {
-            [this.plugin.settings.categoryField]: nextCategory.trim(),
-            [this.plugin.settings.priorityField]: nextPriority.trim(),
-            [this.plugin.settings.dueDateField]: nextDue || "",
-            [this.plugin.settings.tagsField]: nextTags
-          });
+            [eff.categoryField]: nextCategory.trim(),
+            [eff.priorityField]: nextPriority.trim(),
+            [eff.dueDateField]: nextDue || "",
+            [eff.tagsField]: nextTags
+          }, this.boardId);
           await this.reload();
         }
         filteredCards() {
@@ -2187,7 +2230,7 @@ var require_view = __commonJS({
           const oldStatus = d.card.status || "Todo";
           const targetStatus = d.targetStatus;
           if (targetStatus !== oldStatus) {
-            await this.plugin.updateCardStatus(d.card, targetStatus);
+            await this.plugin.updateCardStatus(d.card, targetStatus, this.boardId);
           }
           if (this._dragReloadTimer) clearTimeout(this._dragReloadTimer);
           this._dragReloadTimer = setTimeout(() => this.reload(), 1500);
@@ -2815,19 +2858,20 @@ module.exports = class SmartKanbanPlugin extends Plugin {
       if (leaf.view && typeof leaf.view.reload === "function") leaf.view.reload();
     }
   }
-  async createTaskEntry(title, fields) {
-    if (this.settings.sourceMode === "tasks") {
-      await this.createTaskLine(title, fields);
+  async createTaskEntry(title, fields, boardId = "") {
+    const eff = this.getEffectiveSettings(boardId || "");
+    if (eff.sourceMode === "tasks") {
+      await this.createTaskLine(title, fields, eff);
       return;
     }
-    const file = await this.createTaskNote(title, fields);
+    const file = await this.createTaskNote(title, fields, eff);
     if (file) {
       await this.app.workspace.getLeaf(true).openFile(file);
       new Notice(`Created task note: ${file.basename}`);
     }
   }
-  async createTaskNote(title, fields) {
-    const folderPath = String(this.settings.sourceFolder || "").trim();
+  async createTaskNote(title, fields, eff = this.settings) {
+    const folderPath = String(eff.sourceFolder || "").trim();
     if (!folderPath) {
       new Notice("Source folder is empty.");
       return null;
@@ -2840,19 +2884,19 @@ module.exports = class SmartKanbanPlugin extends Plugin {
 # ${title}
 `);
   }
-  async createTaskLine(title, fields) {
-    const inboxFile = String(this.settings.taskInboxFile || "").trim();
+  async createTaskLine(title, fields, eff = this.settings) {
+    const inboxFile = String(eff.taskInboxFile || "").trim();
     if (!inboxFile) {
       new Notice("Task inbox file is empty.");
       return;
     }
     const file = await ensureFile(this.app, inboxFile, "# Todo Tasks\n\n");
     const line = buildTaskChecklistLine(title, {
-      statusField: this.settings.statusField,
-      categoryField: this.settings.categoryField,
-      priorityField: this.settings.priorityField,
-      tagsField: this.settings.tagsField,
-      dueDateField: this.settings.dueDateField,
+      statusField: eff.statusField,
+      categoryField: eff.categoryField,
+      priorityField: eff.priorityField,
+      tagsField: eff.tagsField,
+      dueDateField: eff.dueDateField,
       fields
     });
     const current = await this.app.vault.read(file);
@@ -2978,10 +3022,11 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     }
     return cards;
   }
-  async updateCardStatus(card, nextStatus) {
+  async updateCardStatus(card, nextStatus, boardId = "") {
+    const eff = this.getEffectiveSettings(boardId || "");
     await this.updateCardFields(card, {
-      [this.settings.statusField]: String(nextStatus || "").trim() || "Todo"
-    });
+      [eff.statusField]: String(nextStatus || "").trim() || "Todo"
+    }, boardId);
   }
   async saveCardOrder(cardId, sortValue) {
     if (!this.settings.cardOrder) this.settings.cardOrder = {};
@@ -3057,15 +3102,16 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     lines[index] = `${prefix}${newTitle}${fields.join("")}`;
     await this.app.vault.modify(file, lines.join("\n"));
   }
-  async updateCardFields(card, updates) {
+  async updateCardFields(card, updates, boardId = "") {
     if (!card) return;
+    const eff = this.getEffectiveSettings(boardId || "");
     if (card.kind === "task") {
-      await this.updateTaskCardFields(card, updates);
+      await this.updateTaskCardFields(card, updates, eff);
       return;
     }
-    await this.updateNoteCardFields(card, updates);
+    await this.updateNoteCardFields(card, updates, eff);
   }
-  async updateNoteCardFields(card, updates) {
+  async updateNoteCardFields(card, updates, _eff = this.settings) {
     const file = this.app.vault.getAbstractFileByPath(card.path);
     if (!(file instanceof TFile)) {
       new Notice(`File not found: ${card.path}`);
@@ -3084,7 +3130,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
       }
     });
   }
-  async updateTaskCardFields(card, updates) {
+  async updateTaskCardFields(card, updates, _eff = this.settings) {
     const file = this.app.vault.getAbstractFileByPath(card.path);
     if (!(file instanceof TFile)) {
       new Notice(`File not found: ${card.path}`);

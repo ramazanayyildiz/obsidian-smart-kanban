@@ -236,10 +236,12 @@ module.exports = function createModals({ Modal, Notice }) {
         if (field.type === "select") {
           input = row.createEl("select");
           const options = Array.isArray(field.options) ? field.options : [];
+          const optionLabels = field.optionLabels || {};
           for (const optionValue of options) {
             const value = String(optionValue ?? "");
-            const optionText =
-              value === "" ? field.optionLabelEmpty || "None" : value;
+            const optionText = Object.prototype.hasOwnProperty.call(optionLabels, value)
+              ? optionLabels[value]
+              : (value === "" ? field.optionLabelEmpty || "None" : value);
             input.createEl("option", { text: optionText, value });
           }
           input.value = String(field.value || "");
