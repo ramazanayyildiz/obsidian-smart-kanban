@@ -8,7 +8,7 @@ const {
   updateTaskLineFields,
   parseWipLimits,
   sortCards,
-} = require("../core");
+} = require("../src/core");
 
 test("normalizeDateInput handles ISO and invalid values", () => {
   assert.equal(normalizeDateInput("2026-02-14"), "2026-02-14");

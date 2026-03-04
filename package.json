@@ -1,12 +1,17 @@
 {
-  "name": "obsidian-smart-kanban-local",
+  "name": "obsidian-smart-kanban",
   "private": true,
   "version": "0.1.0",
   "main": "main.js",
   "type": "commonjs",
   "scripts": {
+    "build": "node esbuild.config.mjs production",
+    "dev": "node esbuild.config.mjs",
     "test": "node --test tests/core.test.js",
-    "check": "node --check main.js && node --check core.js && node --check constants.js && node --check core-fallback.js && node --check utils.js && node --check modals.js && node --check view.js && node --check settings-tab.js",
+    "check": "node --check src/main.js && node --check src/core.js && node --check src/constants.js && node --check src/core-fallback.js && node --check src/utils.js && node --check src/modals.js && node --check src/view.js && node --check src/settings-tab.js",
     "release-check": "node scripts/release-check.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.21.0"
   }
 }

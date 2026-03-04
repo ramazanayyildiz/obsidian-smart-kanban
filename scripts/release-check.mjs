@@ -7,14 +7,18 @@ const run = (cmd) => {
 
 const dir = ".obsidian/plugins/obsidian-smart-kanban";
 
+// Check source files
+for (const f of ["main.js", "core.js", "constants.js", "core-fallback.js", "utils.js", "modals.js", "view.js", "settings-tab.js"]) {
+  run(`node --check ${dir}/src/${f}`);
+}
+
+// Build
+run(`cd "${dir}" && npm run build`);
+
+// Check bundled output
 run(`node --check ${dir}/main.js`);
-run(`node --check ${dir}/core.js`);
-run(`node --check ${dir}/constants.js`);
-run(`node --check ${dir}/core-fallback.js`);
-run(`node --check ${dir}/utils.js`);
-run(`node --check ${dir}/modals.js`);
-run(`node --check ${dir}/view.js`);
-run(`node --check ${dir}/settings-tab.js`);
+
+// Run tests
 run(`node --test ${dir}/tests/core.test.js`);
 
 console.log("Release checks passed.");
