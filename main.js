@@ -217,7 +217,8 @@ var require_constants = __commonJS({
       boards: [],
       activeBoardId: "",
       autoArchiveDays: 0,
-      theme: { preset: "default", overrides: {}, laneColors: {} }
+      theme: { preset: "default", overrides: {}, laneColors: {} },
+      cardOrder: {}
     };
     module2.exports = { VIEW_TYPE_SMART_KANBAN: VIEW_TYPE_SMART_KANBAN2, THEME_PRESETS: THEME_PRESETS2, DEFAULT_SETTINGS: DEFAULT_SETTINGS2 };
   }
@@ -338,9 +339,10 @@ var require_core = __commonJS({
       }
       return map;
     }
-    function sortCards2(cards, sortBy, sortDirection, priorityOrderMap) {
+    function sortCards2(cards, sortBy, sortDirection, priorityOrderMap, cardOrder) {
       if (sortBy === "none") {
-        return [...cards].sort((a, b) => (a.kanbanSort || 0) - (b.kanbanSort || 0));
+        const order = cardOrder || {};
+        return [...cards].sort((a, b) => (order[a.id] || 0) - (order[b.id] || 0));
       }
       const direction = sortDirection === "desc" ? -1 : 1;
       const priorities = priorityOrderMap instanceof Map ? priorityOrderMap : /* @__PURE__ */ new Map();
@@ -2153,6 +2155,7 @@ var require_view = __commonJS({
           this.boardEl.querySelectorAll(".is-drag-target").forEach((el) => el.classList.remove("is-drag-target"));
           const target = this._detectDropTarget(cx, cy);
           if (!target) return;
+          const order = this.plugin.settings.cardOrder || {};
           const filtered = this.filteredCards();
           const targetLaneCards = this.plugin.sortCards(
             filtered.filter((c) => (c.status || "Todo") === target.status && c.id !== d.card.id)
@@ -2161,19 +2164,22 @@ var require_view = __commonJS({
           if (targetLaneCards.length === 0) {
             newSort = 0;
           } else if (!target.insertBeforeId) {
-            newSort = (targetLaneCards[targetLaneCards.length - 1].kanbanSort || 0) + 1e3;
+            newSort = (order[targetLaneCards[targetLaneCards.length - 1].id] || 0) + 1e3;
           } else {
             const idx = targetLaneCards.findIndex((c) => c.id === target.insertBeforeId);
             if (idx <= 0) {
-              newSort = (targetLaneCards[0].kanbanSort || 0) - 1e3;
+              newSort = (order[targetLaneCards[0].id] || 0) - 1e3;
             } else {
-              const prev = targetLaneCards[idx - 1].kanbanSort || 0;
-              const next = targetLaneCards[idx].kanbanSort || 0;
+              const prev = order[targetLaneCards[idx - 1].id] || 0;
+              const next = order[targetLaneCards[idx].id] || 0;
               newSort = (prev + next) / 2;
             }
           }
-          await this.plugin.updateCardSortOrder(d.card, newSort, target.status);
-          await new Promise((r) => setTimeout(r, 200));
+          await this.plugin.saveCardOrder(d.card.id, newSort);
+          if (target.status !== d.card.status) {
+            await this.plugin.updateCardStatus(d.card, target.status);
+            await new Promise((r) => setTimeout(r, 150));
+          }
           await this.reload();
         }
         async onClose() {
@@ -2668,7 +2674,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     return map;
   }
   sortCards(cards) {
-    return sortCards(cards, this.settings.sortBy || "none", this.settings.sortDirection || "asc", this.getPriorityOrderMap());
+    return sortCards(cards, this.settings.sortBy || "none", this.settings.sortDirection || "asc", this.getPriorityOrderMap(), this.settings.cardOrder);
   }
   getWipLimit(status) {
     const limits = parseWipLimits(this.settings.wipLimits);
@@ -2878,8 +2884,6 @@ module.exports = class SmartKanbanPlugin extends Plugin {
         preview = extractNotePreview(content);
       } catch (_) {
       }
-      const rawSort = fm["kanban-sort"];
-      const kanbanSort = typeof rawSort === "number" ? rawSort : 0;
       cards.push({
         id: file.path,
         kind: "note",
@@ -2893,8 +2897,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
         dueDate,
         dueTs: dueInfo ? dueInfo.sortValue : null,
         dueInfo,
-        preview,
-        kanbanSort
+        preview
       });
     }
     return cards;
@@ -2942,8 +2945,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
           customFields,
           dueDate: parsed.dueDate || "",
           dueTs: dueInfo ? dueInfo.sortValue : null,
-          dueInfo,
-          kanbanSort: idx
+          dueInfo
         });
       }
     }
@@ -2954,24 +2956,10 @@ module.exports = class SmartKanbanPlugin extends Plugin {
       [this.settings.statusField]: String(nextStatus || "").trim() || "Todo"
     });
   }
-  async updateCardSortOrder(card, newSort, newStatus) {
-    if (card.kind === "note") {
-      const file = this.app.vault.getAbstractFileByPath(card.path);
-      if (!(file instanceof TFile)) return;
-      await this.app.fileManager.processFrontMatter(file, (fm) => {
-        fm["kanban-sort"] = newSort;
-        if (newStatus !== void 0 && newStatus !== card.status) {
-          fm[this.settings.statusField] = newStatus;
-        }
-      });
-    } else {
-      const updates = {};
-      if (newStatus !== void 0 && newStatus !== card.status) {
-        updates[this.settings.statusField] = newStatus;
-      }
-      updates["kanban-sort"] = String(newSort);
-      await this.updateCardFields(card, updates);
-    }
+  async saveCardOrder(cardId, sortValue) {
+    if (!this.settings.cardOrder) this.settings.cardOrder = {};
+    this.settings.cardOrder[cardId] = sortValue;
+    await this.saveSettings();
   }
   async deleteTaskLine(card) {
     const file = this.app.vault.getAbstractFileByPath(card.path);

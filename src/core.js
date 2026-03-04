@@ -144,9 +144,10 @@ function parseWipLimits(value) {
   return map;
 }
 
-function sortCards(cards, sortBy, sortDirection, priorityOrderMap) {
+function sortCards(cards, sortBy, sortDirection, priorityOrderMap, cardOrder) {
   if (sortBy === "none") {
-    return [...cards].sort((a, b) => (a.kanbanSort || 0) - (b.kanbanSort || 0));
+    const order = cardOrder || {};
+    return [...cards].sort((a, b) => (order[a.id] || 0) - (order[b.id] || 0));
   }
 
   const direction = sortDirection === "desc" ? -1 : 1;

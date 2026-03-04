@@ -1168,6 +1168,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       const target = this._detectDropTarget(cx, cy);
       if (!target) return;
 
+      const order = this.plugin.settings.cardOrder || {};
       const filtered = this.filteredCards();
       const targetLaneCards = this.plugin.sortCards(
         filtered.filter((c) => (c.status || "Todo") === target.status && c.id !== d.card.id)
@@ -1177,21 +1178,27 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       if (targetLaneCards.length === 0) {
         newSort = 0;
       } else if (!target.insertBeforeId) {
-        newSort = (targetLaneCards[targetLaneCards.length - 1].kanbanSort || 0) + 1000;
+        newSort = (order[targetLaneCards[targetLaneCards.length - 1].id] || 0) + 1000;
       } else {
         const idx = targetLaneCards.findIndex((c) => c.id === target.insertBeforeId);
         if (idx <= 0) {
-          newSort = (targetLaneCards[0].kanbanSort || 0) - 1000;
+          newSort = (order[targetLaneCards[0].id] || 0) - 1000;
         } else {
-          const prev = targetLaneCards[idx - 1].kanbanSort || 0;
-          const next = targetLaneCards[idx].kanbanSort || 0;
+          const prev = order[targetLaneCards[idx - 1].id] || 0;
+          const next = order[targetLaneCards[idx].id] || 0;
           newSort = (prev + next) / 2;
         }
       }
 
-      await this.plugin.updateCardSortOrder(d.card, newSort, target.status);
-      /* wait for Obsidian metadata cache to update after file write */
-      await new Promise((r) => setTimeout(r, 200));
+      /* save sort order to data.json — no metadata cache dependency */
+      await this.plugin.saveCardOrder(d.card.id, newSort);
+
+      /* update status if moved to a different lane */
+      if (target.status !== d.card.status) {
+        await this.plugin.updateCardStatus(d.card, target.status);
+        await new Promise((r) => setTimeout(r, 150));
+      }
+
       await this.reload();
     }
 

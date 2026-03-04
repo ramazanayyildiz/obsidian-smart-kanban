@@ -230,7 +230,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
   }
 
   sortCards(cards) {
-    return sortCards(cards, this.settings.sortBy || "none", this.settings.sortDirection || "asc", this.getPriorityOrderMap());
+    return sortCards(cards, this.settings.sortBy || "none", this.settings.sortDirection || "asc", this.getPriorityOrderMap(), this.settings.cardOrder);
   }
 
   getWipLimit(status) {
@@ -473,9 +473,6 @@ module.exports = class SmartKanbanPlugin extends Plugin {
         preview = extractNotePreview(content);
       } catch (_) { /* ignore */ }
 
-      const rawSort = fm["kanban-sort"];
-      const kanbanSort = typeof rawSort === "number" ? rawSort : 0;
-
       cards.push({
         id: file.path,
         kind: "note",
@@ -490,7 +487,6 @@ module.exports = class SmartKanbanPlugin extends Plugin {
         dueTs: dueInfo ? dueInfo.sortValue : null,
         dueInfo,
         preview,
-        kanbanSort,
       });
     }
     return cards;
@@ -546,7 +542,6 @@ module.exports = class SmartKanbanPlugin extends Plugin {
           dueDate: parsed.dueDate || "",
           dueTs: dueInfo ? dueInfo.sortValue : null,
           dueInfo,
-          kanbanSort: idx,
         });
       }
     }
@@ -560,24 +555,10 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     });
   }
 
-  async updateCardSortOrder(card, newSort, newStatus) {
-    if (card.kind === "note") {
-      const file = this.app.vault.getAbstractFileByPath(card.path);
-      if (!(file instanceof TFile)) return;
-      await this.app.fileManager.processFrontMatter(file, (fm) => {
-        fm["kanban-sort"] = newSort;
-        if (newStatus !== undefined && newStatus !== card.status) {
-          fm[this.settings.statusField] = newStatus;
-        }
-      });
-    } else {
-      const updates = {};
-      if (newStatus !== undefined && newStatus !== card.status) {
-        updates[this.settings.statusField] = newStatus;
-      }
-      updates["kanban-sort"] = String(newSort);
-      await this.updateCardFields(card, updates);
-    }
+  async saveCardOrder(cardId, sortValue) {
+    if (!this.settings.cardOrder) this.settings.cardOrder = {};
+    this.settings.cardOrder[cardId] = sortValue;
+    await this.saveSettings();
   }
 
   async deleteTaskLine(card) {

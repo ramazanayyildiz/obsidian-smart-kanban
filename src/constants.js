@@ -135,6 +135,7 @@ const DEFAULT_SETTINGS = {
   activeBoardId: "",
   autoArchiveDays: 0,
   theme: { preset: "default", overrides: {}, laneColors: {} },
+  cardOrder: {},
 };
 
 module.exports = { VIEW_TYPE_SMART_KANBAN, THEME_PRESETS, DEFAULT_SETTINGS };
