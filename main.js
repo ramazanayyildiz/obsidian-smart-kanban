@@ -2123,6 +2123,26 @@ var require_view = __commonJS({
             targetList.appendChild(indicator);
           }
         }
+        _detectDropTarget(cx, cy) {
+          const lists = [...this.boardEl.querySelectorAll(".smart-kanban-card-list")];
+          for (const list of lists) {
+            const lr = list.getBoundingClientRect();
+            if (cx >= lr.left && cx <= lr.right && cy >= lr.top - 30 && cy <= lr.bottom + 30) {
+              const status = list.dataset.status;
+              const cardEls = [...list.querySelectorAll(".smart-kanban-card:not(.is-dragging)")];
+              let insertBeforeId = null;
+              for (const c of cardEls) {
+                const cr = c.getBoundingClientRect();
+                if (cy < cr.top + cr.height / 2) {
+                  insertBeforeId = c.dataset.cardId;
+                  break;
+                }
+              }
+              return { status, insertBeforeId };
+            }
+          }
+          return null;
+        }
         async _finishDrag(cx, cy) {
           const d = this._drag;
           if (!d) return;
@@ -2131,18 +2151,19 @@ var require_view = __commonJS({
           d.cardEl.removeClass("is-dragging");
           this.boardEl.querySelectorAll(".smart-kanban-drop-indicator").forEach((el) => el.remove());
           this.boardEl.querySelectorAll(".is-drag-target").forEach((el) => el.classList.remove("is-drag-target"));
-          if (!d.targetStatus) return;
+          const target = this._detectDropTarget(cx, cy);
+          if (!target) return;
           const filtered = this.filteredCards();
           const targetLaneCards = this.plugin.sortCards(
-            filtered.filter((c) => (c.status || "Todo") === d.targetStatus && c.id !== d.card.id)
+            filtered.filter((c) => (c.status || "Todo") === target.status && c.id !== d.card.id)
           );
           let newSort = 0;
           if (targetLaneCards.length === 0) {
             newSort = 0;
-          } else if (!d.insertBeforeId) {
+          } else if (!target.insertBeforeId) {
             newSort = (targetLaneCards[targetLaneCards.length - 1].kanbanSort || 0) + 1e3;
           } else {
-            const idx = targetLaneCards.findIndex((c) => c.id === d.insertBeforeId);
+            const idx = targetLaneCards.findIndex((c) => c.id === target.insertBeforeId);
             if (idx <= 0) {
               newSort = (targetLaneCards[0].kanbanSort || 0) - 1e3;
             } else {
@@ -2151,7 +2172,8 @@ var require_view = __commonJS({
               newSort = (prev + next) / 2;
             }
           }
-          await this.plugin.updateCardSortOrder(d.card, newSort, d.targetStatus);
+          await this.plugin.updateCardSortOrder(d.card, newSort, target.status);
+          await new Promise((r) => setTimeout(r, 200));
           await this.reload();
         }
         async onClose() {
