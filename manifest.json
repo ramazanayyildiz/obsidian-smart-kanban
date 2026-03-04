@@ -1,0 +1,9 @@
+{
+  "id": "obsidian-smart-kanban",
+  "name": "Smart Kanban",
+  "version": "0.1.0",
+  "minAppVersion": "1.5.0",
+  "description": "Kanban board with metadata filters backed by note frontmatter.",
+  "author": "Ramazan + Codex",
+  "isDesktopOnly": false
+}
