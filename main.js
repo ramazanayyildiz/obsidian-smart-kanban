@@ -1861,6 +1861,7 @@ var require_view = __commonJS({
         renderCard(parent, card) {
           const cardEl = parent.createDiv({ cls: "smart-kanban-card" });
           cardEl.dataset.cardId = card.id;
+          if (card.priority) cardEl.dataset.priority = card.priority.toLowerCase().replace(/\s+/g, "-");
           cardEl.setAttr("tabindex", "0");
           cardEl.addEventListener("pointerdown", (e) => {
             if (e.button !== 0) return;
@@ -2198,6 +2199,13 @@ var require_view = __commonJS({
 var require_settings_tab = __commonJS({
   "src/settings-tab.js"(exports2, module2) {
     module2.exports = function createSettingsTab({ PluginSettingTab: PluginSettingTab2, Setting: Setting2, Notice: Notice2, DEFAULT_SETTINGS: DEFAULT_SETTINGS2, THEME_PRESETS: THEME_PRESETS2 }) {
+      function section(containerEl, title, desc) {
+        const el = containerEl.createDiv({ cls: "sk-settings-section" });
+        const header = el.createDiv({ cls: "sk-settings-section-header" });
+        header.createEl("h3", { text: title, cls: "sk-settings-section-title" });
+        if (desc) header.createEl("p", { text: desc, cls: "sk-settings-section-desc" });
+        return el;
+      }
       class SmartKanbanSettingTab2 extends PluginSettingTab2 {
         constructor(app, plugin) {
           super(app, plugin);
@@ -2206,41 +2214,44 @@ var require_settings_tab = __commonJS({
         display() {
           const { containerEl } = this;
           containerEl.empty();
-          new Setting2(containerEl).setName("Source mode").setDesc("Use per-note cards or checklist task lines.").addDropdown(
+          const srcSection = section(containerEl, "Data Source", "Where your tasks come from.");
+          new Setting2(srcSection).setName("Source mode").setDesc("Note cards create one file per task. Task lines use checklist syntax in a single file.").addDropdown(
             (dropdown) => dropdown.addOption("notes", "Note cards").addOption("tasks", "Task lines").setValue(this.plugin.settings.sourceMode).onChange(async (value) => {
               this.plugin.settings.sourceMode = value;
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(containerEl).setName("Source folder").setDesc("Folder containing notes/tasks.").addText(
+          new Setting2(srcSection).setName("Source folder").setDesc("Folder containing your task notes or files.").addText(
             (text) => text.setPlaceholder("Tasks").setValue(this.plugin.settings.sourceFolder).onChange(async (value) => {
               this.plugin.settings.sourceFolder = value.trim();
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(containerEl).setName("Task inbox file").setDesc("Used by New Task when source mode is Task lines.").addText(
-            (text) => text.setPlaceholder("Tasks/Task Inbox.md").setValue(this.plugin.settings.taskInboxFile).onChange(async (value) => {
-              this.plugin.settings.taskInboxFile = value.trim() || "Tasks/Task Inbox.md";
-              await this.plugin.saveSettings();
-            })
-          );
-          new Setting2(containerEl).setName("Include subfolders").addToggle(
+          new Setting2(srcSection).setName("Include subfolders").setDesc("Also scan nested folders inside the source folder.").addToggle(
             (toggle) => toggle.setValue(this.plugin.settings.includeSubfolders).onChange(async (value) => {
               this.plugin.settings.includeSubfolders = value;
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          for (const [key, label] of [
-            ["statusField", "Status field"],
-            ["categoryField", "Category field"],
-            ["priorityField", "Priority field"],
-            ["tagsField", "Tags field"],
-            ["dueDateField", "Due date field"]
-          ]) {
-            new Setting2(containerEl).setName(label).addText(
+          new Setting2(srcSection).setName("Task inbox file").setDesc("File used when adding new tasks in Task Lines mode.").addText(
+            (text) => text.setPlaceholder("Tasks/Task Inbox.md").setValue(this.plugin.settings.taskInboxFile).onChange(async (value) => {
+              this.plugin.settings.taskInboxFile = value.trim() || "Tasks/Task Inbox.md";
+              await this.plugin.saveSettings();
+            })
+          );
+          const fieldSection = section(containerEl, "Field Mapping", "Map your frontmatter or inline fields to Kanban properties.");
+          const fieldDefs = [
+            ["statusField", "Status field", "Determines which lane a card appears in."],
+            ["categoryField", "Category field", "Optional grouping label shown as a badge."],
+            ["priorityField", "Priority field", "Sets priority level (Urgent, High, Medium, Low)."],
+            ["tagsField", "Tags field", "Comma-separated tags displayed on the card."],
+            ["dueDateField", "Due date field", "Date in YYYY-MM-DD format for due tracking."]
+          ];
+          for (const [key, label, desc] of fieldDefs) {
+            new Setting2(fieldSection).setName(label).setDesc(desc).addText(
               (text) => text.setValue(this.plugin.settings[key]).onChange(async (value) => {
                 this.plugin.settings[key] = value.trim() || DEFAULT_SETTINGS2[key];
                 await this.plugin.saveSettings();
@@ -2248,42 +2259,43 @@ var require_settings_tab = __commonJS({
               })
             );
           }
-          new Setting2(containerEl).setName("Custom fields").setDesc("Extra frontmatter/inline field keys to display on cards. Comma-separated.").addText(
-            (text) => text.setValue(this.plugin.settings.customFields).onChange(async (value) => {
+          new Setting2(fieldSection).setName("Custom fields").setDesc("Extra frontmatter keys to display on cards. Comma-separated.").addText(
+            (text) => text.setPlaceholder("effort, assignee").setValue(this.plugin.settings.customFields).onChange(async (value) => {
               this.plugin.settings.customFields = value;
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(containerEl).setName("Status order").setDesc("Comma-separated lane names.").addTextArea(
+          const layoutSection = section(containerEl, "Board Layout", "Control lane order, sorting, and work-in-progress limits.");
+          new Setting2(layoutSection).setName("Status order").setDesc("Comma-separated lane names in display order.").addTextArea(
             (text) => text.setValue(this.plugin.settings.statusOrder).onChange(async (value) => {
               this.plugin.settings.statusOrder = value;
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(containerEl).setName("Priority order").setDesc("Used when sort is Priority.").addText(
-            (text) => text.setValue(this.plugin.settings.priorityOrder).onChange(async (value) => {
+          new Setting2(layoutSection).setName("Priority order").setDesc("Defines priority ranking for sorting. Comma-separated, highest first.").addText(
+            (text) => text.setPlaceholder("Urgent,High,Medium,Low").setValue(this.plugin.settings.priorityOrder).onChange(async (value) => {
               this.plugin.settings.priorityOrder = value;
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(containerEl).setName("Sort by").addDropdown(
-            (dropdown) => dropdown.addOption("none", "None").addOption("priority", "Priority").addOption("due", "Due date").addOption("title", "Title").setValue(this.plugin.settings.sortBy).onChange(async (value) => {
+          new Setting2(layoutSection).setName("Sort by").setDesc("Default card sorting within each lane.").addDropdown(
+            (dropdown) => dropdown.addOption("none", "Manual (drag to reorder)").addOption("priority", "Priority").addOption("due", "Due date").addOption("title", "Title").setValue(this.plugin.settings.sortBy).onChange(async (value) => {
               this.plugin.settings.sortBy = value;
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(containerEl).setName("Sort direction").addDropdown(
+          new Setting2(layoutSection).setName("Sort direction").addDropdown(
             (dropdown) => dropdown.addOption("asc", "Ascending").addOption("desc", "Descending").setValue(this.plugin.settings.sortDirection).onChange(async (value) => {
               this.plugin.settings.sortDirection = value;
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(containerEl).setName("Due soon days").addText(
+          new Setting2(layoutSection).setName("Due soon threshold").setDesc("Cards due within this many days are highlighted.").addText(
             (text) => text.setValue(String(this.plugin.settings.dueSoonDays)).onChange(async (value) => {
               const parsed = Number.parseInt(value, 10);
               this.plugin.settings.dueSoonDays = Number.isFinite(parsed) && parsed >= 0 ? parsed : 2;
@@ -2291,21 +2303,14 @@ var require_settings_tab = __commonJS({
               this.plugin.refreshViews();
             })
           );
-          new Setting2(containerEl).setName("WIP limits").setDesc("Format: Todo:10,In Progress:3").addTextArea(
+          new Setting2(layoutSection).setName("WIP limits").setDesc("Limit cards per lane. Format: Todo:10, In Progress:3").addTextArea(
             (text) => text.setValue(this.plugin.settings.wipLimits).onChange(async (value) => {
               this.plugin.settings.wipLimits = value;
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(containerEl).setName("Refresh debounce (ms)").addText(
-            (text) => text.setValue(String(this.plugin.settings.refreshDebounceMs)).onChange(async (value) => {
-              const parsed = Number.parseInt(value, 10);
-              this.plugin.settings.refreshDebounceMs = Number.isFinite(parsed) && parsed >= 0 ? parsed : 250;
-              await this.plugin.saveSettings();
-            })
-          );
-          new Setting2(containerEl).setName("Auto-archive done (days)").setDesc("Hide Done cards older than X days. 0 = disabled.").addText(
+          new Setting2(layoutSection).setName("Auto-archive done tasks").setDesc("Hide completed tasks older than this many days. Set to 0 to disable.").addText(
             (text) => text.setValue(String(this.plugin.settings.autoArchiveDays || 0)).onChange(async (value) => {
               const parsed = Number.parseInt(value, 10);
               this.plugin.settings.autoArchiveDays = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
@@ -2313,8 +2318,8 @@ var require_settings_tab = __commonJS({
               this.plugin.refreshViews();
             })
           );
-          containerEl.createEl("h3", { text: "Theme" });
-          new Setting2(containerEl).setName("Theme preset").addDropdown((dropdown) => {
+          const themeSection = section(containerEl, "Appearance", "Customize colors, fonts, and visual theme.");
+          new Setting2(themeSection).setName("Theme preset").setDesc("Choose a color scheme as a starting point. You can override individual colors below.").addDropdown((dropdown) => {
             for (const [key, preset] of Object.entries(THEME_PRESETS2)) {
               dropdown.addOption(key, preset.name);
             }
@@ -2327,26 +2332,34 @@ var require_settings_tab = __commonJS({
               this.display();
             });
           });
+          new Setting2(themeSection).setName("Font family").setDesc("Custom font stack for the board. Leave empty for default.").addText(
+            (text) => text.setPlaceholder("e.g. Inter, sans-serif").setValue(this.plugin.settings.theme && this.plugin.settings.theme.overrides && this.plugin.settings.theme.overrides.fontFamily || "").onChange(async (value) => {
+              if (!this.plugin.settings.theme.overrides) this.plugin.settings.theme.overrides = {};
+              this.plugin.settings.theme.overrides.fontFamily = value.trim();
+              await this.plugin.saveSettings();
+              this.plugin.refreshViews();
+            })
+          );
           const themeColorGroups = [
             {
               label: "Card Colors",
               fields: [
-                { key: "cardBg", label: "Card background" },
-                { key: "cardText", label: "Card text" },
-                { key: "cardBorder", label: "Card border" }
+                { key: "cardBg", label: "Background" },
+                { key: "cardText", label: "Text" },
+                { key: "cardBorder", label: "Border" }
               ]
             },
             {
               label: "Lane Colors",
               fields: [
-                { key: "laneBg", label: "Lane background" },
-                { key: "laneHeaderBg", label: "Lane header background" },
-                { key: "laneHeaderText", label: "Lane header text" },
-                { key: "laneBorder", label: "Lane border" }
+                { key: "laneBg", label: "Background" },
+                { key: "laneHeaderBg", label: "Header background" },
+                { key: "laneHeaderText", label: "Header text" },
+                { key: "laneBorder", label: "Border" }
               ]
             },
             {
-              label: "Priority Badges",
+              label: "Priority",
               fields: [
                 { key: "priorityUrgent", label: "Urgent" },
                 { key: "priorityHigh", label: "High" },
@@ -2355,12 +2368,12 @@ var require_settings_tab = __commonJS({
               ]
             },
             {
-              label: "Tags & Accents",
+              label: "Tags & Accent",
               fields: [
                 { key: "tagBg", label: "Tag background" },
                 { key: "tagText", label: "Tag text" },
                 { key: "tagBorder", label: "Tag border" },
-                { key: "accentColor", label: "Accent color" }
+                { key: "accentColor", label: "Accent" }
               ]
             },
             {
@@ -2380,11 +2393,11 @@ var require_settings_tab = __commonJS({
           const resolved = this.plugin.getResolvedTheme();
           const overrides = this.plugin.settings.theme && this.plugin.settings.theme.overrides || {};
           for (const group of themeColorGroups) {
-            containerEl.createEl("h4", { text: group.label });
+            themeSection.createEl("h4", { text: group.label, cls: "sk-settings-color-group-title" });
             for (const field of group.fields) {
               const currentValue = resolved[field.key] || "#000000";
               const isOverridden = !!overrides[field.key];
-              const setting = new Setting2(containerEl).setName(field.label);
+              const setting = new Setting2(themeSection).setName(field.label);
               setting.addColorPicker((picker) => {
                 picker.setValue(currentValue);
                 picker.onChange(async (value) => {
@@ -2406,20 +2419,12 @@ var require_settings_tab = __commonJS({
               }
             }
           }
-          new Setting2(containerEl).setName("Font family").addText(
-            (text) => text.setValue(this.plugin.settings.theme && this.plugin.settings.theme.overrides && this.plugin.settings.theme.overrides.fontFamily || "").onChange(async (value) => {
-              if (!this.plugin.settings.theme.overrides) this.plugin.settings.theme.overrides = {};
-              this.plugin.settings.theme.overrides.fontFamily = value.trim();
-              await this.plugin.saveSettings();
-              this.plugin.refreshViews();
-            })
-          );
-          containerEl.createEl("h4", { text: "Per-Lane Header Colors" });
+          themeSection.createEl("h4", { text: "Per-Lane Header Colors", cls: "sk-settings-color-group-title" });
           const statuses = this.plugin.getStatusOrder();
           for (const status of statuses) {
             const laneColor = this.plugin.getResolvedLaneColor(status);
             const userLane = this.plugin.settings.theme && this.plugin.settings.theme.laneColors && this.plugin.settings.theme.laneColors[status];
-            const setting = new Setting2(containerEl).setName(status);
+            const setting = new Setting2(themeSection).setName(status);
             setting.addColorPicker((picker) => {
               picker.setValue(laneColor.bg || "#868e96");
               picker.onChange(async (value) => {
@@ -2451,6 +2456,14 @@ var require_settings_tab = __commonJS({
               });
             }
           }
+          const advSection = section(containerEl, "Advanced", "Performance and behavior tuning.");
+          new Setting2(advSection).setName("Refresh debounce").setDesc("Milliseconds to wait after a file change before refreshing the board.").addText(
+            (text) => text.setValue(String(this.plugin.settings.refreshDebounceMs)).onChange(async (value) => {
+              const parsed = Number.parseInt(value, 10);
+              this.plugin.settings.refreshDebounceMs = Number.isFinite(parsed) && parsed >= 0 ? parsed : 250;
+              await this.plugin.saveSettings();
+            })
+          );
         }
       }
       return { SmartKanbanSettingTab: SmartKanbanSettingTab2 };

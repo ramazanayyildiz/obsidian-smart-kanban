@@ -815,6 +815,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
     renderCard(parent, card) {
       const cardEl = parent.createDiv({ cls: "smart-kanban-card" });
       cardEl.dataset.cardId = card.id;
+      if (card.priority) cardEl.dataset.priority = card.priority.toLowerCase().replace(/\s+/g, "-");
       cardEl.setAttr("tabindex", "0");
 
       cardEl.addEventListener("pointerdown", (e) => {
