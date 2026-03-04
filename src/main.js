@@ -1,4 +1,4 @@
-const { Plugin, ItemView, Modal, TFile, Notice, PluginSettingTab, Setting } = require("obsidian");
+const { Plugin, ItemView, Modal, TFile, TFolder, Notice, PluginSettingTab, Setting } = require("obsidian");
 const { VIEW_TYPE_SMART_KANBAN, THEME_PRESETS, DEFAULT_SETTINGS } = require("./constants");
 const {
   normalizeDateInput, getDueInfo, parseTaskLine, updateTaskLineFields,
@@ -94,6 +94,37 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     this.registerEvent(this.app.vault.on("modify", onChange));
     this.registerEvent(this.app.vault.on("create", onChange));
     this.registerEvent(this.app.vault.on("delete", onChange));
+
+    this.registerEvent(
+      this.app.workspace.on("file-menu", (menu, file) => {
+        if (file instanceof TFolder) {
+          menu.addItem((item) => {
+            item.setTitle("Open as Kanban Board")
+              .setIcon("kanban-square")
+              .onClick(async () => {
+                this.settings.sourceFolder = file.path;
+                await this.saveSettings();
+                await this.activateView();
+                new Notice(`Kanban: source folder → ${file.path}`);
+              });
+          });
+        }
+        if (file instanceof TFile && file.extension === "md") {
+          menu.addItem((item) => {
+            item.setTitle("Show in Kanban")
+              .setIcon("kanban-square")
+              .onClick(async () => {
+                const folder = file.parent ? file.parent.path : "";
+                if (folder && folder !== this.settings.sourceFolder) {
+                  this.settings.sourceFolder = folder;
+                  await this.saveSettings();
+                }
+                await this.activateView();
+              });
+          });
+        }
+      })
+    );
   }
 
   onunload() {
