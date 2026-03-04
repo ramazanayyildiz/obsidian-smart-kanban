@@ -1137,7 +1137,7 @@ var require_modals = __commonJS({
 // src/view.js
 var require_view = __commonJS({
   "src/view.js"(exports2, module2) {
-    module2.exports = function createView({ ItemView: ItemView2, TFile: TFile2, Notice: Notice2, VIEW_TYPE_SMART_KANBAN: VIEW_TYPE_SMART_KANBAN2, normalizeDateInput: normalizeDateInput2, splitCsv: splitCsv2 }) {
+    module2.exports = function createView({ ItemView: ItemView2, TFile: TFile2, Notice: Notice2, setIcon: setIcon2, VIEW_TYPE_SMART_KANBAN: VIEW_TYPE_SMART_KANBAN2, normalizeDateInput: normalizeDateInput2, splitCsv: splitCsv2 }) {
       class SmartKanbanView2 extends ItemView2 {
         constructor(leaf, plugin) {
           super(leaf);
@@ -1275,13 +1275,14 @@ var require_view = __commonJS({
         }
         buildHeader() {
           this.headerEl.empty();
-          const title = this.headerEl.createEl("h2", { text: "Smart Kanban" });
-          title.addClass("smart-kanban-title");
-          const actions = this.headerEl.createDiv({ cls: "smart-kanban-actions" });
-          const searchInput = actions.createEl("input", {
+          const left = this.headerEl.createDiv({ cls: "smart-kanban-header-left" });
+          left.createEl("h2", { text: "Smart Kanban", cls: "smart-kanban-title" });
+          const toolbar = this.headerEl.createDiv({ cls: "smart-kanban-toolbar" });
+          const searchWrap = toolbar.createDiv({ cls: "smart-kanban-search-wrap" });
+          const searchInput = searchWrap.createEl("input", {
             type: "text",
             placeholder: "Search...",
-            cls: "smart-kanban-header-search"
+            cls: "smart-kanban-search-input"
           });
           searchInput.value = this.filters.text;
           searchInput.addEventListener("input", () => {
@@ -1289,30 +1290,24 @@ var require_view = __commonJS({
             this.currentPreset = "";
             this.renderBoard();
           });
-          const filterToggle = actions.createEl("button", {
-            text: this.filtersCollapsed ? "Show Filters" : "Hide Filters"
-          });
-          filterToggle.addEventListener("click", () => {
+          const searchIcon = searchWrap.createSpan({ cls: "smart-kanban-search-icon" });
+          setIcon2(searchIcon, "search");
+          this.createIconBtn(toolbar, "filter", "Toggle Filters", () => {
             this.filtersCollapsed = !this.filtersCollapsed;
-            filterToggle.textContent = this.filtersCollapsed ? "Show Filters" : "Hide Filters";
             this.filtersEl.style.display = this.filtersCollapsed ? "none" : "";
           });
-          const newBtn = actions.createEl("button", { text: "New Task" });
-          newBtn.addEventListener("click", async () => {
-            await this.createTaskInteractive();
+          this.createIconBtn(toolbar, "plus", "New Task", () => this.createTaskInteractive());
+          this.createIconBtn(toolbar, "refresh-cw", "Refresh", () => this.reload());
+          this.createIconBtn(toolbar, "settings", "Configure Board", () => this.configureBoardInteractive());
+        }
+        createIconBtn(parent, icon, title, onClick) {
+          const btn = parent.createEl("button", { cls: "smart-kanban-icon-btn", attr: { title, "aria-label": title } });
+          setIcon2(btn, icon);
+          btn.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            await onClick();
           });
-          const refreshBtn = actions.createEl("button", { text: "Refresh" });
-          refreshBtn.addEventListener("click", async () => {
-            await this.reload();
-          });
-          const configureBtn = actions.createEl("button", { text: "Configure Board" });
-          configureBtn.addEventListener("click", async () => {
-            await this.configureBoardInteractive();
-          });
-          const savePresetBtn = actions.createEl("button", { text: "Save View" });
-          savePresetBtn.addEventListener("click", async () => {
-            await this.savePresetInteractive();
-          });
+          return btn;
         }
         async configureBoardInteractive() {
           const result = await this.plugin.openDragReorderModal({
@@ -1403,62 +1398,70 @@ var require_view = __commonJS({
             return;
           }
           this.filtersEl.style.display = "";
+          const row = this.filtersEl.createDiv({ cls: "smart-kanban-filter-row" });
           const categories = this.uniqueValues("category");
           const priorities = this.uniqueValues("priority");
           const tags = this.uniqueTagValues();
-          this.renderPresetControls();
-          this.renderDropdownFilter("Category", categories, "categories");
-          this.renderDropdownFilter("Priority", priorities, "priorities");
-          this.renderDropdownFilter("Tag", tags, "tags");
-        }
-        renderPresetControls() {
-          const wrap = this.filtersEl.createDiv({ cls: "smart-kanban-filter smart-kanban-presets" });
-          wrap.createEl("label", { text: "Saved Views" });
-          const row = wrap.createDiv({ cls: "smart-kanban-presets-row" });
-          const select = row.createEl("select");
-          select.createEl("option", { text: "Custom", value: "" });
-          const names = Object.keys(this.plugin.settings.filterPresets || {}).sort(
-            (a, b) => a.localeCompare(b)
-          );
-          for (const name of names) {
-            select.createEl("option", { text: name, value: name });
+          this.renderDropdownFilter(row, "Category", categories, "categories");
+          this.renderDropdownFilter(row, "Priority", priorities, "priorities");
+          this.renderDropdownFilter(row, "Tag", tags, "tags");
+          const hasFilters = this.filters.categories.length || this.filters.priorities.length || this.filters.tags.length || this.filters.text;
+          if (hasFilters) {
+            const clearBtn = row.createEl("button", { text: "Clear", cls: "smart-kanban-filter-clear-btn" });
+            clearBtn.addEventListener("click", () => {
+              this.clearFilters();
+              this.renderFilters();
+              this.renderBoard();
+            });
           }
-          select.value = this.currentPreset;
-          select.addEventListener("change", () => {
-            if (!select.value) {
-              this.currentPreset = "";
-              this.renderPresetControls();
-              return;
-            }
-            this.applyPreset(select.value);
-          });
-          const saveBtn = row.createEl("button", { text: "Save" });
-          saveBtn.addEventListener("click", async () => {
-            await this.savePresetInteractive();
-          });
-          const deleteBtn = row.createEl("button", { text: "Delete" });
-          deleteBtn.disabled = !this.currentPreset;
-          deleteBtn.addEventListener("click", async () => {
-            await this.deleteCurrentPresetInteractive();
-          });
-          const clearBtn = row.createEl("button", { text: "Clear" });
-          clearBtn.addEventListener("click", () => {
-            this.clearFilters();
-            this.renderFilters();
-            this.renderBoard();
-          });
+          const presetNames = Object.keys(this.plugin.settings.filterPresets || {});
+          if (presetNames.length > 0 || hasFilters) {
+            const spacer = row.createDiv({ cls: "smart-kanban-filter-spacer" });
+            this.renderPresetControls(row, presetNames);
+          }
         }
-        renderDropdownFilter(label, values, key) {
-          const wrap = this.filtersEl.createDiv({ cls: "smart-kanban-filter smart-kanban-dropdown-filter" });
+        renderPresetControls(row, names) {
+          const wrap = row.createDiv({ cls: "smart-kanban-preset-wrap" });
+          if (names.length > 0) {
+            const select = wrap.createEl("select", { cls: "smart-kanban-preset-select" });
+            select.createEl("option", { text: "Views...", value: "" });
+            for (const name of names.sort((a, b) => a.localeCompare(b))) {
+              const opt = select.createEl("option", { value: name });
+              opt.textContent = name;
+            }
+            select.value = this.currentPreset;
+            select.addEventListener("change", () => {
+              if (!select.value) {
+                this.currentPreset = "";
+                return;
+              }
+              this.applyPreset(select.value);
+            });
+            if (this.currentPreset) {
+              const deleteBtn = wrap.createEl("button", { cls: "smart-kanban-icon-btn-sm", attr: { title: "Delete view" } });
+              setIcon2(deleteBtn, "trash-2");
+              deleteBtn.addEventListener("click", () => this.deleteCurrentPresetInteractive());
+            }
+          }
+          const saveBtn = wrap.createEl("button", { cls: "smart-kanban-icon-btn-sm", attr: { title: "Save current filters as view" } });
+          setIcon2(saveBtn, "bookmark-plus");
+          saveBtn.addEventListener("click", () => this.savePresetInteractive());
+        }
+        renderDropdownFilter(parent, label, values, key) {
+          const wrap = parent.createDiv({ cls: "smart-kanban-dropdown-filter" });
           const selected = this.filters[key] || [];
-          const btnText = selected.length === 0 ? `All ${label}` : `${selected.length} selected`;
-          const trigger = wrap.createEl("button", { text: btnText, cls: "smart-kanban-dropdown-trigger" });
+          const btnText = selected.length === 0 ? label : `${label} (${selected.length})`;
+          const trigger = wrap.createEl("button", { cls: "smart-kanban-dropdown-trigger" });
+          trigger.createSpan({ text: btnText });
+          const chevron = trigger.createSpan({ cls: "smart-kanban-dropdown-chevron" });
+          setIcon2(chevron, "chevron-down");
           const panel = wrap.createDiv({ cls: "smart-kanban-dropdown-panel" });
           panel.style.display = "none";
           let isOpen = false;
           const closePanel = () => {
             isOpen = false;
             panel.style.display = "none";
+            trigger.removeClass("is-open");
           };
           const outsideClick = (event) => {
             if (!wrap.contains(event.target)) closePanel();
@@ -1474,41 +1477,47 @@ var require_view = __commonJS({
             });
             isOpen = true;
             panel.style.display = "";
+            trigger.addClass("is-open");
             document.addEventListener("click", outsideClick, true);
           });
           this._dropdownCleanups.push(() => {
             document.removeEventListener("click", outsideClick, true);
           });
           if (!values.length) {
-            panel.createSpan({ text: "No values available", cls: "smart-kanban-empty" });
+            panel.createDiv({ text: `No ${label.toLowerCase()} values`, cls: "smart-kanban-dropdown-empty" });
             return;
           }
           for (const value of values) {
-            const row = panel.createDiv({ cls: "smart-kanban-dropdown-item" });
-            const checkbox = row.createEl("input", { type: "checkbox" });
-            checkbox.checked = selected.includes(value);
-            row.createSpan({ text: value });
-            checkbox.addEventListener("change", () => {
+            const item = panel.createDiv({ cls: "smart-kanban-dropdown-item" });
+            const cb = item.createEl("input");
+            cb.type = "checkbox";
+            cb.checked = selected.includes(value);
+            const lbl = item.createEl("span", { cls: "smart-kanban-dropdown-item-label" });
+            lbl.textContent = value;
+            const updateTrigger = () => {
+              const sel = this.filters[key];
+              trigger.querySelector("span").textContent = sel.length === 0 ? label : `${label} (${sel.length})`;
+            };
+            cb.addEventListener("change", () => {
               this.toggleFilterValue(key, value);
-              trigger.textContent = this.filters[key].length === 0 ? `All ${label}` : `${this.filters[key].length} selected`;
+              updateTrigger();
             });
-            row.addEventListener("click", (event) => {
-              if (event.target !== checkbox) {
-                checkbox.checked = !checkbox.checked;
-                checkbox.dispatchEvent(new Event("change"));
+            item.addEventListener("click", (event) => {
+              if (event.target !== cb) {
+                cb.checked = !cb.checked;
+                cb.dispatchEvent(new Event("change"));
               }
             });
           }
-          const clearAll = panel.createEl("button", { text: "Clear all", cls: "smart-kanban-dropdown-clear" });
-          clearAll.addEventListener("click", () => {
-            this.filters[key] = [];
-            this.currentPreset = "";
-            panel.querySelectorAll("input[type=checkbox]").forEach((cb) => {
-              cb.checked = false;
+          if (selected.length > 0) {
+            const clearAll = panel.createEl("button", { text: "Clear", cls: "smart-kanban-dropdown-clear" });
+            clearAll.addEventListener("click", () => {
+              this.filters[key] = [];
+              this.currentPreset = "";
+              this.renderFilters();
+              this.renderBoard();
             });
-            trigger.textContent = `All ${label}`;
-            this.renderBoard();
-          });
+          }
         }
         toggleFilterValue(key, value) {
           const selected = new Set(this.filters[key]);
@@ -2208,7 +2217,7 @@ var require_settings_tab = __commonJS({
 });
 
 // src/main.js
-var { Plugin, ItemView, Modal, TFile, TFolder, Notice, PluginSettingTab, Setting } = require("obsidian");
+var { Plugin, ItemView, Modal, TFile, TFolder, Notice, PluginSettingTab, Setting, setIcon } = require("obsidian");
 var { VIEW_TYPE_SMART_KANBAN, THEME_PRESETS, DEFAULT_SETTINGS } = require_constants();
 var {
   normalizeDateInput,
@@ -2245,6 +2254,7 @@ var { SmartKanbanView } = require_view()({
   ItemView,
   TFile,
   Notice,
+  setIcon,
   VIEW_TYPE_SMART_KANBAN,
   normalizeDateInput,
   splitCsv

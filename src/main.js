@@ -1,4 +1,4 @@
-const { Plugin, ItemView, Modal, TFile, TFolder, Notice, PluginSettingTab, Setting } = require("obsidian");
+const { Plugin, ItemView, Modal, TFile, TFolder, Notice, PluginSettingTab, Setting, setIcon } = require("obsidian");
 const { VIEW_TYPE_SMART_KANBAN, THEME_PRESETS, DEFAULT_SETTINGS } = require("./constants");
 const {
   normalizeDateInput, getDueInfo, parseTaskLine, updateTaskLineFields,
@@ -15,7 +15,7 @@ const {
   BoardManagerModal, DragReorderListModal, SimpleFormModal, SimpleConfirmModal,
 } = require("./modals")({ Modal, Notice });
 const { SmartKanbanView } = require("./view")({
-  ItemView, TFile, Notice, VIEW_TYPE_SMART_KANBAN, normalizeDateInput, splitCsv,
+  ItemView, TFile, Notice, setIcon, VIEW_TYPE_SMART_KANBAN, normalizeDateInput, splitCsv,
 });
 const { SmartKanbanSettingTab } = require("./settings-tab")({
   PluginSettingTab, Setting, Notice, DEFAULT_SETTINGS, THEME_PRESETS,
