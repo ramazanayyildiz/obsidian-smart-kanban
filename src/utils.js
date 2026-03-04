@@ -66,14 +66,14 @@ function sanitizeFileName(input) {
 function buildFrontmatterBlock(fields) {
   const lines = ["---"];
   for (const [key, value] of Object.entries(fields || {})) {
+    if (value == null) continue;
     if (Array.isArray(value)) {
-      if (!value.length) continue;
       lines.push(`${key}:`);
       for (const item of value) lines.push(`  - ${yamlQuote(item)}`);
       continue;
     }
     const text = normalizeFmValue(value);
-    if (text) lines.push(`${key}: ${yamlQuote(text)}`);
+    lines.push(text ? `${key}: ${yamlQuote(text)}` : `${key}:`);
   }
   lines.push("---");
   return lines.join("\n");

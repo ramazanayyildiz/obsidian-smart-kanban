@@ -73,6 +73,13 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         }
       };
       this.containerEl.addEventListener("keydown", this._keyHandler);
+
+      this._clickOutsideHandler = (event) => {
+        if (!event.target.closest(".smart-kanban-overflow-btn") && !event.target.closest(".smart-kanban-overflow-menu")) {
+          this.containerEl.querySelectorAll(".smart-kanban-overflow-menu").forEach((m) => { m.style.display = "none"; });
+        }
+      };
+      document.addEventListener("click", this._clickOutsideHandler);
     }
 
     applyTheme() {
@@ -693,6 +700,8 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
             const card = this.cards.find((c) => c.id === id);
             if (!card) return;
 
+            if (card.status === status) return;
+
             await this.plugin.updateCardStatus(card, status);
             await this.reload();
           });
@@ -712,8 +721,13 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
           const doQuickAdd = async () => {
             const title = quickInput.value.trim();
             if (!title) return;
+            const s = this.plugin.settings;
             await this.plugin.createTaskEntry(title, {
-              [this.plugin.settings.statusField]: status,
+              [s.statusField]: status,
+              [s.categoryField]: "",
+              [s.priorityField]: "",
+              [s.dueDateField]: "",
+              [s.tagsField]: "",
             });
             quickInput.value = "";
             await this.reload();
@@ -1059,6 +1073,12 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
         return true;
       });
+    }
+
+    async onClose() {
+      if (this._clickOutsideHandler) {
+        document.removeEventListener("click", this._clickOutsideHandler);
+      }
     }
   }
 

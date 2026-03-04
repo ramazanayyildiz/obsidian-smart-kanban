@@ -745,14 +745,14 @@ var require_utils = __commonJS({
     function buildFrontmatterBlock2(fields) {
       const lines = ["---"];
       for (const [key, value] of Object.entries(fields || {})) {
+        if (value == null) continue;
         if (Array.isArray(value)) {
-          if (!value.length) continue;
           lines.push(`${key}:`);
           for (const item of value) lines.push(`  - ${yamlQuote(item)}`);
           continue;
         }
         const text = normalizeFmValue2(value);
-        if (text) lines.push(`${key}: ${yamlQuote(text)}`);
+        lines.push(text ? `${key}: ${yamlQuote(text)}` : `${key}:`);
       }
       lines.push("---");
       return lines.join("\n");
@@ -1203,6 +1203,14 @@ var require_view = __commonJS({
             }
           };
           this.containerEl.addEventListener("keydown", this._keyHandler);
+          this._clickOutsideHandler = (event) => {
+            if (!event.target.closest(".smart-kanban-overflow-btn") && !event.target.closest(".smart-kanban-overflow-menu")) {
+              this.containerEl.querySelectorAll(".smart-kanban-overflow-menu").forEach((m) => {
+                m.style.display = "none";
+              });
+            }
+          };
+          document.addEventListener("click", this._clickOutsideHandler);
         }
         applyTheme() {
           const theme = this.plugin.getResolvedTheme();
@@ -1750,6 +1758,7 @@ var require_view = __commonJS({
                 if (!id) return;
                 const card = this.cards.find((c) => c.id === id);
                 if (!card) return;
+                if (card.status === status) return;
                 await this.plugin.updateCardStatus(card, status);
                 await this.reload();
               });
@@ -1766,8 +1775,13 @@ var require_view = __commonJS({
               const doQuickAdd = async () => {
                 const title = quickInput.value.trim();
                 if (!title) return;
+                const s = this.plugin.settings;
                 await this.plugin.createTaskEntry(title, {
-                  [this.plugin.settings.statusField]: status
+                  [s.statusField]: status,
+                  [s.categoryField]: "",
+                  [s.priorityField]: "",
+                  [s.dueDateField]: "",
+                  [s.tagsField]: ""
                 });
                 quickInput.value = "";
                 await this.reload();
@@ -2064,6 +2078,11 @@ var require_view = __commonJS({
             }
             return true;
           });
+        }
+        async onClose() {
+          if (this._clickOutsideHandler) {
+            document.removeEventListener("click", this._clickOutsideHandler);
+          }
         }
       }
       return { SmartKanbanView: SmartKanbanView2 };

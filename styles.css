@@ -240,6 +240,8 @@
 }
 
 .smart-kanban-card {
+  position: relative;
+  overflow: visible;
   border: 1px solid var(--sk-card-border, var(--background-modifier-border));
   background: var(--sk-card-bg, var(--background-primary));
   color: var(--sk-card-text, inherit);
@@ -262,6 +264,7 @@
 }
 
 .smart-kanban-card-title {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: 4px;
