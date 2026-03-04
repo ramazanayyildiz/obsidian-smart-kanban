@@ -6,7 +6,7 @@
   "type": "commonjs",
   "scripts": {
     "test": "node --test tests/core.test.js",
-    "check": "node --check main.js && node --check core.js",
+    "check": "node --check main.js && node --check core.js && node --check constants.js && node --check core-fallback.js && node --check utils.js && node --check modals.js && node --check view.js && node --check settings-tab.js",
     "release-check": "node scripts/release-check.mjs"
   }
 }

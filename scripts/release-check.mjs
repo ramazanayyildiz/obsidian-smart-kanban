@@ -5,8 +5,16 @@ const run = (cmd) => {
   execSync(cmd, { stdio: "inherit" });
 };
 
-run("node --check .obsidian/plugins/obsidian-smart-kanban/main.js");
-run("node --check .obsidian/plugins/obsidian-smart-kanban/core.js");
-run("node --test .obsidian/plugins/obsidian-smart-kanban/tests/core.test.js");
+const dir = ".obsidian/plugins/obsidian-smart-kanban";
+
+run(`node --check ${dir}/main.js`);
+run(`node --check ${dir}/core.js`);
+run(`node --check ${dir}/constants.js`);
+run(`node --check ${dir}/core-fallback.js`);
+run(`node --check ${dir}/utils.js`);
+run(`node --check ${dir}/modals.js`);
+run(`node --check ${dir}/view.js`);
+run(`node --check ${dir}/settings-tab.js`);
+run(`node --test ${dir}/tests/core.test.js`);
 
 console.log("Release checks passed.");
