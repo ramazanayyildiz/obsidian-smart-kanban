@@ -403,11 +403,6 @@
 }
 
 /* Drag states */
-.smart-kanban-card.is-dragging {
-  opacity: 0.25;
-  border-style: dashed;
-}
-
 .smart-kanban-drag-ghost {
   transition: none;
 }
@@ -418,18 +413,15 @@
   border-radius: 6px;
 }
 
-.smart-kanban-lane.is-drag-target {
-  border-color: var(--sk-accent, var(--interactive-accent));
-  box-shadow: 0 0 0 1px var(--sk-accent, var(--interactive-accent));
-}
-
-/* Drop indicator line */
-.smart-kanban-drop-indicator {
-  height: 3px;
-  background: var(--sk-accent, var(--interactive-accent));
-  border-radius: 2px;
-  margin: 2px 0;
+/* Placeholder gap — shows where the card will land */
+.smart-kanban-drop-placeholder {
+  border: 2px dashed var(--sk-accent, var(--interactive-accent));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--sk-accent, var(--interactive-accent)) 6%, transparent);
+  margin: 4px 0;
   pointer-events: none;
+  box-sizing: border-box;
+  transition: height 0.1s ease;
 }
 
 /* Quick add per lane */

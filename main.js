@@ -2059,7 +2059,7 @@ var require_view = __commonJS({
             document.removeEventListener("pointerup", onUp);
             document.removeEventListener("pointercancel", onUp);
             if (!started) return;
-            await this._finishDrag(ue.clientX, ue.clientY);
+            await this._finishDrag();
           };
           document.addEventListener("pointermove", onMove);
           document.addEventListener("pointerup", onUp);
@@ -2073,15 +2073,19 @@ var require_view = __commonJS({
           ghost.style.left = `${rect.left}px`;
           ghost.style.top = `${rect.top}px`;
           document.body.appendChild(ghost);
-          cardEl.addClass("is-dragging");
+          const placeholder = document.createElement("div");
+          placeholder.className = "smart-kanban-drop-placeholder";
+          placeholder.style.height = `${rect.height}px`;
+          cardEl.parentElement.insertBefore(placeholder, cardEl);
+          cardEl.style.display = "none";
           this._drag = {
             card,
             cardEl,
             ghost,
+            placeholder,
             offsetX: startX - rect.left,
             offsetY: startY - rect.top,
-            insertBeforeId: null,
-            targetStatus: null
+            targetStatus: card.status || "Todo"
           };
         }
         _moveDrag(cx, cy) {
@@ -2089,7 +2093,6 @@ var require_view = __commonJS({
           if (!d) return;
           d.ghost.style.left = `${cx - d.offsetX}px`;
           d.ghost.style.top = `${cy - d.offsetY}px`;
-          this.boardEl.querySelectorAll(".smart-kanban-drop-indicator").forEach((el) => el.remove());
           this.boardEl.querySelectorAll(".is-drag-target").forEach((el) => el.classList.remove("is-drag-target"));
           const lists = [...this.boardEl.querySelectorAll(".smart-kanban-card-list")];
           let targetList = null;
@@ -2100,14 +2103,10 @@ var require_view = __commonJS({
               break;
             }
           }
-          if (!targetList) {
-            d.targetStatus = null;
-            d.insertBeforeId = null;
-            return;
-          }
+          if (!targetList) return;
           d.targetStatus = targetList.dataset.status;
           targetList.classList.add("is-drag-target");
-          const cardEls = [...targetList.querySelectorAll(".smart-kanban-card:not(.is-dragging)")];
+          const cardEls = [...targetList.querySelectorAll(".smart-kanban-card:not([style*='display: none'])")];
           let insertBefore = null;
           for (const c of cardEls) {
             const cr = c.getBoundingClientRect();
@@ -2116,71 +2115,42 @@ var require_view = __commonJS({
               break;
             }
           }
-          d.insertBeforeId = insertBefore ? insertBefore.dataset.cardId : null;
-          const indicator = document.createElement("div");
-          indicator.className = "smart-kanban-drop-indicator";
           if (insertBefore) {
-            targetList.insertBefore(indicator, insertBefore);
+            targetList.insertBefore(d.placeholder, insertBefore);
           } else {
-            targetList.appendChild(indicator);
+            targetList.appendChild(d.placeholder);
           }
         }
-        _detectDropTarget(cx, cy) {
-          const lists = [...this.boardEl.querySelectorAll(".smart-kanban-card-list")];
-          for (const list of lists) {
-            const lr = list.getBoundingClientRect();
-            if (cx >= lr.left && cx <= lr.right && cy >= lr.top - 30 && cy <= lr.bottom + 30) {
-              const status = list.dataset.status;
-              const cardEls = [...list.querySelectorAll(".smart-kanban-card:not(.is-dragging)")];
-              let insertBeforeId = null;
-              for (const c of cardEls) {
-                const cr = c.getBoundingClientRect();
-                if (cy < cr.top + cr.height / 2) {
-                  insertBeforeId = c.dataset.cardId;
-                  break;
-                }
-              }
-              return { status, insertBeforeId };
-            }
-          }
-          return null;
-        }
-        async _finishDrag(cx, cy) {
+        async _finishDrag() {
           const d = this._drag;
           if (!d) return;
           this._drag = null;
           d.ghost.remove();
-          d.cardEl.removeClass("is-dragging");
-          this.boardEl.querySelectorAll(".smart-kanban-drop-indicator").forEach((el) => el.remove());
           this.boardEl.querySelectorAll(".is-drag-target").forEach((el) => el.classList.remove("is-drag-target"));
-          const target = this._detectDropTarget(cx, cy);
-          if (!target) return;
-          const order = this.plugin.settings.cardOrder || {};
-          const filtered = this.filteredCards();
-          const targetLaneCards = this.plugin.sortCards(
-            filtered.filter((c) => (c.status || "Todo") === target.status && c.id !== d.card.id)
-          );
-          let newSort = 0;
-          if (targetLaneCards.length === 0) {
-            newSort = 0;
-          } else if (!target.insertBeforeId) {
-            newSort = (order[targetLaneCards[targetLaneCards.length - 1].id] || 0) + 1e3;
-          } else {
-            const idx = targetLaneCards.findIndex((c) => c.id === target.insertBeforeId);
-            if (idx <= 0) {
-              newSort = (order[targetLaneCards[0].id] || 0) - 1e3;
-            } else {
-              const prev = order[targetLaneCards[idx - 1].id] || 0;
-              const next = order[targetLaneCards[idx].id] || 0;
-              newSort = (prev + next) / 2;
+          const targetStatus = d.targetStatus;
+          if (!targetStatus) {
+            d.placeholder.replaceWith(d.cardEl);
+            d.cardEl.style.display = "";
+            return;
+          }
+          d.placeholder.replaceWith(d.cardEl);
+          d.cardEl.style.display = "";
+          if (!this.plugin.settings.cardOrder) this.plugin.settings.cardOrder = {};
+          const allLists = this.boardEl.querySelectorAll(".smart-kanban-card-list");
+          for (const list of allLists) {
+            const cardEls = list.querySelectorAll(".smart-kanban-card");
+            for (let i = 0; i < cardEls.length; i++) {
+              const id = cardEls[i].dataset.cardId;
+              if (id) this.plugin.settings.cardOrder[id] = i * 1e3;
             }
           }
-          await this.plugin.saveCardOrder(d.card.id, newSort);
-          if (target.status !== d.card.status) {
-            await this.plugin.updateCardStatus(d.card, target.status);
-            await new Promise((r) => setTimeout(r, 150));
+          await this.plugin.saveSettings();
+          const oldStatus = d.card.status || "Todo";
+          if (targetStatus !== oldStatus) {
+            await this.plugin.updateCardStatus(d.card, targetStatus);
           }
-          await this.reload();
+          if (this._dragReloadTimer) clearTimeout(this._dragReloadTimer);
+          this._dragReloadTimer = setTimeout(() => this.reload(), 1500);
         }
         async onClose() {
           if (this._clickOutsideHandler) {
