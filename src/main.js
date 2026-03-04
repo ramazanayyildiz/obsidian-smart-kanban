@@ -254,11 +254,17 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     return (this.settings.boards || []).find((b) => b.id === boardId) || null;
   }
 
-  getEffectiveSettings(boardId) {
+  getEffectiveSettings(boardId, visited = new Set()) {
     const board = this.getBoard(boardId);
     if (!board) return { ...this.settings };
     if (board.type === "filtered-view" && board.parentBoardId) {
-      const parentEff = this.getEffectiveSettings(board.parentBoardId);
+      if (visited.has(board.id)) {
+        new Notice(`Detected board parent cycle at "${board.name || board.id}". Using global settings fallback.`);
+        return { ...this.settings };
+      }
+      const nextVisited = new Set(visited);
+      nextVisited.add(board.id);
+      const parentEff = this.getEffectiveSettings(board.parentBoardId, nextVisited);
       const merged = { ...parentEff };
       for (const key of Object.keys(board)) {
         if (key === "id" || key === "name" || key === "type" || key === "parentBoardId") continue;

@@ -65,7 +65,10 @@
 
 .smart-kanban-search-input {
   width: 160px;
-  padding: 5px 10px 5px 30px;
+  padding: 5px 10px 5px 34px !important;
+  padding-inline-start: 34px !important;
+  text-indent: 0;
+  line-height: 1.4;
   font-size: 0.8rem;
   border: 1px solid var(--background-modifier-border);
   border-radius: var(--sk-radius-sm);
@@ -81,16 +84,20 @@
 
 .smart-kanban-search-icon {
   position: absolute;
-  left: 8px;
+  left: 10px;
   top: 50%;
   transform: translateY(-50%);
   opacity: 0.35;
   pointer-events: none;
   display: flex;
   align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  z-index: 1;
 }
 
-.smart-kanban-search-icon svg { width: 14px; height: 14px; }
+.smart-kanban-search-icon svg { width: 14px; height: 14px; display: block; }
 
 /* ── Icon buttons ── */
 .smart-kanban-icon-btn {
@@ -332,12 +339,23 @@
   min-width: 200px;
   max-width: 240px;
   flex-shrink: 0;
-  background: transparent;
-  border: none;
+  background: color-mix(
+    in srgb,
+    var(--sk-lane-accent-bg, var(--sk-lane-bg, var(--background-secondary)))
+      var(--sk-lane-tint-strength, 10%),
+    var(--background-primary)
+  );
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--sk-lane-accent-bg, var(--background-modifier-border)) 18%,
+      var(--background-modifier-border)
+    );
+  border-radius: var(--sk-radius-md);
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 0;
+  padding: 8px;
 }
 
 .smart-kanban-lane.is-over-wip .smart-kanban-count {
@@ -351,7 +369,12 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 10px;
-  background: color-mix(in srgb, var(--sk-lane-accent-bg, var(--background-secondary)) 16%, var(--background-primary));
+  background: color-mix(
+    in srgb,
+    var(--sk-lane-accent-bg, var(--sk-lane-header-bg, var(--background-secondary)))
+      var(--sk-lane-header-tint-strength, 24%),
+    var(--background-primary)
+  );
   border: 1px solid color-mix(in srgb, var(--sk-lane-accent-bg, var(--background-modifier-border)) 25%, var(--background-modifier-border));
   border-radius: var(--sk-radius-sm);
   cursor: pointer;
@@ -417,8 +440,8 @@
 .smart-kanban-lane.is-collapsed {
   min-width: 40px;
   max-width: 40px;
-  opacity: 0.45;
-  padding: 0;
+  opacity: 0.65;
+  padding: 4px;
 }
 
 .smart-kanban-lane.is-collapsed:hover { opacity: 0.75; }
@@ -444,11 +467,10 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 0;
+  padding: 0 1px;
   min-height: 48px;
   flex: 1;
   overflow-y: auto;
-  min-height: 0;
 }
 
 .smart-kanban-card-list::-webkit-scrollbar { width: 3px; }
@@ -643,6 +665,33 @@
   color: #a3d9a3;
 }
 
+/* Lane tint contrast adjustments in dark mode */
+.theme-dark .smart-kanban-lane {
+  background: color-mix(
+    in srgb,
+    var(--sk-lane-accent-bg, var(--sk-lane-bg, var(--background-secondary)))
+      var(--sk-lane-tint-strength, 10%),
+    var(--background-secondary)
+  );
+}
+
+.theme-dark .smart-kanban-lane-header {
+  background: color-mix(
+    in srgb,
+    var(--sk-lane-accent-bg, var(--sk-lane-header-bg, var(--background-secondary)))
+      var(--sk-lane-header-tint-strength, 24%),
+    var(--background-secondary)
+  );
+}
+
+.theme-dark .smart-kanban-count {
+  color: color-mix(in srgb, var(--sk-lane-accent-text, #d8d8d8) 72%, #d8d8d8);
+}
+
+.theme-dark .smart-kanban-quick-add-label {
+  color: color-mix(in srgb, var(--sk-lane-accent-text, #d8d8d8) 86%, #d8d8d8);
+}
+
 
 /* ═══════════════════  Overflow Menu  ═══════════════════ */
 
@@ -740,7 +789,7 @@
 /* ═══════════════════  Quick Add — Notion "+ New page"  ═══════════════════ */
 
 .smart-kanban-quick-add {
-  padding: 8px 2px 6px;
+  padding: 8px 4px 2px;
 }
 
 .smart-kanban-quick-add-label {

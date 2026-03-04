@@ -111,6 +111,14 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         "--sk-due-soon": theme.dueBadgeSoon,
         "--sk-font-family": theme.fontFamily,
       };
+      const laneTint = Number(theme.laneTintStrength);
+      const laneHeaderTint = Number(theme.laneHeaderTintStrength);
+      if (Number.isFinite(laneTint)) {
+        props["--sk-lane-tint-strength"] = `${Math.max(0, Math.min(40, laneTint))}%`;
+      }
+      if (Number.isFinite(laneHeaderTint)) {
+        props["--sk-lane-header-tint-strength"] = `${Math.max(0, Math.min(60, laneHeaderTint))}%`;
+      }
       for (const [prop, value] of Object.entries(props)) {
         if (value) el.style.setProperty(prop, value);
         else el.style.removeProperty(prop);
@@ -158,6 +166,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       this.boardId = boardId;
       this.plugin.settings.activeBoardId = boardId;
       await this.plugin.saveSettings();
+      this.collapsedLanes.clear();
       this.clearFilters();
       this.renderBoardTabs();
       this.buildHeader();
@@ -227,6 +236,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       });
       this.createIconBtn(toolbar, "plus", "New Task", () => this.createTaskInteractive());
       this.createIconBtn(toolbar, "refresh-cw", "Refresh", () => this.reload());
+      this.createIconBtn(toolbar, "sliders-horizontal", "Plugin Settings", () => this.openPluginSettings());
       this.createIconBtn(toolbar, "settings", "Configure Board", () => this.configureBoardInteractive());
     }
 
@@ -259,6 +269,15 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       setIcon(btn, icon);
       btn.addEventListener("click", async (e) => { e.stopPropagation(); await onClick(); });
       return btn;
+    }
+
+    async openPluginSettings() {
+      if (this.app.setting && typeof this.app.setting.open === "function") {
+        this.app.setting.open();
+      }
+      if (this.app.setting && typeof this.app.setting.openTabById === "function") {
+        this.app.setting.openTabById(this.plugin.manifest.id);
+      }
     }
 
     async configureBoardInteractive() {
@@ -631,10 +650,10 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         const isCollapsed = this.collapsedLanes.has(status);
         if (isCollapsed) lane.addClass("is-collapsed");
 
-        const laneHeader = lane.createDiv({ cls: "smart-kanban-lane-header" });
         const laneColor = this.plugin.getResolvedLaneColor(status);
-        if (laneColor.bg) laneHeader.style.setProperty("--sk-lane-accent-bg", laneColor.bg);
-        if (laneColor.text) laneHeader.style.setProperty("--sk-lane-accent-text", laneColor.text);
+        if (laneColor.bg) lane.style.setProperty("--sk-lane-accent-bg", laneColor.bg);
+        if (laneColor.text) lane.style.setProperty("--sk-lane-accent-text", laneColor.text);
+        const laneHeader = lane.createDiv({ cls: "smart-kanban-lane-header" });
 
         const laneTitle = laneHeader.createEl("h3", { text: status });
 
@@ -678,7 +697,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
             text: "+ New page",
             cls: "smart-kanban-quick-add-label",
           });
-          if (laneColor.bg) quickLabel.style.color = laneColor.bg;
+          if (laneColor.text) quickLabel.style.color = laneColor.text;
 
           const quickInput = quickAdd.createEl("input", {
             type: "text",
@@ -686,6 +705,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
             cls: "smart-kanban-quick-add-input",
           });
           quickInput.style.display = "none";
+          let quickAddPending = false;
 
           quickLabel.addEventListener("click", () => {
             quickLabel.style.display = "none";
@@ -694,24 +714,30 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
           });
 
           const doQuickAdd = async () => {
+            if (quickAddPending) return;
             const title = quickInput.value.trim();
             if (!title) {
               quickInput.style.display = "none";
               quickLabel.style.display = "";
               return;
             }
-            const s = this.plugin.getEffectiveSettings(this.boardId);
-            await this.plugin.createTaskEntry(title, {
-              [s.statusField]: status,
-              [s.categoryField]: "",
-              [s.priorityField]: "",
-              [s.dueDateField]: "",
-              [s.tagsField]: "",
-            }, this.boardId);
-            quickInput.value = "";
+            quickAddPending = true;
             quickInput.style.display = "none";
             quickLabel.style.display = "";
-            await this.reload();
+            const s = this.plugin.getEffectiveSettings(this.boardId);
+            try {
+              await this.plugin.createTaskEntry(title, {
+                [s.statusField]: status,
+                [s.categoryField]: "",
+                [s.priorityField]: "",
+                [s.dueDateField]: "",
+                [s.tagsField]: "",
+              }, this.boardId);
+              quickInput.value = "";
+              await this.reload();
+            } finally {
+              quickAddPending = false;
+            }
           };
 
           quickInput.addEventListener("keydown", (e) => {
@@ -1281,8 +1307,13 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         clearTimeout(this._dragReloadTimer);
         this._dragReloadTimer = null;
       }
+      if (this._keyHandler) {
+        this.containerEl.removeEventListener("keydown", this._keyHandler);
+        this._keyHandler = null;
+      }
       if (this._clickOutsideHandler) {
         document.removeEventListener("click", this._clickOutsideHandler);
+        this._clickOutsideHandler = null;
       }
     }
   }

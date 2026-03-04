@@ -229,6 +229,40 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             })
         );
 
+      new Setting(themeSection)
+        .setName("Lane body tint strength")
+        .setDesc("How much lane accent color appears in lane background. 0-40.")
+        .addText((text) =>
+          text
+            .setPlaceholder("10")
+            .setValue(String((this.plugin.settings.theme && this.plugin.settings.theme.overrides && this.plugin.settings.theme.overrides.laneTintStrength) ?? 10))
+            .onChange(async (value) => {
+              const parsed = Number.parseInt(value, 10);
+              if (!this.plugin.settings.theme.overrides) this.plugin.settings.theme.overrides = {};
+              if (!Number.isFinite(parsed)) delete this.plugin.settings.theme.overrides.laneTintStrength;
+              else this.plugin.settings.theme.overrides.laneTintStrength = Math.max(0, Math.min(40, parsed));
+              await this.plugin.saveSettings();
+              this.plugin.refreshViews();
+            })
+        );
+
+      new Setting(themeSection)
+        .setName("Lane header tint strength")
+        .setDesc("How much lane accent color appears in lane header chip. 0-60.")
+        .addText((text) =>
+          text
+            .setPlaceholder("24")
+            .setValue(String((this.plugin.settings.theme && this.plugin.settings.theme.overrides && this.plugin.settings.theme.overrides.laneHeaderTintStrength) ?? 24))
+            .onChange(async (value) => {
+              const parsed = Number.parseInt(value, 10);
+              if (!this.plugin.settings.theme.overrides) this.plugin.settings.theme.overrides = {};
+              if (!Number.isFinite(parsed)) delete this.plugin.settings.theme.overrides.laneHeaderTintStrength;
+              else this.plugin.settings.theme.overrides.laneHeaderTintStrength = Math.max(0, Math.min(60, parsed));
+              await this.plugin.saveSettings();
+              this.plugin.refreshViews();
+            })
+        );
+
       const themeColorGroups = [
         {
           label: "Card Colors",
@@ -241,10 +275,10 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
         {
           label: "Lane Colors",
           fields: [
-            { key: "laneBg", label: "Background" },
-            { key: "laneHeaderBg", label: "Header background" },
+            { key: "laneBg", label: "Base lane tint" },
+            { key: "laneHeaderBg", label: "Base header tint" },
             { key: "laneHeaderText", label: "Header text" },
-            { key: "laneBorder", label: "Border" },
+            { key: "laneBorder", label: "Lane border" },
           ],
         },
         {
@@ -311,12 +345,14 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
         }
       }
 
-      themeSection.createEl("h4", { text: "Per-Lane Header Colors", cls: "sk-settings-color-group-title" });
+      themeSection.createEl("h4", { text: "Per-Lane Accent Colors", cls: "sk-settings-color-group-title" });
       const statuses = this.plugin.getStatusOrder();
       for (const status of statuses) {
         const laneColor = this.plugin.getResolvedLaneColor(status);
         const userLane = this.plugin.settings.theme && this.plugin.settings.theme.laneColors && this.plugin.settings.theme.laneColors[status];
-        const setting = new Setting(themeSection).setName(status);
+        const setting = new Setting(themeSection)
+          .setName(status)
+          .setDesc("Accent and header text color for this lane.");
         setting.addColorPicker((picker) => {
           picker.setValue(laneColor.bg || "#868e96");
           picker.onChange(async (value) => {
