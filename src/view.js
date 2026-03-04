@@ -77,7 +77,11 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
       this._clickOutsideHandler = (event) => {
         if (!event.target.closest(".smart-kanban-overflow-btn") && !event.target.closest(".smart-kanban-overflow-menu")) {
-          this.containerEl.querySelectorAll(".smart-kanban-overflow-menu").forEach((m) => { m.style.display = "none"; });
+          this.containerEl.querySelectorAll(".smart-kanban-overflow-menu").forEach((m) => {
+            m.style.display = "none";
+            const c = m.closest(".smart-kanban-card");
+            if (c) c.classList.remove("has-menu-open");
+          });
         }
       };
       document.addEventListener("click", this._clickOutsideHandler);
@@ -116,6 +120,13 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
     renderBoardTabs() {
       this.boardTabsEl.empty();
       const boards = this.plugin.settings.boards || [];
+
+      /* hide tabs entirely when there are no custom boards */
+      if (boards.length === 0 && !this.boardId) {
+        this.boardTabsEl.style.display = "none";
+        return;
+      }
+      this.boardTabsEl.style.display = "";
 
       const defaultTab = this.boardTabsEl.createEl("button", {
         text: "Default Board",
@@ -879,9 +890,15 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       overflowBtn.addEventListener("click", (event) => {
         event.stopPropagation();
         document.querySelectorAll(".smart-kanban-overflow-menu").forEach((m) => {
-          if (m !== menu) m.style.display = "none";
+          if (m !== menu) {
+            m.style.display = "none";
+            const c = m.closest(".smart-kanban-card");
+            if (c) c.classList.remove("has-menu-open");
+          }
         });
-        menu.style.display = menu.style.display === "none" ? "" : "none";
+        const opening = menu.style.display === "none";
+        menu.style.display = opening ? "" : "none";
+        cardEl.classList.toggle("has-menu-open", opening);
       });
 
       const editItem = menu.createDiv({ text: "Edit", cls: "smart-kanban-menu-item" });

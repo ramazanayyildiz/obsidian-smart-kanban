@@ -23,6 +23,12 @@
   padding: 14px 16px;
   background: var(--sk-board-bg, var(--background-primary));
   font-family: var(--sk-font-family, inherit);
+
+  /* fill the entire pane */
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
 }
 
 
@@ -33,6 +39,7 @@
   align-items: center;
   margin-bottom: 10px;
   gap: 12px;
+  flex-shrink: 0;
 }
 
 .smart-kanban-header-left {
@@ -60,7 +67,7 @@
 
 .smart-kanban-search-input {
   width: 170px;
-  padding: 6px 10px 6px 30px;
+  padding: 6px 10px 6px 34px;
   font-size: 0.78rem;
   border: 1px solid color-mix(in srgb, var(--background-modifier-border) 60%, transparent);
   border-radius: var(--sk-radius-pill);
@@ -78,10 +85,14 @@
 
 .smart-kanban-search-icon {
   position: absolute;
-  left: 9px;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
   opacity: 0.35;
   pointer-events: none;
   display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .smart-kanban-search-icon svg {
@@ -137,6 +148,7 @@
 /* ── Filters ── */
 .smart-kanban-filters {
   margin-bottom: 12px;
+  flex-shrink: 0;
 }
 
 .smart-kanban-filter-row {
@@ -339,8 +351,12 @@
   display: flex;
   gap: 14px;
   overflow-x: auto;
+  overflow-y: hidden;
   padding-bottom: 10px;
   scroll-behavior: smooth;
+  flex: 1;
+  min-height: 0;
+  align-items: stretch;
 }
 
 /* Scrollbar refinement */
@@ -368,6 +384,7 @@
   border-radius: var(--sk-radius-lg);
   display: flex;
   flex-direction: column;
+  min-height: 0;
   transition: min-width 0.3s var(--sk-ease), max-width 0.3s var(--sk-ease), opacity 0.3s;
 }
 
@@ -473,6 +490,21 @@
   padding: 8px;
   min-height: 60px;
   flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.smart-kanban-card-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.smart-kanban-card-list::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--text-muted) 15%, transparent);
+  border-radius: 2px;
+}
+
+.smart-kanban-card-list::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 
@@ -500,6 +532,11 @@
 
 .smart-kanban-card:active {
   cursor: grabbing;
+}
+
+/* elevate card when its menu is open so menu isn't behind siblings */
+.smart-kanban-card.has-menu-open {
+  z-index: 50;
 }
 
 /* Priority accent — refined left bar */
@@ -828,7 +865,8 @@
   gap: 2px;
   margin-bottom: 10px;
   overflow-x: auto;
-  padding-bottom: 2px;
+  padding: 2px 0 6px;
+  flex-shrink: 0;
 }
 
 .smart-kanban-board-tab {

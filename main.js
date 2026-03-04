@@ -1212,6 +1212,8 @@ var require_view = __commonJS({
             if (!event.target.closest(".smart-kanban-overflow-btn") && !event.target.closest(".smart-kanban-overflow-menu")) {
               this.containerEl.querySelectorAll(".smart-kanban-overflow-menu").forEach((m) => {
                 m.style.display = "none";
+                const c = m.closest(".smart-kanban-card");
+                if (c) c.classList.remove("has-menu-open");
               });
             }
           };
@@ -1249,6 +1251,11 @@ var require_view = __commonJS({
         renderBoardTabs() {
           this.boardTabsEl.empty();
           const boards = this.plugin.settings.boards || [];
+          if (boards.length === 0 && !this.boardId) {
+            this.boardTabsEl.style.display = "none";
+            return;
+          }
+          this.boardTabsEl.style.display = "";
           const defaultTab = this.boardTabsEl.createEl("button", {
             text: "Default Board",
             cls: `smart-kanban-board-tab ${!this.boardId ? "is-active" : ""}`
@@ -1914,9 +1921,15 @@ var require_view = __commonJS({
           overflowBtn.addEventListener("click", (event) => {
             event.stopPropagation();
             document.querySelectorAll(".smart-kanban-overflow-menu").forEach((m) => {
-              if (m !== menu) m.style.display = "none";
+              if (m !== menu) {
+                m.style.display = "none";
+                const c = m.closest(".smart-kanban-card");
+                if (c) c.classList.remove("has-menu-open");
+              }
             });
-            menu.style.display = menu.style.display === "none" ? "" : "none";
+            const opening = menu.style.display === "none";
+            menu.style.display = opening ? "" : "none";
+            cardEl.classList.toggle("has-menu-open", opening);
           });
           const editItem = menu.createDiv({ text: "Edit", cls: "smart-kanban-menu-item" });
           editItem.addEventListener("click", async () => {
