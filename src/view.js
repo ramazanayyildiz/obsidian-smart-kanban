@@ -694,30 +694,6 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
       const titleRow = cardEl.createDiv({ cls: "smart-kanban-card-title" });
 
-      const completeBtn = titleRow.createEl("button", { cls: "smart-kanban-complete-btn" });
-      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-      svg.setAttribute("width", "14");
-      svg.setAttribute("height", "14");
-      svg.setAttribute("viewBox", "0 0 24 24");
-      svg.setAttribute("fill", "none");
-      svg.setAttribute("stroke", "currentColor");
-      svg.setAttribute("stroke-width", "2");
-      const svgRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-      svgRect.setAttribute("x", "3");
-      svgRect.setAttribute("y", "3");
-      svgRect.setAttribute("width", "18");
-      svgRect.setAttribute("height", "18");
-      svgRect.setAttribute("rx", "3");
-      svg.appendChild(svgRect);
-      completeBtn.appendChild(svg);
-      completeBtn.setAttr("aria-label", "Complete");
-      completeBtn.addEventListener("click", async (event) => {
-        event.stopPropagation();
-        await this.plugin.updateCardStatus(card, "Done");
-        await this.reload();
-        new Notice(`Completed: ${card.title}`);
-      });
-
       const link = titleRow.createEl("a", { text: card.title, href: "#", cls: "smart-kanban-card-title-link" });
       link.addEventListener("click", async (event) => {
         event.preventDefault();
@@ -727,37 +703,39 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         }
       });
 
-      if (card.dueInfo) {
-        titleRow.createSpan({ text: card.dueInfo.label, cls: "smart-kanban-due-badge" });
-      }
+      const overflowBtn = titleRow.createEl("button", { cls: "smart-kanban-overflow-btn" });
+      setIcon(overflowBtn, "more-horizontal");
 
+      const badges = cardEl.createDiv({ cls: "smart-kanban-card-badges" });
+
+      if (card.category) {
+        badges.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+      }
       if (card.priority) {
         const prioSlug = card.priority.toLowerCase().replace(/\s+/g, "-");
-        cardEl.createSpan({
+        badges.createSpan({
           text: card.priority,
-          cls: `smart-kanban-priority-badge smart-kanban-priority-${prioSlug}`,
+          cls: `smart-kanban-badge smart-kanban-priority-badge smart-kanban-priority-${prioSlug}`,
         });
       }
-
-      if (card.preview) {
-        cardEl.createDiv({ cls: "smart-kanban-card-preview", text: card.preview });
+      if (card.dueInfo) {
+        badges.createSpan({ text: card.dueInfo.label, cls: "smart-kanban-badge smart-kanban-due-badge" });
       }
 
-      const meta = cardEl.createDiv({ cls: "smart-kanban-card-meta" });
-      for (const [label, value] of this.plugin.getCardMetaEntries(card)) {
-        meta.createSpan({ text: `${label}: ${value || "-"}` });
+      const customEntries = this.plugin.getCardMetaEntries(card);
+      for (const [label, value] of customEntries) {
+        if (!value || value === "-") continue;
+        if (label === "Category" || label === "Priority" || label === "Due") continue;
+        badges.createSpan({ text: value, cls: "smart-kanban-badge smart-kanban-badge-custom" });
       }
 
       if (card.tags && card.tags.length) {
-        const tagsWrap = cardEl.createDiv({ cls: "smart-kanban-card-tags" });
         for (const tag of card.tags) {
-          tagsWrap.createSpan({ text: tag, cls: "smart-kanban-tag" });
+          badges.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
         }
       }
 
-      const actions = cardEl.createDiv({ cls: "smart-kanban-card-actions" });
-      const overflowBtn = actions.createEl("button", { text: "\u00B7\u00B7\u00B7", cls: "smart-kanban-overflow-btn" });
-      const menu = actions.createDiv({ cls: "smart-kanban-overflow-menu" });
+      const menu = cardEl.createDiv({ cls: "smart-kanban-overflow-menu" });
       menu.style.display = "none";
 
       overflowBtn.addEventListener("click", (event) => {
@@ -781,6 +759,14 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         if (file instanceof TFile) {
           await this.app.workspace.getLeaf(true).openFile(file);
         }
+      });
+
+      const completeItem = menu.createDiv({ text: "Mark Done", cls: "smart-kanban-menu-item" });
+      completeItem.addEventListener("click", async () => {
+        menu.style.display = "none";
+        await this.plugin.updateCardStatus(card, "Done");
+        await this.reload();
+        new Notice(`Completed: ${card.title}`);
       });
 
       const moveItem = menu.createDiv({ cls: "smart-kanban-menu-item smart-kanban-move-item" });
