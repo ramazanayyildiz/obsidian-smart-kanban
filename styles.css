@@ -783,3 +783,165 @@
   font-size: 0.82rem;
   padding: 4px 12px;
 }
+
+/* View mode toggle */
+.smart-kanban-viewmode-wrap {
+  position: relative;
+}
+
+.smart-kanban-viewmode-dropdown {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 100;
+  min-width: 170px;
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 4px 0;
+  margin-top: 4px;
+}
+
+.smart-kanban-viewmode-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+
+.smart-kanban-viewmode-item:hover {
+  background: var(--background-secondary);
+}
+
+.smart-kanban-viewmode-item.is-active {
+  font-weight: 600;
+}
+
+.smart-kanban-viewmode-item-icon {
+  display: flex;
+  opacity: 0.6;
+}
+
+.smart-kanban-viewmode-item-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.smart-kanban-viewmode-check {
+  margin-left: auto;
+  display: flex;
+  opacity: 0.6;
+}
+
+.smart-kanban-viewmode-check svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Table view */
+.smart-kanban-table-wrap {
+  overflow-x: auto;
+}
+
+.smart-kanban-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.smart-kanban-table th {
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.6;
+  border-bottom: 2px solid var(--background-modifier-border);
+  white-space: nowrap;
+}
+
+.smart-kanban-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--background-modifier-border);
+  vertical-align: middle;
+}
+
+.smart-kanban-table-row:hover {
+  background: var(--background-secondary);
+}
+
+.smart-kanban-table-link {
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.smart-kanban-table-tags {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+/* List view */
+.smart-kanban-list-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.smart-kanban-list-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.smart-kanban-list-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--background-modifier-border);
+  margin-bottom: 4px;
+}
+
+.smart-kanban-list-section-title {
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+.smart-kanban-list-section-count {
+  font-size: 0.72rem;
+  opacity: 0.5;
+}
+
+.smart-kanban-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px 6px 16px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.smart-kanban-list-item:hover {
+  background: var(--background-secondary);
+}
+
+.smart-kanban-list-item-title {
+  font-weight: 500;
+  font-size: 0.84rem;
+  text-decoration: none;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.smart-kanban-list-item-badges {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}

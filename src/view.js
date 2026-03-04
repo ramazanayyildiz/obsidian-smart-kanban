@@ -10,6 +10,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       this.filtersCollapsed = false;
       this._dropdownCleanups = [];
       this.collapsedLanes = new Set();
+      this.viewMode = "board";
     }
 
     getViewType() {
@@ -148,7 +149,13 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       this.cards = await this.plugin.collectCards(this.boardId);
       this.applyTheme();
       this.renderFilters();
-      this.renderBoard();
+      this.renderContent();
+    }
+
+    renderContent() {
+      if (this.viewMode === "table") this.renderTable();
+      else if (this.viewMode === "list") this.renderList();
+      else this.renderBoard();
     }
 
     buildHeader() {
@@ -181,6 +188,46 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       this.createIconBtn(toolbar, "plus", "New Task", () => this.createTaskInteractive());
       this.createIconBtn(toolbar, "refresh-cw", "Refresh", () => this.reload());
       this.createIconBtn(toolbar, "settings", "Configure Board", () => this.configureBoardInteractive());
+      this.buildViewModeToggle(toolbar);
+    }
+
+    buildViewModeToggle(parent) {
+      const wrap = parent.createDiv({ cls: "smart-kanban-viewmode-wrap" });
+      const modes = [
+        { key: "board", icon: "kanban-square", label: "View as board" },
+        { key: "table", icon: "table", label: "View as table" },
+        { key: "list", icon: "list", label: "View as list" },
+      ];
+      const currentMode = modes.find((m) => m.key === this.viewMode) || modes[0];
+      const btn = wrap.createEl("button", { cls: "smart-kanban-icon-btn", attr: { title: currentMode.label } });
+      setIcon(btn, currentMode.icon);
+
+      const dropdown = wrap.createDiv({ cls: "smart-kanban-viewmode-dropdown" });
+      dropdown.style.display = "none";
+
+      for (const mode of modes) {
+        const item = dropdown.createDiv({ cls: `smart-kanban-viewmode-item ${this.viewMode === mode.key ? "is-active" : ""}` });
+        const iconEl = item.createSpan({ cls: "smart-kanban-viewmode-item-icon" });
+        setIcon(iconEl, mode.icon);
+        item.createSpan({ text: mode.label });
+        if (this.viewMode === mode.key) {
+          const check = item.createSpan({ cls: "smart-kanban-viewmode-check" });
+          setIcon(check, "check");
+        }
+        item.addEventListener("click", () => {
+          this.viewMode = mode.key;
+          dropdown.style.display = "none";
+          this.buildHeader();
+          this.renderContent();
+        });
+      }
+
+      const closeDropdown = (e) => { if (!wrap.contains(e.target)) dropdown.style.display = "none"; };
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        dropdown.style.display = dropdown.style.display === "none" ? "" : "none";
+        document.addEventListener("click", closeDropdown, { once: true });
+      });
     }
 
     createIconBtn(parent, icon, title, onClick) {
@@ -517,6 +564,9 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
     renderBoard() {
       this.boardEl.empty();
+      this.boardEl.removeClass("smart-kanban-table-wrap");
+      this.boardEl.removeClass("smart-kanban-list-wrap");
+      this.boardEl.addClass("smart-kanban-board");
 
       if (this.cards.length === 0) {
         const emptyEl = this.boardEl.createDiv({ cls: "smart-kanban-empty-state" });
@@ -672,6 +722,111 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
           quickInput.addEventListener("keydown", (e) => {
             if (e.key === "Enter") { e.preventDefault(); doQuickAdd(); }
           });
+        }
+      }
+    }
+
+    renderTable() {
+      this.boardEl.empty();
+      this.boardEl.removeClass("smart-kanban-board");
+      this.boardEl.addClass("smart-kanban-table-wrap");
+
+      const filtered = this.filteredCards();
+      const sorted = this.plugin.sortCards(filtered);
+
+      if (!sorted.length) {
+        this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: "No tasks found." });
+        return;
+      }
+
+      const table = this.boardEl.createEl("table", { cls: "smart-kanban-table" });
+      const thead = table.createEl("thead");
+      const headerRow = thead.createEl("tr");
+      for (const col of ["Title", "Status", "Category", "Priority", "Due Date", "Tags"]) {
+        headerRow.createEl("th", { text: col });
+      }
+
+      const tbody = table.createEl("tbody");
+      for (const card of sorted) {
+        const tr = tbody.createEl("tr", { cls: "smart-kanban-table-row" });
+
+        const tdTitle = tr.createEl("td");
+        const link = tdTitle.createEl("a", { text: card.title, href: "#", cls: "smart-kanban-table-link" });
+        link.addEventListener("click", async (e) => {
+          e.preventDefault();
+          const file = this.app.vault.getAbstractFileByPath(card.path);
+          if (file instanceof TFile) await this.app.workspace.getLeaf(true).openFile(file);
+        });
+
+        tr.createEl("td").createSpan({ text: card.status || "Todo", cls: "smart-kanban-badge smart-kanban-badge-category" });
+
+        const tdCat = tr.createEl("td");
+        if (card.category) tdCat.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+
+        const tdPri = tr.createEl("td");
+        if (card.priority) {
+          const slug = card.priority.toLowerCase().replace(/\s+/g, "-");
+          tdPri.createSpan({ text: card.priority, cls: `smart-kanban-badge smart-kanban-priority-badge smart-kanban-priority-${slug}` });
+        }
+
+        const tdDue = tr.createEl("td");
+        if (card.dueDate) {
+          const cls = card.dueInfo ? `smart-kanban-badge smart-kanban-due-badge ${card.dueInfo.cls || ""}` : "";
+          tdDue.createSpan({ text: card.dueDate, cls });
+        }
+
+        const tdTags = tr.createEl("td", { cls: "smart-kanban-table-tags" });
+        for (const tag of card.tags || []) {
+          tdTags.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
+        }
+      }
+    }
+
+    renderList() {
+      this.boardEl.empty();
+      this.boardEl.removeClass("smart-kanban-board");
+      this.boardEl.addClass("smart-kanban-list-wrap");
+
+      const filtered = this.filteredCards();
+      const statuses = this.plugin.collectStatusesFromCards(this.cards);
+
+      if (!filtered.length) {
+        this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: "No tasks found." });
+        return;
+      }
+
+      for (const status of statuses) {
+        let laneCards = filtered.filter((c) => (c.status || "Todo") === status);
+        if (!laneCards.length) continue;
+        laneCards = this.plugin.sortCards(laneCards);
+
+        const section = this.boardEl.createDiv({ cls: "smart-kanban-list-section" });
+        const header = section.createDiv({ cls: "smart-kanban-list-section-header" });
+        const laneColor = this.plugin.getResolvedLaneColor(status);
+        if (laneColor.bg) header.style.borderLeftColor = laneColor.bg;
+        header.createSpan({ text: status, cls: "smart-kanban-list-section-title" });
+        header.createSpan({ text: String(laneCards.length), cls: "smart-kanban-list-section-count" });
+
+        for (const card of laneCards) {
+          const row = section.createDiv({ cls: "smart-kanban-list-item" });
+
+          const link = row.createEl("a", { text: card.title, href: "#", cls: "smart-kanban-list-item-title" });
+          link.addEventListener("click", async (e) => {
+            e.preventDefault();
+            const file = this.app.vault.getAbstractFileByPath(card.path);
+            if (file instanceof TFile) await this.app.workspace.getLeaf(true).openFile(file);
+          });
+
+          const badges = row.createDiv({ cls: "smart-kanban-list-item-badges" });
+          if (card.category) badges.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+          if (card.priority) {
+            const slug = card.priority.toLowerCase().replace(/\s+/g, "-");
+            badges.createSpan({ text: card.priority, cls: `smart-kanban-badge smart-kanban-priority-badge smart-kanban-priority-${slug}` });
+          }
+          if (card.dueInfo) badges.createSpan({ text: card.dueInfo.label, cls: "smart-kanban-badge smart-kanban-due-badge" });
+          for (const tag of card.tags || []) {
+            badges.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
+          }
         }
       }
     }
