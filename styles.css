@@ -334,6 +334,11 @@
 }
 
 /* Overflow menu */
+.smart-kanban-overflow-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
 .smart-kanban-overflow-btn {
   background: none;
   border: none;

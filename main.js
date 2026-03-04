@@ -339,7 +339,9 @@ var require_core = __commonJS({
       return map;
     }
     function sortCards2(cards, sortBy, sortDirection, priorityOrderMap) {
-      if (sortBy === "none") return [...cards];
+      if (sortBy === "none") {
+        return [...cards].sort((a, b) => (a.kanbanSort || 0) - (b.kanbanSort || 0));
+      }
       const direction = sortDirection === "desc" ? -1 : 1;
       const priorities = priorityOrderMap instanceof Map ? priorityOrderMap : /* @__PURE__ */ new Map();
       return [...cards].sort((a, b) => {
@@ -1716,21 +1718,23 @@ var require_view = __commonJS({
             if (!isCollapsed) {
               const list = lane.createDiv({ cls: "smart-kanban-card-list" });
               list.dataset.status = status;
+              let dropInsertBeforeId = null;
               list.addEventListener("dragover", (event) => {
                 event.preventDefault();
                 list.addClass("is-drag-target");
                 lane.addClass("is-drag-target");
                 const indicator = list.querySelector(".smart-kanban-drop-indicator");
                 if (indicator) indicator.remove();
-                const cards = [...list.querySelectorAll(".smart-kanban-card")];
+                const cardEls = [...list.querySelectorAll(".smart-kanban-card")];
                 let insertBefore = null;
-                for (const c of cards) {
+                for (const c of cardEls) {
                   const cRect = c.getBoundingClientRect();
                   if (event.clientY < cRect.top + cRect.height / 2) {
                     insertBefore = c;
                     break;
                   }
                 }
+                dropInsertBeforeId = insertBefore ? insertBefore.dataset.cardId : null;
                 const line = document.createElement("div");
                 line.className = "smart-kanban-drop-indicator";
                 if (insertBefore) {
@@ -1758,8 +1762,23 @@ var require_view = __commonJS({
                 if (!id) return;
                 const card = this.cards.find((c) => c.id === id);
                 if (!card) return;
-                if (card.status === status) return;
-                await this.plugin.updateCardStatus(card, status);
+                const targetCards = laneCards.filter((c) => c.id !== card.id);
+                let newSort = 0;
+                if (targetCards.length === 0) {
+                  newSort = 0;
+                } else if (!dropInsertBeforeId) {
+                  newSort = (targetCards[targetCards.length - 1].kanbanSort || 0) + 1e3;
+                } else {
+                  const idx = targetCards.findIndex((c) => c.id === dropInsertBeforeId);
+                  if (idx <= 0) {
+                    newSort = (targetCards[0].kanbanSort || 0) - 1e3;
+                  } else {
+                    const prev = targetCards[idx - 1].kanbanSort || 0;
+                    const next = targetCards[idx].kanbanSort || 0;
+                    newSort = (prev + next) / 2;
+                  }
+                }
+                await this.plugin.updateCardSortOrder(card, newSort, status);
                 await this.reload();
               });
               for (const card of laneCards) {
@@ -1884,6 +1903,7 @@ var require_view = __commonJS({
         }
         renderCard(parent, card) {
           const cardEl = parent.createDiv({ cls: "smart-kanban-card" });
+          cardEl.dataset.cardId = card.id;
           cardEl.setAttr("draggable", "true");
           cardEl.setAttr("tabindex", "0");
           cardEl.addEventListener("dragstart", (event) => {
@@ -1905,7 +1925,8 @@ var require_view = __commonJS({
               await this.app.workspace.getLeaf(true).openFile(file);
             }
           });
-          const overflowBtn = titleRow.createEl("button", { cls: "smart-kanban-overflow-btn" });
+          const overflowWrap = titleRow.createDiv({ cls: "smart-kanban-overflow-wrap" });
+          const overflowBtn = overflowWrap.createEl("button", { cls: "smart-kanban-overflow-btn" });
           setIcon2(overflowBtn, "more-horizontal");
           const badges = cardEl.createDiv({ cls: "smart-kanban-card-badges" });
           if (card.category) {
@@ -1932,7 +1953,7 @@ var require_view = __commonJS({
               badges.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
             }
           }
-          const menu = cardEl.createDiv({ cls: "smart-kanban-overflow-menu" });
+          const menu = overflowWrap.createDiv({ cls: "smart-kanban-overflow-menu" });
           menu.style.display = "none";
           overflowBtn.addEventListener("click", (event) => {
             event.stopPropagation();
@@ -2781,6 +2802,8 @@ module.exports = class SmartKanbanPlugin extends Plugin {
         preview = extractNotePreview(content);
       } catch (_) {
       }
+      const rawSort = fm["kanban-sort"];
+      const kanbanSort = typeof rawSort === "number" ? rawSort : 0;
       cards.push({
         id: file.path,
         kind: "note",
@@ -2794,7 +2817,8 @@ module.exports = class SmartKanbanPlugin extends Plugin {
         dueDate,
         dueTs: dueInfo ? dueInfo.sortValue : null,
         dueInfo,
-        preview
+        preview,
+        kanbanSort
       });
     }
     return cards;
@@ -2842,7 +2866,8 @@ module.exports = class SmartKanbanPlugin extends Plugin {
           customFields,
           dueDate: parsed.dueDate || "",
           dueTs: dueInfo ? dueInfo.sortValue : null,
-          dueInfo
+          dueInfo,
+          kanbanSort: idx
         });
       }
     }
@@ -2852,6 +2877,25 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     await this.updateCardFields(card, {
       [this.settings.statusField]: String(nextStatus || "").trim() || "Todo"
     });
+  }
+  async updateCardSortOrder(card, newSort, newStatus) {
+    if (card.kind === "note") {
+      const file = this.app.vault.getAbstractFileByPath(card.path);
+      if (!(file instanceof TFile)) return;
+      await this.app.fileManager.processFrontMatter(file, (fm) => {
+        fm["kanban-sort"] = newSort;
+        if (newStatus !== void 0 && newStatus !== card.status) {
+          fm[this.settings.statusField] = newStatus;
+        }
+      });
+    } else {
+      const updates = {};
+      if (newStatus !== void 0 && newStatus !== card.status) {
+        updates[this.settings.statusField] = newStatus;
+      }
+      updates["kanban-sort"] = String(newSort);
+      await this.updateCardFields(card, updates);
+    }
   }
   async deleteTaskLine(card) {
     const file = this.app.vault.getAbstractFileByPath(card.path);

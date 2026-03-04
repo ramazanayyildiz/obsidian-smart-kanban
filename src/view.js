@@ -652,6 +652,8 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
           const list = lane.createDiv({ cls: "smart-kanban-card-list" });
           list.dataset.status = status;
 
+          let dropInsertBeforeId = null;
+
           list.addEventListener("dragover", (event) => {
             event.preventDefault();
             list.addClass("is-drag-target");
@@ -659,15 +661,16 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
             const indicator = list.querySelector(".smart-kanban-drop-indicator");
             if (indicator) indicator.remove();
-            const cards = [...list.querySelectorAll(".smart-kanban-card")];
+            const cardEls = [...list.querySelectorAll(".smart-kanban-card")];
             let insertBefore = null;
-            for (const c of cards) {
+            for (const c of cardEls) {
               const cRect = c.getBoundingClientRect();
               if (event.clientY < cRect.top + cRect.height / 2) {
                 insertBefore = c;
                 break;
               }
             }
+            dropInsertBeforeId = insertBefore ? insertBefore.dataset.cardId : null;
             const line = document.createElement("div");
             line.className = "smart-kanban-drop-indicator";
             if (insertBefore) {
@@ -700,9 +703,24 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
             const card = this.cards.find((c) => c.id === id);
             if (!card) return;
 
-            if (card.status === status) return;
+            const targetCards = laneCards.filter((c) => c.id !== card.id);
+            let newSort = 0;
+            if (targetCards.length === 0) {
+              newSort = 0;
+            } else if (!dropInsertBeforeId) {
+              newSort = (targetCards[targetCards.length - 1].kanbanSort || 0) + 1000;
+            } else {
+              const idx = targetCards.findIndex((c) => c.id === dropInsertBeforeId);
+              if (idx <= 0) {
+                newSort = (targetCards[0].kanbanSort || 0) - 1000;
+              } else {
+                const prev = targetCards[idx - 1].kanbanSort || 0;
+                const next = targetCards[idx].kanbanSort || 0;
+                newSort = (prev + next) / 2;
+              }
+            }
 
-            await this.plugin.updateCardStatus(card, status);
+            await this.plugin.updateCardSortOrder(card, newSort, status);
             await this.reload();
           });
 
@@ -847,6 +865,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
     renderCard(parent, card) {
       const cardEl = parent.createDiv({ cls: "smart-kanban-card" });
+      cardEl.dataset.cardId = card.id;
       cardEl.setAttr("draggable", "true");
       cardEl.setAttr("tabindex", "0");
       cardEl.addEventListener("dragstart", (event) => {
@@ -872,7 +891,8 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         }
       });
 
-      const overflowBtn = titleRow.createEl("button", { cls: "smart-kanban-overflow-btn" });
+      const overflowWrap = titleRow.createDiv({ cls: "smart-kanban-overflow-wrap" });
+      const overflowBtn = overflowWrap.createEl("button", { cls: "smart-kanban-overflow-btn" });
       setIcon(overflowBtn, "more-horizontal");
 
       const badges = cardEl.createDiv({ cls: "smart-kanban-card-badges" });
@@ -904,7 +924,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         }
       }
 
-      const menu = cardEl.createDiv({ cls: "smart-kanban-overflow-menu" });
+      const menu = overflowWrap.createDiv({ cls: "smart-kanban-overflow-menu" });
       menu.style.display = "none";
 
       overflowBtn.addEventListener("click", (event) => {

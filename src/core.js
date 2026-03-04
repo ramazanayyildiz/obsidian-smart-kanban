@@ -145,7 +145,9 @@ function parseWipLimits(value) {
 }
 
 function sortCards(cards, sortBy, sortDirection, priorityOrderMap) {
-  if (sortBy === "none") return [...cards];
+  if (sortBy === "none") {
+    return [...cards].sort((a, b) => (a.kanbanSort || 0) - (b.kanbanSort || 0));
+  }
 
   const direction = sortDirection === "desc" ? -1 : 1;
   const priorities = priorityOrderMap instanceof Map ? priorityOrderMap : new Map();
