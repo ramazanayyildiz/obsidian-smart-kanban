@@ -17,6 +17,72 @@ module.exports = function createModals({ Modal, Notice, t = (k) => k }) {
       this.renderContent();
     }
 
+    normalizeBoardName(name) {
+      return String(name || "").trim().toLowerCase();
+    }
+
+    boardNameExists(name, excludeBoardId = "") {
+      const normalized = this.normalizeBoardName(name);
+      if (!normalized) return false;
+      return (this.plugin.settings.boards || []).some((board) => {
+        if (excludeBoardId && board.id === excludeBoardId) return false;
+        return this.normalizeBoardName(board.name) === normalized;
+      });
+    }
+
+    createBoardId() {
+      return `board-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    }
+
+    createEmptyBoard(type = "independent") {
+      return {
+        id: this.createBoardId(),
+        name: "",
+        type: type === "filtered-view" ? "filtered-view" : "independent",
+        parentBoardId: null,
+        visibleStatuses: null,
+        defaultFilters: null,
+        sourceMode: null,
+        sourceFolder: null,
+        includeSubfolders: null,
+        taskInboxFile: null,
+        noteTemplate: null,
+        statusField: null,
+        categoryField: null,
+        priorityField: null,
+        tagsField: null,
+        dueDateField: null,
+        customFields: null,
+        statusOrder: null,
+        priorityOrder: null,
+        sortBy: null,
+        sortDirection: null,
+        dueSoonDays: null,
+        wipLimits: null,
+        autoArchiveDays: null,
+        dateFormat: null,
+        dateDisplayFormat: null,
+        showRelativeDate: null,
+        tagColors: null,
+        categoryColors: null,
+        theme: null,
+        cardOrder: null,
+      };
+    }
+
+    getBaseEffectiveSettings(board) {
+      if (board && board.type === "filtered-view" && board.parentBoardId) {
+        return this.plugin.getEffectiveSettings(board.parentBoardId);
+      }
+      return this.plugin.getEffectiveSettings("");
+    }
+
+    formatInheritLabel(value) {
+      if (value === null || value === undefined || value === "") return tx("common.none", "None");
+      if (typeof value === "object") return tx("common.custom", "Custom");
+      return String(value);
+    }
+
     renderContent() {
       const { contentEl } = this;
       contentEl.empty();
@@ -33,10 +99,28 @@ module.exports = function createModals({ Modal, Notice, t = (k) => k }) {
         editBtn.addEventListener("click", async () => {
           await this.editBoard(board);
         });
+        const cloneBtn = row.createEl("button", { text: tx("modal.board.clone", "Clone") });
+        cloneBtn.addEventListener("click", async () => {
+          await this.cloneBoard(board);
+        });
         const deleteBtn = row.createEl("button", { text: t("common.delete"), cls: "mod-warning" });
         deleteBtn.addEventListener("click", async () => {
+          const childBoards = (this.plugin.settings.boards || []).filter((b) => b.parentBoardId === board.id);
+          const message = childBoards.length
+            ? tx("modal.board.delete_with_children", `Delete "${board.name}"? ${childBoards.length} child board(s) will be detached.`, { name: board.name, count: childBoards.length })
+            : tx("modal.board.delete_confirm", `Delete "${board.name}"?`, { name: board.name });
+          const confirmed = await this.plugin.openConfirmModal({
+            title: tx("modal.board.delete_title", "Delete Board"),
+            message,
+            confirmText: t("common.delete"),
+          });
+          if (!confirmed) return;
+
+          for (const child of childBoards) child.parentBoardId = null;
           this.plugin.settings.boards = this.plugin.settings.boards.filter((b) => b.id !== board.id);
+          if (this.plugin.settings.activeBoardId === board.id) this.plugin.settings.activeBoardId = "";
           await this.plugin.saveSettings();
+          this.plugin.refreshViews();
           this.renderContent();
         });
       }
@@ -54,12 +138,29 @@ module.exports = function createModals({ Modal, Notice, t = (k) => k }) {
     }
 
     async createBoard() {
+      const boardChoices = this.plugin.settings.boards || [];
       const values = await this.plugin.openFormModal({
         title: tx("modal.board_create.title", "Create Board"),
         submitText: t("common.create"),
         fields: [
           { key: "name", label: tx("modal.board.field.name", "Board name"), value: "" },
           { key: "type", label: tx("modal.board.field.type", "Type"), value: "independent", type: "select", options: ["independent", "filtered-view"] },
+          {
+            key: "parentBoardId",
+            label: tx("modal.board.field.parent", "Parent board (filtered-view)"),
+            value: "",
+            type: "select",
+            options: ["", ...boardChoices.map((b) => b.id)],
+            optionLabels: { "": tx("modal.board.field.parent.none", "None"), ...Object.fromEntries(boardChoices.map((b) => [b.id, b.name])) },
+          },
+          {
+            key: "cloneFrom",
+            label: tx("modal.board.field.clone_from", "Clone settings from"),
+            value: "",
+            type: "select",
+            options: ["", ...boardChoices.map((b) => b.id)],
+            optionLabels: { "": tx("modal.board.field.clone_from.none", "None (start empty)"), ...Object.fromEntries(boardChoices.map((b) => [b.id, b.name])) },
+          },
           { key: "sourceFolder", label: tx("modal.board.field.source_folder", "Source folder (blank = inherit)"), value: "" },
           { key: "statusOrder", label: tx("modal.board.field.status_order", "Status order (comma-sep, blank = inherit)"), value: "" },
           { key: "visibleStatuses", label: tx("modal.board.field.visible_statuses", "Visible statuses (filtered-view, comma-sep)"), value: "" },
@@ -68,67 +169,152 @@ module.exports = function createModals({ Modal, Notice, t = (k) => k }) {
       if (!values) return;
       const name = String(values.name || "").trim();
       if (!name) { new Notice(t("modal.board_create.name_required")); return; }
+      if (this.boardNameExists(name)) {
+        new Notice(tx("modal.board.name_duplicate", "Board name already exists."));
+        return;
+      }
 
-      const id = `board-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      const id = this.createBoardId();
       if (!this.plugin.settings.boards) this.plugin.settings.boards = [];
-      this.plugin.settings.boards.push({
-        id,
-        name,
-        type: values.type || "independent",
-        sourceFolder: values.sourceFolder || null,
-        statusOrder: values.statusOrder || null,
-        visibleStatuses: values.visibleStatuses || null,
-        parentBoardId: null,
-        defaultFilters: null,
-        sourceMode: null, includeSubfolders: null, taskInboxFile: null,
-        statusField: null, categoryField: null, priorityField: null,
-        tagsField: null, dueDateField: null, customFields: null,
-        priorityOrder: null, sortBy: null, sortDirection: null,
-        dueSoonDays: null, wipLimits: null, filterPresets: null,
-        noteTemplate: null, dateFormat: null, dateDisplayFormat: null,
-        showRelativeDate: null, tagColors: null, categoryColors: null,
-      });
+      const type = values.type === "filtered-view" ? "filtered-view" : "independent";
+      const board = this.createEmptyBoard(type);
+      board.id = id;
+      board.name = name;
+      board.type = type;
+      const parentBoardId = String(values.parentBoardId || "");
+      board.parentBoardId = type === "filtered-view" && parentBoardId ? parentBoardId : null;
+      board.sourceFolder = String(values.sourceFolder || "").trim() || null;
+      board.statusOrder = String(values.statusOrder || "").trim() || null;
+      board.visibleStatuses = String(values.visibleStatuses || "").trim() || null;
+
+      const cloneFrom = String(values.cloneFrom || "").trim();
+      if (cloneFrom) {
+        const src = (this.plugin.settings.boards || []).find((b) => b.id === cloneFrom);
+        if (src) {
+          const cloned = JSON.parse(JSON.stringify(src));
+          Object.assign(board, cloned, {
+            id,
+            name,
+            type,
+            parentBoardId: board.parentBoardId,
+            sourceFolder: board.sourceFolder || cloned.sourceFolder || null,
+            statusOrder: board.statusOrder || cloned.statusOrder || null,
+            visibleStatuses: board.visibleStatuses || cloned.visibleStatuses || null,
+          });
+        }
+      }
+
+      this.plugin.settings.boards.push(board);
       await this.plugin.saveSettings();
+      this.plugin.refreshViews();
       this.renderContent();
       new Notice(t("modal.board_create.created_notice", { name }));
     }
 
+    async cloneBoard(board) {
+      if (!board) return;
+      const baseName = tx("modal.board.clone_suffix", "{name} Copy", { name: board.name || "Board" });
+      let candidate = baseName;
+      let i = 2;
+      while (this.boardNameExists(candidate)) {
+        candidate = `${baseName} ${i}`;
+        i += 1;
+      }
+      const clone = JSON.parse(JSON.stringify(board));
+      clone.id = this.createBoardId();
+      clone.name = candidate;
+      clone.parentBoardId = board.type === "filtered-view" ? board.parentBoardId || null : null;
+      if (!Array.isArray(this.plugin.settings.boards)) this.plugin.settings.boards = [];
+      this.plugin.settings.boards.push(clone);
+      await this.plugin.saveSettings();
+      this.plugin.refreshViews();
+      this.renderContent();
+      new Notice(tx("modal.board.clone_notice", "Board cloned: {name}", { name: candidate }));
+    }
+
     async editBoard(board) {
+      const base = this.getBaseEffectiveSettings(board);
       const relDateValue = board.showRelativeDate === true ? "yes" : board.showRelativeDate === false ? "no" : "";
+      const boardChoices = (this.plugin.settings.boards || []).filter((b) => b.id !== board.id);
       const values = await this.plugin.openFormModal({
         title: tx("modal.board_edit.title", "Edit Board: {name}", { name: board.name }),
         submitText: t("common.save"),
         fields: [
           { key: "name", label: tx("modal.board.field.name", "Board name"), value: board.name || "" },
           { key: "type", label: tx("modal.board.field.type", "Type"), value: board.type || "independent", type: "select", options: ["independent", "filtered-view"] },
-          { key: "sourceFolder", label: tx("modal.board.field.source_folder", "Source folder (blank = inherit)"), value: board.sourceFolder || "" },
-          { key: "statusOrder", label: tx("modal.board.field.status_order", "Status order (comma-sep, blank = inherit)"), value: board.statusOrder || "" },
-          { key: "visibleStatuses", label: tx("modal.board.field.visible_statuses_short", "Visible statuses (filtered-view)"), value: board.visibleStatuses || "" },
-          { key: "noteTemplate", label: tx("modal.board.field.note_template", "Note template (blank = inherit)"), value: board.noteTemplate || "" },
-          { key: "sortBy", label: tx("modal.board.field.sort_by", "Sort by (blank = inherit)"), value: board.sortBy || "", type: "select", options: ["", "none", "priority", "due", "title"], optionLabels: { "": t("common.none") } },
+          {
+            key: "parentBoardId",
+            label: tx("modal.board.field.parent", "Parent board (filtered-view)"),
+            value: board.parentBoardId || "",
+            type: "select",
+            options: ["", ...boardChoices.map((b) => b.id)],
+            optionLabels: { "": tx("modal.board.field.parent.none", "None"), ...Object.fromEntries(boardChoices.map((b) => [b.id, b.name])) },
+          },
+          { key: "sourceMode", label: tx("modal.board.field.source_mode", "Source mode (blank = inherit)"), value: board.sourceMode || "", type: "select", options: ["", "notes", "tasks"], optionLabels: { "": tx("modal.board.inherit_current", "Inherit (current: {value})", { value: this.formatInheritLabel(base.sourceMode) }), notes: tx("settings.source_mode.notes", "Note cards"), tasks: tx("settings.source_mode.tasks", "Task lines") } },
+          { key: "sourceFolder", label: tx("modal.board.field.source_folder", "Source folder (blank = inherit)"), value: board.sourceFolder || "", placeholder: this.formatInheritLabel(base.sourceFolder) },
+          { key: "includeSubfolders", label: tx("modal.board.field.include_subfolders", "Include subfolders"), value: board.includeSubfolders === true ? "yes" : board.includeSubfolders === false ? "no" : "", type: "select", options: ["", "yes", "no"], optionLabels: { "": tx("modal.board.inherit_current", "Inherit (current: {value})", { value: this.formatInheritLabel(base.includeSubfolders ? tx("common.yes", "Yes") : tx("common.no", "No")) }), yes: tx("common.yes", "Yes"), no: tx("common.no", "No") } },
+          { key: "taskInboxFile", label: tx("modal.board.field.task_inbox", "Task inbox file (blank = inherit)"), value: board.taskInboxFile || "", placeholder: this.formatInheritLabel(base.taskInboxFile) },
+          { key: "statusField", label: tx("modal.board.field.status_field", "Status field (blank = inherit)"), value: board.statusField || "", placeholder: this.formatInheritLabel(base.statusField) },
+          { key: "categoryField", label: tx("modal.board.field.category_field", "Category field (blank = inherit)"), value: board.categoryField || "", placeholder: this.formatInheritLabel(base.categoryField) },
+          { key: "priorityField", label: tx("modal.board.field.priority_field", "Priority field (blank = inherit)"), value: board.priorityField || "", placeholder: this.formatInheritLabel(base.priorityField) },
+          { key: "tagsField", label: tx("modal.board.field.tags_field", "Tags field (blank = inherit)"), value: board.tagsField || "", placeholder: this.formatInheritLabel(base.tagsField) },
+          { key: "dueDateField", label: tx("modal.board.field.due_field", "Due date field (blank = inherit)"), value: board.dueDateField || "", placeholder: this.formatInheritLabel(base.dueDateField) },
+          { key: "customFields", label: tx("modal.board.field.custom_fields", "Custom fields (blank = inherit)"), value: board.customFields || "", placeholder: this.formatInheritLabel(base.customFields) },
+          { key: "statusOrder", label: tx("modal.board.field.status_order", "Status order (comma-sep, blank = inherit)"), value: board.statusOrder || "", placeholder: this.formatInheritLabel(base.statusOrder) },
+          { key: "visibleStatuses", label: tx("modal.board.field.visible_statuses_short", "Visible statuses (filtered-view)"), value: board.visibleStatuses || "", placeholder: this.formatInheritLabel(base.visibleStatuses) },
+          { key: "noteTemplate", label: tx("modal.board.field.note_template", "Note template (blank = inherit)"), value: board.noteTemplate || "", placeholder: this.formatInheritLabel(base.noteTemplate) },
+          { key: "sortBy", label: tx("modal.board.field.sort_by", "Sort by (blank = inherit)"), value: board.sortBy || "", type: "select", options: ["", "none", "priority", "due", "title"], optionLabels: { "": tx("modal.board.inherit_current", "Inherit (current: {value})", { value: this.formatInheritLabel(base.sortBy) }), none: tx("settings.sort_by.none", "Manual (drag to reorder)"), priority: tx("settings.sort_by.priority", "Priority"), due: tx("settings.sort_by.due", "Due date"), title: tx("settings.sort_by.title", "Title") } },
+          { key: "sortDirection", label: tx("modal.board.field.sort_direction", "Sort direction (blank = inherit)"), value: board.sortDirection || "", type: "select", options: ["", "asc", "desc"], optionLabels: { "": tx("modal.board.inherit_current", "Inherit (current: {value})", { value: this.formatInheritLabel(base.sortDirection) }), asc: tx("settings.sort_direction.asc", "Ascending"), desc: tx("settings.sort_direction.desc", "Descending") } },
+          { key: "priorityOrder", label: tx("modal.board.field.priority_order", "Priority order (blank = inherit)"), value: board.priorityOrder || "", placeholder: this.formatInheritLabel(base.priorityOrder) },
           { key: "dueSoonDays", label: tx("modal.board.field.due_soon_days", "Due soon days (blank = inherit)"), value: board.dueSoonDays != null ? String(board.dueSoonDays) : "" },
           { key: "wipLimits", label: tx("modal.board.field.wip_limits", "WIP limits (blank = inherit)"), value: board.wipLimits || "" },
+          { key: "autoArchiveDays", label: tx("modal.board.field.auto_archive_days", "Auto-archive days (blank = inherit)"), value: board.autoArchiveDays != null ? String(board.autoArchiveDays) : "" },
           { key: "dateFormat", label: tx("modal.board.field.date_format", "Date format (blank = inherit)"), value: board.dateFormat || "" },
           { key: "dateDisplayFormat", label: tx("modal.board.field.date_display_format", "Display format (blank = inherit)"), value: board.dateDisplayFormat || "" },
-          { key: "showRelativeDate", label: tx("modal.board.field.show_relative_date", "Relative dates"), value: relDateValue, type: "select", options: ["", "yes", "no"], optionLabels: { "": tx("modal.board.field.show_relative_date.inherit", "Inherit"), "yes": tx("modal.board.field.show_relative_date.yes", "Yes"), "no": tx("modal.board.field.show_relative_date.no", "No") } },
+          { key: "showRelativeDate", label: tx("modal.board.field.show_relative_date", "Relative dates"), value: relDateValue, type: "select", options: ["", "yes", "no"], optionLabels: { "": tx("modal.board.inherit_current", "Inherit (current: {value})", { value: this.formatInheritLabel(base.showRelativeDate ? tx("common.yes", "Yes") : tx("common.no", "No")) }), "yes": tx("modal.board.field.show_relative_date.yes", "Yes"), "no": tx("modal.board.field.show_relative_date.no", "No") } },
           { key: "tagColors", label: tx("modal.board.field.tag_colors", "Tag colors JSON (blank = inherit)"), value: board.tagColors ? JSON.stringify(board.tagColors) : "" },
           { key: "categoryColors", label: tx("modal.board.field.category_colors", "Category colors JSON (blank = inherit)"), value: board.categoryColors ? JSON.stringify(board.categoryColors) : "" },
         ],
       });
       if (!values) return;
-      board.name = String(values.name || "").trim() || board.name;
+      const nextName = String(values.name || "").trim() || board.name;
+      if (!nextName) {
+        new Notice(t("modal.board_create.name_required"));
+        return;
+      }
+      if (this.boardNameExists(nextName, board.id)) {
+        new Notice(tx("modal.board.name_duplicate", "Board name already exists."));
+        return;
+      }
+      board.name = nextName;
       board.type = values.type || board.type;
-      board.sourceFolder = values.sourceFolder || null;
-      board.statusOrder = values.statusOrder || null;
-      board.visibleStatuses = values.visibleStatuses || null;
-      board.noteTemplate = values.noteTemplate || null;
+      const parentBoardId = String(values.parentBoardId || "").trim();
+      board.parentBoardId = board.type === "filtered-view" && parentBoardId && parentBoardId !== board.id ? parentBoardId : null;
+      board.sourceMode = String(values.sourceMode || "").trim() || null;
+      board.sourceFolder = String(values.sourceFolder || "").trim() || null;
+      board.includeSubfolders = values.includeSubfolders === "yes" ? true : values.includeSubfolders === "no" ? false : null;
+      board.taskInboxFile = String(values.taskInboxFile || "").trim() || null;
+      board.statusField = String(values.statusField || "").trim() || null;
+      board.categoryField = String(values.categoryField || "").trim() || null;
+      board.priorityField = String(values.priorityField || "").trim() || null;
+      board.tagsField = String(values.tagsField || "").trim() || null;
+      board.dueDateField = String(values.dueDateField || "").trim() || null;
+      board.customFields = String(values.customFields || "").trim() || null;
+      board.statusOrder = String(values.statusOrder || "").trim() || null;
+      board.priorityOrder = String(values.priorityOrder || "").trim() || null;
+      board.visibleStatuses = String(values.visibleStatuses || "").trim() || null;
+      board.noteTemplate = String(values.noteTemplate || "").trim() || null;
       board.sortBy = values.sortBy || null;
+      board.sortDirection = values.sortDirection || null;
       const dueSoon = String(values.dueSoonDays || "").trim();
       board.dueSoonDays = dueSoon !== "" ? Number.parseInt(dueSoon, 10) : null;
       if (board.dueSoonDays != null && !Number.isFinite(board.dueSoonDays)) board.dueSoonDays = null;
-      board.wipLimits = values.wipLimits || null;
-      board.dateFormat = values.dateFormat || null;
-      board.dateDisplayFormat = values.dateDisplayFormat || null;
+      board.wipLimits = String(values.wipLimits || "").trim() || null;
+      const autoArchive = String(values.autoArchiveDays || "").trim();
+      board.autoArchiveDays = autoArchive !== "" ? Number.parseInt(autoArchive, 10) : null;
+      if (board.autoArchiveDays != null && !Number.isFinite(board.autoArchiveDays)) board.autoArchiveDays = null;
+      board.dateFormat = String(values.dateFormat || "").trim() || null;
+      board.dateDisplayFormat = String(values.dateDisplayFormat || "").trim() || null;
       const relDate = String(values.showRelativeDate || "").trim();
       board.showRelativeDate = relDate === "yes" ? true : relDate === "no" ? false : null;
       try {

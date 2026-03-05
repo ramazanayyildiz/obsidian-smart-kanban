@@ -274,6 +274,15 @@ var require_i18n = __commonJS({
         "settings.section.advanced.desc": "Performance and behavior tuning.",
         "settings.section.dateDisplay": "Date Display",
         "settings.section.dateDisplay.desc": "Control saved date format and due badge rendering.",
+        "settings.scope.title": "Editing Scope",
+        "settings.scope.desc": "Board settings below apply to the active board in Smart Kanban view. Global settings stay in the Advanced section.",
+        "settings.scope.active_board": "Active board",
+        "settings.scope.current_board": "Current: {name}",
+        "settings.scope.current_default": "Current: Default Board",
+        "settings.scope.manage_boards": "Manage boards",
+        "settings.scope.manage_boards.desc": "Create, edit, and delete boards.",
+        "settings.scope.open_manager": "Open Board Manager",
+        "settings.inherit.tooltip": "Use global value",
         "settings.language.name": "Language",
         "settings.language.desc": "UI language for Smart Kanban.",
         "settings.source_mode.name": "Source mode",
@@ -499,6 +508,15 @@ var require_i18n = __commonJS({
         "settings.section.advanced.desc": "Performans ve davranis ayarlari.",
         "settings.section.dateDisplay": "Tarih Gorunumu",
         "settings.section.dateDisplay.desc": "Kaydedilen tarih formatini ve teslim etiketi gorunumunu yonetin.",
+        "settings.scope.title": "Duzenleme Kapsami",
+        "settings.scope.desc": "Asagidaki pano ayarlari Smart Kanban gorunumundeki aktif panoya uygulanir. Global ayarlar Gelismis bolumunde kalir.",
+        "settings.scope.active_board": "Aktif pano",
+        "settings.scope.current_board": "Guncel: {name}",
+        "settings.scope.current_default": "Guncel: Varsayilan Pano",
+        "settings.scope.manage_boards": "Panolari yonet",
+        "settings.scope.manage_boards.desc": "Pano olustur, duzenle ve sil.",
+        "settings.scope.open_manager": "Pano Yoneticisini Ac",
+        "settings.inherit.tooltip": "Global degeri kullan",
         "settings.language.name": "Dil",
         "settings.language.desc": "Smart Kanban arayuz dili.",
         "settings.source_mode.name": "Kaynak modu",
@@ -1430,6 +1448,66 @@ var require_modals = __commonJS({
           titleEl.setText(t2("modal.board_manager.title"));
           this.renderContent();
         }
+        normalizeBoardName(name) {
+          return String(name || "").trim().toLowerCase();
+        }
+        boardNameExists(name, excludeBoardId = "") {
+          const normalized = this.normalizeBoardName(name);
+          if (!normalized) return false;
+          return (this.plugin.settings.boards || []).some((board) => {
+            if (excludeBoardId && board.id === excludeBoardId) return false;
+            return this.normalizeBoardName(board.name) === normalized;
+          });
+        }
+        createBoardId() {
+          return `board-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+        }
+        createEmptyBoard(type = "independent") {
+          return {
+            id: this.createBoardId(),
+            name: "",
+            type: type === "filtered-view" ? "filtered-view" : "independent",
+            parentBoardId: null,
+            visibleStatuses: null,
+            defaultFilters: null,
+            sourceMode: null,
+            sourceFolder: null,
+            includeSubfolders: null,
+            taskInboxFile: null,
+            noteTemplate: null,
+            statusField: null,
+            categoryField: null,
+            priorityField: null,
+            tagsField: null,
+            dueDateField: null,
+            customFields: null,
+            statusOrder: null,
+            priorityOrder: null,
+            sortBy: null,
+            sortDirection: null,
+            dueSoonDays: null,
+            wipLimits: null,
+            autoArchiveDays: null,
+            dateFormat: null,
+            dateDisplayFormat: null,
+            showRelativeDate: null,
+            tagColors: null,
+            categoryColors: null,
+            theme: null,
+            cardOrder: null
+          };
+        }
+        getBaseEffectiveSettings(board) {
+          if (board && board.type === "filtered-view" && board.parentBoardId) {
+            return this.plugin.getEffectiveSettings(board.parentBoardId);
+          }
+          return this.plugin.getEffectiveSettings("");
+        }
+        formatInheritLabel(value) {
+          if (value === null || value === void 0 || value === "") return tx("common.none", "None");
+          if (typeof value === "object") return tx("common.custom", "Custom");
+          return String(value);
+        }
         renderContent() {
           const { contentEl } = this;
           contentEl.empty();
@@ -1444,10 +1522,25 @@ var require_modals = __commonJS({
             editBtn.addEventListener("click", async () => {
               await this.editBoard(board);
             });
+            const cloneBtn = row.createEl("button", { text: tx("modal.board.clone", "Clone") });
+            cloneBtn.addEventListener("click", async () => {
+              await this.cloneBoard(board);
+            });
             const deleteBtn = row.createEl("button", { text: t2("common.delete"), cls: "mod-warning" });
             deleteBtn.addEventListener("click", async () => {
+              const childBoards = (this.plugin.settings.boards || []).filter((b) => b.parentBoardId === board.id);
+              const message = childBoards.length ? tx("modal.board.delete_with_children", `Delete "${board.name}"? ${childBoards.length} child board(s) will be detached.`, { name: board.name, count: childBoards.length }) : tx("modal.board.delete_confirm", `Delete "${board.name}"?`, { name: board.name });
+              const confirmed = await this.plugin.openConfirmModal({
+                title: tx("modal.board.delete_title", "Delete Board"),
+                message,
+                confirmText: t2("common.delete")
+              });
+              if (!confirmed) return;
+              for (const child of childBoards) child.parentBoardId = null;
               this.plugin.settings.boards = this.plugin.settings.boards.filter((b) => b.id !== board.id);
+              if (this.plugin.settings.activeBoardId === board.id) this.plugin.settings.activeBoardId = "";
               await this.plugin.saveSettings();
+              this.plugin.refreshViews();
               this.renderContent();
             });
           }
@@ -1463,12 +1556,29 @@ var require_modals = __commonJS({
           });
         }
         async createBoard() {
+          const boardChoices = this.plugin.settings.boards || [];
           const values = await this.plugin.openFormModal({
             title: tx("modal.board_create.title", "Create Board"),
             submitText: t2("common.create"),
             fields: [
               { key: "name", label: tx("modal.board.field.name", "Board name"), value: "" },
               { key: "type", label: tx("modal.board.field.type", "Type"), value: "independent", type: "select", options: ["independent", "filtered-view"] },
+              {
+                key: "parentBoardId",
+                label: tx("modal.board.field.parent", "Parent board (filtered-view)"),
+                value: "",
+                type: "select",
+                options: ["", ...boardChoices.map((b) => b.id)],
+                optionLabels: { "": tx("modal.board.field.parent.none", "None"), ...Object.fromEntries(boardChoices.map((b) => [b.id, b.name])) }
+              },
+              {
+                key: "cloneFrom",
+                label: tx("modal.board.field.clone_from", "Clone settings from"),
+                value: "",
+                type: "select",
+                options: ["", ...boardChoices.map((b) => b.id)],
+                optionLabels: { "": tx("modal.board.field.clone_from.none", "None (start empty)"), ...Object.fromEntries(boardChoices.map((b) => [b.id, b.name])) }
+              },
               { key: "sourceFolder", label: tx("modal.board.field.source_folder", "Source folder (blank = inherit)"), value: "" },
               { key: "statusOrder", label: tx("modal.board.field.status_order", "Status order (comma-sep, blank = inherit)"), value: "" },
               { key: "visibleStatuses", label: tx("modal.board.field.visible_statuses", "Visible statuses (filtered-view, comma-sep)"), value: "" }
@@ -1480,79 +1590,147 @@ var require_modals = __commonJS({
             new Notice2(t2("modal.board_create.name_required"));
             return;
           }
-          const id = `board-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+          if (this.boardNameExists(name)) {
+            new Notice2(tx("modal.board.name_duplicate", "Board name already exists."));
+            return;
+          }
+          const id = this.createBoardId();
           if (!this.plugin.settings.boards) this.plugin.settings.boards = [];
-          this.plugin.settings.boards.push({
-            id,
-            name,
-            type: values.type || "independent",
-            sourceFolder: values.sourceFolder || null,
-            statusOrder: values.statusOrder || null,
-            visibleStatuses: values.visibleStatuses || null,
-            parentBoardId: null,
-            defaultFilters: null,
-            sourceMode: null,
-            includeSubfolders: null,
-            taskInboxFile: null,
-            statusField: null,
-            categoryField: null,
-            priorityField: null,
-            tagsField: null,
-            dueDateField: null,
-            customFields: null,
-            priorityOrder: null,
-            sortBy: null,
-            sortDirection: null,
-            dueSoonDays: null,
-            wipLimits: null,
-            filterPresets: null,
-            noteTemplate: null,
-            dateFormat: null,
-            dateDisplayFormat: null,
-            showRelativeDate: null,
-            tagColors: null,
-            categoryColors: null
-          });
+          const type = values.type === "filtered-view" ? "filtered-view" : "independent";
+          const board = this.createEmptyBoard(type);
+          board.id = id;
+          board.name = name;
+          board.type = type;
+          const parentBoardId = String(values.parentBoardId || "");
+          board.parentBoardId = type === "filtered-view" && parentBoardId ? parentBoardId : null;
+          board.sourceFolder = String(values.sourceFolder || "").trim() || null;
+          board.statusOrder = String(values.statusOrder || "").trim() || null;
+          board.visibleStatuses = String(values.visibleStatuses || "").trim() || null;
+          const cloneFrom = String(values.cloneFrom || "").trim();
+          if (cloneFrom) {
+            const src = (this.plugin.settings.boards || []).find((b) => b.id === cloneFrom);
+            if (src) {
+              const cloned = JSON.parse(JSON.stringify(src));
+              Object.assign(board, cloned, {
+                id,
+                name,
+                type,
+                parentBoardId: board.parentBoardId,
+                sourceFolder: board.sourceFolder || cloned.sourceFolder || null,
+                statusOrder: board.statusOrder || cloned.statusOrder || null,
+                visibleStatuses: board.visibleStatuses || cloned.visibleStatuses || null
+              });
+            }
+          }
+          this.plugin.settings.boards.push(board);
           await this.plugin.saveSettings();
+          this.plugin.refreshViews();
           this.renderContent();
           new Notice2(t2("modal.board_create.created_notice", { name }));
         }
+        async cloneBoard(board) {
+          if (!board) return;
+          const baseName = tx("modal.board.clone_suffix", "{name} Copy", { name: board.name || "Board" });
+          let candidate = baseName;
+          let i = 2;
+          while (this.boardNameExists(candidate)) {
+            candidate = `${baseName} ${i}`;
+            i += 1;
+          }
+          const clone = JSON.parse(JSON.stringify(board));
+          clone.id = this.createBoardId();
+          clone.name = candidate;
+          clone.parentBoardId = board.type === "filtered-view" ? board.parentBoardId || null : null;
+          if (!Array.isArray(this.plugin.settings.boards)) this.plugin.settings.boards = [];
+          this.plugin.settings.boards.push(clone);
+          await this.plugin.saveSettings();
+          this.plugin.refreshViews();
+          this.renderContent();
+          new Notice2(tx("modal.board.clone_notice", "Board cloned: {name}", { name: candidate }));
+        }
         async editBoard(board) {
+          const base = this.getBaseEffectiveSettings(board);
           const relDateValue = board.showRelativeDate === true ? "yes" : board.showRelativeDate === false ? "no" : "";
+          const boardChoices = (this.plugin.settings.boards || []).filter((b) => b.id !== board.id);
           const values = await this.plugin.openFormModal({
             title: tx("modal.board_edit.title", "Edit Board: {name}", { name: board.name }),
             submitText: t2("common.save"),
             fields: [
               { key: "name", label: tx("modal.board.field.name", "Board name"), value: board.name || "" },
               { key: "type", label: tx("modal.board.field.type", "Type"), value: board.type || "independent", type: "select", options: ["independent", "filtered-view"] },
-              { key: "sourceFolder", label: tx("modal.board.field.source_folder", "Source folder (blank = inherit)"), value: board.sourceFolder || "" },
-              { key: "statusOrder", label: tx("modal.board.field.status_order", "Status order (comma-sep, blank = inherit)"), value: board.statusOrder || "" },
-              { key: "visibleStatuses", label: tx("modal.board.field.visible_statuses_short", "Visible statuses (filtered-view)"), value: board.visibleStatuses || "" },
-              { key: "noteTemplate", label: tx("modal.board.field.note_template", "Note template (blank = inherit)"), value: board.noteTemplate || "" },
-              { key: "sortBy", label: tx("modal.board.field.sort_by", "Sort by (blank = inherit)"), value: board.sortBy || "", type: "select", options: ["", "none", "priority", "due", "title"], optionLabels: { "": t2("common.none") } },
+              {
+                key: "parentBoardId",
+                label: tx("modal.board.field.parent", "Parent board (filtered-view)"),
+                value: board.parentBoardId || "",
+                type: "select",
+                options: ["", ...boardChoices.map((b) => b.id)],
+                optionLabels: { "": tx("modal.board.field.parent.none", "None"), ...Object.fromEntries(boardChoices.map((b) => [b.id, b.name])) }
+              },
+              { key: "sourceMode", label: tx("modal.board.field.source_mode", "Source mode (blank = inherit)"), value: board.sourceMode || "", type: "select", options: ["", "notes", "tasks"], optionLabels: { "": tx("modal.board.inherit_current", "Inherit (current: {value})", { value: this.formatInheritLabel(base.sourceMode) }), notes: tx("settings.source_mode.notes", "Note cards"), tasks: tx("settings.source_mode.tasks", "Task lines") } },
+              { key: "sourceFolder", label: tx("modal.board.field.source_folder", "Source folder (blank = inherit)"), value: board.sourceFolder || "", placeholder: this.formatInheritLabel(base.sourceFolder) },
+              { key: "includeSubfolders", label: tx("modal.board.field.include_subfolders", "Include subfolders"), value: board.includeSubfolders === true ? "yes" : board.includeSubfolders === false ? "no" : "", type: "select", options: ["", "yes", "no"], optionLabels: { "": tx("modal.board.inherit_current", "Inherit (current: {value})", { value: this.formatInheritLabel(base.includeSubfolders ? tx("common.yes", "Yes") : tx("common.no", "No")) }), yes: tx("common.yes", "Yes"), no: tx("common.no", "No") } },
+              { key: "taskInboxFile", label: tx("modal.board.field.task_inbox", "Task inbox file (blank = inherit)"), value: board.taskInboxFile || "", placeholder: this.formatInheritLabel(base.taskInboxFile) },
+              { key: "statusField", label: tx("modal.board.field.status_field", "Status field (blank = inherit)"), value: board.statusField || "", placeholder: this.formatInheritLabel(base.statusField) },
+              { key: "categoryField", label: tx("modal.board.field.category_field", "Category field (blank = inherit)"), value: board.categoryField || "", placeholder: this.formatInheritLabel(base.categoryField) },
+              { key: "priorityField", label: tx("modal.board.field.priority_field", "Priority field (blank = inherit)"), value: board.priorityField || "", placeholder: this.formatInheritLabel(base.priorityField) },
+              { key: "tagsField", label: tx("modal.board.field.tags_field", "Tags field (blank = inherit)"), value: board.tagsField || "", placeholder: this.formatInheritLabel(base.tagsField) },
+              { key: "dueDateField", label: tx("modal.board.field.due_field", "Due date field (blank = inherit)"), value: board.dueDateField || "", placeholder: this.formatInheritLabel(base.dueDateField) },
+              { key: "customFields", label: tx("modal.board.field.custom_fields", "Custom fields (blank = inherit)"), value: board.customFields || "", placeholder: this.formatInheritLabel(base.customFields) },
+              { key: "statusOrder", label: tx("modal.board.field.status_order", "Status order (comma-sep, blank = inherit)"), value: board.statusOrder || "", placeholder: this.formatInheritLabel(base.statusOrder) },
+              { key: "visibleStatuses", label: tx("modal.board.field.visible_statuses_short", "Visible statuses (filtered-view)"), value: board.visibleStatuses || "", placeholder: this.formatInheritLabel(base.visibleStatuses) },
+              { key: "noteTemplate", label: tx("modal.board.field.note_template", "Note template (blank = inherit)"), value: board.noteTemplate || "", placeholder: this.formatInheritLabel(base.noteTemplate) },
+              { key: "sortBy", label: tx("modal.board.field.sort_by", "Sort by (blank = inherit)"), value: board.sortBy || "", type: "select", options: ["", "none", "priority", "due", "title"], optionLabels: { "": tx("modal.board.inherit_current", "Inherit (current: {value})", { value: this.formatInheritLabel(base.sortBy) }), none: tx("settings.sort_by.none", "Manual (drag to reorder)"), priority: tx("settings.sort_by.priority", "Priority"), due: tx("settings.sort_by.due", "Due date"), title: tx("settings.sort_by.title", "Title") } },
+              { key: "sortDirection", label: tx("modal.board.field.sort_direction", "Sort direction (blank = inherit)"), value: board.sortDirection || "", type: "select", options: ["", "asc", "desc"], optionLabels: { "": tx("modal.board.inherit_current", "Inherit (current: {value})", { value: this.formatInheritLabel(base.sortDirection) }), asc: tx("settings.sort_direction.asc", "Ascending"), desc: tx("settings.sort_direction.desc", "Descending") } },
+              { key: "priorityOrder", label: tx("modal.board.field.priority_order", "Priority order (blank = inherit)"), value: board.priorityOrder || "", placeholder: this.formatInheritLabel(base.priorityOrder) },
               { key: "dueSoonDays", label: tx("modal.board.field.due_soon_days", "Due soon days (blank = inherit)"), value: board.dueSoonDays != null ? String(board.dueSoonDays) : "" },
               { key: "wipLimits", label: tx("modal.board.field.wip_limits", "WIP limits (blank = inherit)"), value: board.wipLimits || "" },
+              { key: "autoArchiveDays", label: tx("modal.board.field.auto_archive_days", "Auto-archive days (blank = inherit)"), value: board.autoArchiveDays != null ? String(board.autoArchiveDays) : "" },
               { key: "dateFormat", label: tx("modal.board.field.date_format", "Date format (blank = inherit)"), value: board.dateFormat || "" },
               { key: "dateDisplayFormat", label: tx("modal.board.field.date_display_format", "Display format (blank = inherit)"), value: board.dateDisplayFormat || "" },
-              { key: "showRelativeDate", label: tx("modal.board.field.show_relative_date", "Relative dates"), value: relDateValue, type: "select", options: ["", "yes", "no"], optionLabels: { "": tx("modal.board.field.show_relative_date.inherit", "Inherit"), "yes": tx("modal.board.field.show_relative_date.yes", "Yes"), "no": tx("modal.board.field.show_relative_date.no", "No") } },
+              { key: "showRelativeDate", label: tx("modal.board.field.show_relative_date", "Relative dates"), value: relDateValue, type: "select", options: ["", "yes", "no"], optionLabels: { "": tx("modal.board.inherit_current", "Inherit (current: {value})", { value: this.formatInheritLabel(base.showRelativeDate ? tx("common.yes", "Yes") : tx("common.no", "No")) }), "yes": tx("modal.board.field.show_relative_date.yes", "Yes"), "no": tx("modal.board.field.show_relative_date.no", "No") } },
               { key: "tagColors", label: tx("modal.board.field.tag_colors", "Tag colors JSON (blank = inherit)"), value: board.tagColors ? JSON.stringify(board.tagColors) : "" },
               { key: "categoryColors", label: tx("modal.board.field.category_colors", "Category colors JSON (blank = inherit)"), value: board.categoryColors ? JSON.stringify(board.categoryColors) : "" }
             ]
           });
           if (!values) return;
-          board.name = String(values.name || "").trim() || board.name;
+          const nextName = String(values.name || "").trim() || board.name;
+          if (!nextName) {
+            new Notice2(t2("modal.board_create.name_required"));
+            return;
+          }
+          if (this.boardNameExists(nextName, board.id)) {
+            new Notice2(tx("modal.board.name_duplicate", "Board name already exists."));
+            return;
+          }
+          board.name = nextName;
           board.type = values.type || board.type;
-          board.sourceFolder = values.sourceFolder || null;
-          board.statusOrder = values.statusOrder || null;
-          board.visibleStatuses = values.visibleStatuses || null;
-          board.noteTemplate = values.noteTemplate || null;
+          const parentBoardId = String(values.parentBoardId || "").trim();
+          board.parentBoardId = board.type === "filtered-view" && parentBoardId && parentBoardId !== board.id ? parentBoardId : null;
+          board.sourceMode = String(values.sourceMode || "").trim() || null;
+          board.sourceFolder = String(values.sourceFolder || "").trim() || null;
+          board.includeSubfolders = values.includeSubfolders === "yes" ? true : values.includeSubfolders === "no" ? false : null;
+          board.taskInboxFile = String(values.taskInboxFile || "").trim() || null;
+          board.statusField = String(values.statusField || "").trim() || null;
+          board.categoryField = String(values.categoryField || "").trim() || null;
+          board.priorityField = String(values.priorityField || "").trim() || null;
+          board.tagsField = String(values.tagsField || "").trim() || null;
+          board.dueDateField = String(values.dueDateField || "").trim() || null;
+          board.customFields = String(values.customFields || "").trim() || null;
+          board.statusOrder = String(values.statusOrder || "").trim() || null;
+          board.priorityOrder = String(values.priorityOrder || "").trim() || null;
+          board.visibleStatuses = String(values.visibleStatuses || "").trim() || null;
+          board.noteTemplate = String(values.noteTemplate || "").trim() || null;
           board.sortBy = values.sortBy || null;
+          board.sortDirection = values.sortDirection || null;
           const dueSoon = String(values.dueSoonDays || "").trim();
           board.dueSoonDays = dueSoon !== "" ? Number.parseInt(dueSoon, 10) : null;
           if (board.dueSoonDays != null && !Number.isFinite(board.dueSoonDays)) board.dueSoonDays = null;
-          board.wipLimits = values.wipLimits || null;
-          board.dateFormat = values.dateFormat || null;
-          board.dateDisplayFormat = values.dateDisplayFormat || null;
+          board.wipLimits = String(values.wipLimits || "").trim() || null;
+          const autoArchive = String(values.autoArchiveDays || "").trim();
+          board.autoArchiveDays = autoArchive !== "" ? Number.parseInt(autoArchive, 10) : null;
+          if (board.autoArchiveDays != null && !Number.isFinite(board.autoArchiveDays)) board.autoArchiveDays = null;
+          board.dateFormat = String(values.dateFormat || "").trim() || null;
+          board.dateDisplayFormat = String(values.dateDisplayFormat || "").trim() || null;
           const relDate = String(values.showRelativeDate || "").trim();
           board.showRelativeDate = relDate === "yes" ? true : relDate === "no" ? false : null;
           try {
@@ -2995,55 +3173,144 @@ var require_settings_tab = __commonJS({
           super(app, plugin);
           this.plugin = plugin;
         }
-        setSetting(key, value) {
+        getActiveBoard() {
+          const boardId = this.plugin.settings.activeBoardId || "";
+          return boardId ? this.plugin.getBoard(boardId) : null;
+        }
+        getSetting(key, fallback = DEFAULT_SETTINGS2[key]) {
+          const activeBoard = this.getActiveBoard();
+          if (activeBoard && boardConfigKeySet.has(key)) {
+            const boardValue = activeBoard[key];
+            if (boardValue !== null && boardValue !== void 0 && boardValue !== "") return boardValue;
+          }
+          const globalValue = this.plugin.settings[key];
+          return globalValue === void 0 ? fallback : globalValue;
+        }
+        setSetting(key, value, options = {}) {
+          const opts = options || {};
+          const activeBoard = this.getActiveBoard();
+          if (activeBoard && boardConfigKeySet.has(key)) {
+            const shouldInherit = !!opts.allowInherit && (value === "" || value === null || value === void 0);
+            activeBoard[key] = shouldInherit ? null : value;
+            return;
+          }
           this.plugin.settings[key] = value;
           if (boardConfigKeySet.has(key) && this.plugin.settings.defaultBoardConfig) {
             this.plugin.settings.defaultBoardConfig[key] = value;
           }
         }
+        getThemeTarget() {
+          const activeBoard = this.getActiveBoard();
+          if (activeBoard) {
+            if (!activeBoard.theme || typeof activeBoard.theme !== "object") {
+              activeBoard.theme = { preset: "default", overrides: {}, laneColors: {} };
+            }
+            if (!activeBoard.theme.overrides || typeof activeBoard.theme.overrides !== "object") activeBoard.theme.overrides = {};
+            if (!activeBoard.theme.laneColors || typeof activeBoard.theme.laneColors !== "object") activeBoard.theme.laneColors = {};
+            return activeBoard.theme;
+          }
+          if (!this.plugin.settings.theme || typeof this.plugin.settings.theme !== "object") {
+            this.plugin.settings.theme = { preset: "default", overrides: {}, laneColors: {} };
+          }
+          if (!this.plugin.settings.theme.overrides || typeof this.plugin.settings.theme.overrides !== "object") this.plugin.settings.theme.overrides = {};
+          if (!this.plugin.settings.theme.laneColors || typeof this.plugin.settings.theme.laneColors !== "object") this.plugin.settings.theme.laneColors = {};
+          return this.plugin.settings.theme;
+        }
+        hasBoardOverride(key) {
+          const activeBoard = this.getActiveBoard();
+          if (!activeBoard) return false;
+          return activeBoard[key] !== null && activeBoard[key] !== void 0 && activeBoard[key] !== "";
+        }
+        addInheritButton(setting, key, onAfterSave) {
+          if (!this.getActiveBoard()) return;
+          setting.addExtraButton((btn) => {
+            btn.setIcon("undo-2");
+            btn.setTooltip(tx("settings.inherit.tooltip", "Use global value"));
+            btn.onClick(async () => {
+              const board = this.getActiveBoard();
+              if (!board) return;
+              board[key] = null;
+              await this.plugin.saveSettings();
+              this.plugin.refreshViews();
+              if (typeof onAfterSave === "function") onAfterSave();
+              this.display();
+            });
+          });
+        }
         syncTheme() {
-          if (this.plugin.settings.defaultBoardConfig && this.plugin.settings.theme) {
+          if (!this.getActiveBoard() && this.plugin.settings.defaultBoardConfig && this.plugin.settings.theme) {
             this.plugin.settings.defaultBoardConfig.theme = JSON.parse(JSON.stringify(this.plugin.settings.theme));
           }
         }
         display() {
           const { containerEl } = this;
           containerEl.empty();
+          const activeBoard = this.getActiveBoard();
+          const scopeSection = section(
+            containerEl,
+            tx("settings.scope.title", "Editing Scope"),
+            tx("settings.scope.desc", "Board settings below apply to the active board in Smart Kanban view. Global settings stay in the Advanced section.")
+          );
+          new Setting2(scopeSection).setName(tx("settings.scope.active_board", "Active board")).setDesc(activeBoard ? tx("settings.scope.current_board", `Current: ${activeBoard.name}`, { name: activeBoard.name }) : tx("settings.scope.current_default", "Current: Default Board")).addDropdown((dropdown) => {
+            dropdown.addOption("", tx("view.board.default", "Default Board"));
+            for (const board of this.plugin.settings.boards || []) dropdown.addOption(board.id, board.name);
+            dropdown.setValue(this.plugin.settings.activeBoardId || "");
+            dropdown.onChange(async (value) => {
+              this.plugin.settings.activeBoardId = value || "";
+              await this.plugin.saveSettings();
+              this.plugin.refreshViews();
+              this.display();
+            });
+          });
+          new Setting2(scopeSection).setName(tx("settings.scope.manage_boards", "Manage boards")).setDesc(tx("settings.scope.manage_boards.desc", "Create, edit, and delete boards.")).addButton((btn) => {
+            btn.setButtonText(tx("settings.scope.open_manager", "Open Board Manager")).onClick(async () => {
+              await this.plugin.openBoardManager();
+              this.display();
+            });
+          });
           const srcSection = section(containerEl, t2("settings.section.dataSource"), t2("settings.section.dataSource.desc"));
-          new Setting2(srcSection).setName(tx("settings.source_mode.name", "Source mode")).setDesc(tx("settings.source_mode.desc", "Note cards create one file per task. Task lines use checklist syntax in a single file.")).addDropdown(
-            (dropdown) => dropdown.addOption("notes", tx("settings.source_mode.notes", "Note cards")).addOption("tasks", tx("settings.source_mode.tasks", "Task lines")).setValue(this.plugin.settings.sourceMode).onChange(async (value) => {
+          const sourceModeSetting = new Setting2(srcSection).setName(tx("settings.source_mode.name", "Source mode")).setDesc(tx("settings.source_mode.desc", "Note cards create one file per task. Task lines use checklist syntax in a single file.")).addDropdown(
+            (dropdown) => dropdown.addOption("notes", tx("settings.source_mode.notes", "Note cards")).addOption("tasks", tx("settings.source_mode.tasks", "Task lines")).setValue(this.getSetting("sourceMode")).onChange(async (value) => {
               this.setSetting("sourceMode", value);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(srcSection).setName(tx("settings.source_folder.name", "Source folder")).setDesc(tx("settings.source_folder.desc", "Folder containing your task notes or files.")).addText(
-            (text) => text.setPlaceholder("Tasks").setValue(this.plugin.settings.sourceFolder).onChange(async (value) => {
-              this.setSetting("sourceFolder", value.trim());
+          this.addInheritButton(sourceModeSetting, "sourceMode");
+          const sourceFolderSetting = new Setting2(srcSection).setName(tx("settings.source_folder.name", "Source folder")).setDesc(tx("settings.source_folder.desc", "Folder containing your task notes or files.")).addText(
+            (text) => text.setPlaceholder("Tasks").setValue(this.getSetting("sourceFolder")).onChange(async (value) => {
+              this.setSetting("sourceFolder", value.trim(), { allowInherit: true });
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(srcSection).setName(tx("settings.include_subfolders.name", "Include subfolders")).setDesc(tx("settings.include_subfolders.desc", "Also scan nested folders inside the source folder.")).addToggle(
-            (toggle) => toggle.setValue(this.plugin.settings.includeSubfolders).onChange(async (value) => {
+          this.addInheritButton(sourceFolderSetting, "sourceFolder");
+          const includeSubfoldersSetting = new Setting2(srcSection).setName(tx("settings.include_subfolders.name", "Include subfolders")).setDesc(tx("settings.include_subfolders.desc", "Also scan nested folders inside the source folder.")).addToggle(
+            (toggle) => toggle.setValue(!!this.getSetting("includeSubfolders")).onChange(async (value) => {
               this.setSetting("includeSubfolders", value);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(srcSection).setName(tx("settings.task_inbox.name", "Task inbox file")).setDesc(tx("settings.task_inbox.desc", "File used when adding new tasks in Task Lines mode.")).addText(
-            (text) => text.setPlaceholder("Tasks/Task Inbox.md").setValue(this.plugin.settings.taskInboxFile).onChange(async (value) => {
-              this.setSetting("taskInboxFile", value.trim() || "Tasks/Task Inbox.md");
+          this.addInheritButton(includeSubfoldersSetting, "includeSubfolders");
+          const taskInboxSetting = new Setting2(srcSection).setName(tx("settings.task_inbox.name", "Task inbox file")).setDesc(tx("settings.task_inbox.desc", "File used when adding new tasks in Task Lines mode.")).addText(
+            (text) => text.setPlaceholder("Tasks/Task Inbox.md").setValue(this.getSetting("taskInboxFile")).onChange(async (value) => {
+              const trimmed = value.trim();
+              const activeBoard2 = this.getActiveBoard();
+              const next = activeBoard2 ? trimmed : trimmed || "Tasks/Task Inbox.md";
+              this.setSetting("taskInboxFile", next, { allowInherit: true });
               await this.plugin.saveSettings();
             })
           );
-          new Setting2(srcSection).setName(tx("settings.note_template.name", "Note template")).setDesc(tx("settings.note_template.desc", "Optional template file path used when creating note-mode tasks.")).addText(
-            (text) => text.setPlaceholder("Templates/Task.md").setValue(this.plugin.settings.noteTemplate || "").onChange(async (value) => {
-              this.setSetting("noteTemplate", String(value || "").trim());
+          this.addInheritButton(taskInboxSetting, "taskInboxFile");
+          const noteTemplateSetting = new Setting2(srcSection).setName(tx("settings.note_template.name", "Note template")).setDesc(tx("settings.note_template.desc", "Optional template file path used when creating note-mode tasks.")).addText(
+            (text) => text.setPlaceholder("Templates/Task.md").setValue(this.getSetting("noteTemplate", "") || "").onChange(async (value) => {
+              this.setSetting("noteTemplate", String(value || "").trim(), { allowInherit: true });
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
+          this.addInheritButton(noteTemplateSetting, "noteTemplate");
           const fieldSection = section(containerEl, t2("settings.section.fieldMapping"), t2("settings.section.fieldMapping.desc"));
           const fieldDefs = [
             ["statusField", tx("settings.field.status.name", "Status field"), tx("settings.field.status.desc", "Determines which lane a card appears in.")],
@@ -3053,104 +3320,120 @@ var require_settings_tab = __commonJS({
             ["dueDateField", tx("settings.field.due.name", "Due date field"), tx("settings.field.due.desc", "Date in YYYY-MM-DD format for due tracking.")]
           ];
           for (const [key, label, desc] of fieldDefs) {
-            new Setting2(fieldSection).setName(label).setDesc(desc).addText(
-              (text) => text.setValue(this.plugin.settings[key]).onChange(async (value) => {
-                this.setSetting(key, value.trim() || DEFAULT_SETTINGS2[key]);
+            const st = new Setting2(fieldSection).setName(label).setDesc(desc).addText(
+              (text) => text.setValue(this.getSetting(key)).onChange(async (value) => {
+                const trimmed = value.trim();
+                const activeBoard2 = this.getActiveBoard();
+                const next = activeBoard2 ? trimmed : trimmed || DEFAULT_SETTINGS2[key];
+                this.setSetting(key, next, { allowInherit: true });
                 await this.plugin.saveSettings();
                 this.plugin.refreshViews();
               })
             );
+            this.addInheritButton(st, key);
           }
-          new Setting2(fieldSection).setName(tx("settings.custom_fields.name", "Custom fields")).setDesc(tx("settings.custom_fields.desc", "Extra frontmatter keys to display on cards. Comma-separated.")).addText(
-            (text) => text.setPlaceholder("effort, assignee").setValue(this.plugin.settings.customFields).onChange(async (value) => {
-              this.setSetting("customFields", value);
+          const customFieldsSetting = new Setting2(fieldSection).setName(tx("settings.custom_fields.name", "Custom fields")).setDesc(tx("settings.custom_fields.desc", "Extra frontmatter keys to display on cards. Comma-separated.")).addText(
+            (text) => text.setPlaceholder("effort, assignee").setValue(this.getSetting("customFields")).onChange(async (value) => {
+              this.setSetting("customFields", value, { allowInherit: true });
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
+          this.addInheritButton(customFieldsSetting, "customFields");
           const layoutSection = section(containerEl, t2("settings.section.layout"), t2("settings.section.layout.desc"));
-          new Setting2(layoutSection).setName(tx("settings.status_order.name", "Status order")).setDesc(tx("settings.status_order.desc", "Comma-separated lane names in display order.")).addTextArea(
-            (text) => text.setValue(this.plugin.settings.statusOrder).onChange(async (value) => {
-              this.setSetting("statusOrder", value);
+          const statusOrderSetting = new Setting2(layoutSection).setName(tx("settings.status_order.name", "Status order")).setDesc(tx("settings.status_order.desc", "Comma-separated lane names in display order.")).addTextArea(
+            (text) => text.setValue(this.getSetting("statusOrder")).onChange(async (value) => {
+              this.setSetting("statusOrder", value, { allowInherit: true });
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(layoutSection).setName(tx("settings.priority_order.name", "Priority order")).setDesc(tx("settings.priority_order.desc", "Defines priority ranking for sorting. Comma-separated, highest first.")).addText(
-            (text) => text.setPlaceholder("Urgent,High,Medium,Low").setValue(this.plugin.settings.priorityOrder).onChange(async (value) => {
-              this.setSetting("priorityOrder", value);
+          this.addInheritButton(statusOrderSetting, "statusOrder");
+          const priorityOrderSetting = new Setting2(layoutSection).setName(tx("settings.priority_order.name", "Priority order")).setDesc(tx("settings.priority_order.desc", "Defines priority ranking for sorting. Comma-separated, highest first.")).addText(
+            (text) => text.setPlaceholder("Urgent,High,Medium,Low").setValue(this.getSetting("priorityOrder")).onChange(async (value) => {
+              this.setSetting("priorityOrder", value, { allowInherit: true });
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(layoutSection).setName(tx("settings.sort_by.name", "Sort by")).setDesc(tx("settings.sort_by.desc", "Default card sorting within each lane.")).addDropdown(
-            (dropdown) => dropdown.addOption("none", tx("settings.sort_by.none", "Manual (drag to reorder)")).addOption("priority", tx("settings.sort_by.priority", "Priority")).addOption("due", tx("settings.sort_by.due", "Due date")).addOption("title", tx("settings.sort_by.title", "Title")).setValue(this.plugin.settings.sortBy).onChange(async (value) => {
+          this.addInheritButton(priorityOrderSetting, "priorityOrder");
+          const sortBySetting = new Setting2(layoutSection).setName(tx("settings.sort_by.name", "Sort by")).setDesc(tx("settings.sort_by.desc", "Default card sorting within each lane.")).addDropdown(
+            (dropdown) => dropdown.addOption("none", tx("settings.sort_by.none", "Manual (drag to reorder)")).addOption("priority", tx("settings.sort_by.priority", "Priority")).addOption("due", tx("settings.sort_by.due", "Due date")).addOption("title", tx("settings.sort_by.title", "Title")).setValue(this.getSetting("sortBy")).onChange(async (value) => {
               this.setSetting("sortBy", value);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(layoutSection).setName(tx("settings.sort_direction.name", "Sort direction")).addDropdown(
-            (dropdown) => dropdown.addOption("asc", tx("settings.sort_direction.asc", "Ascending")).addOption("desc", tx("settings.sort_direction.desc", "Descending")).setValue(this.plugin.settings.sortDirection).onChange(async (value) => {
+          this.addInheritButton(sortBySetting, "sortBy");
+          const sortDirectionSetting = new Setting2(layoutSection).setName(tx("settings.sort_direction.name", "Sort direction")).addDropdown(
+            (dropdown) => dropdown.addOption("asc", tx("settings.sort_direction.asc", "Ascending")).addOption("desc", tx("settings.sort_direction.desc", "Descending")).setValue(this.getSetting("sortDirection")).onChange(async (value) => {
               this.setSetting("sortDirection", value);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(layoutSection).setName(tx("settings.due_soon.name", "Due soon threshold")).setDesc(tx("settings.due_soon.desc", "Cards due within this many days are highlighted.")).addText(
-            (text) => text.setValue(String(this.plugin.settings.dueSoonDays)).onChange(async (value) => {
+          this.addInheritButton(sortDirectionSetting, "sortDirection");
+          const dueSoonSetting = new Setting2(layoutSection).setName(tx("settings.due_soon.name", "Due soon threshold")).setDesc(tx("settings.due_soon.desc", "Cards due within this many days are highlighted.")).addText(
+            (text) => text.setValue(String(this.getSetting("dueSoonDays", 2))).onChange(async (value) => {
               const parsed = Number.parseInt(value, 10);
               this.setSetting("dueSoonDays", Number.isFinite(parsed) && parsed >= 0 ? parsed : 2);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(layoutSection).setName(tx("settings.wip_limits.name", "WIP limits")).setDesc(tx("settings.wip_limits.desc", "Limit cards per lane. Format: Todo:10, In Progress:3")).addTextArea(
-            (text) => text.setValue(this.plugin.settings.wipLimits).onChange(async (value) => {
-              this.setSetting("wipLimits", value);
+          this.addInheritButton(dueSoonSetting, "dueSoonDays");
+          const wipLimitsSetting = new Setting2(layoutSection).setName(tx("settings.wip_limits.name", "WIP limits")).setDesc(tx("settings.wip_limits.desc", "Limit cards per lane. Format: Todo:10, In Progress:3")).addTextArea(
+            (text) => text.setValue(this.getSetting("wipLimits")).onChange(async (value) => {
+              this.setSetting("wipLimits", value, { allowInherit: true });
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(layoutSection).setName(tx("settings.auto_archive.name", "Auto-archive done tasks")).setDesc(tx("settings.auto_archive.desc", "Hide completed tasks older than this many days. Set to 0 to disable.")).addText(
-            (text) => text.setValue(String(this.plugin.settings.autoArchiveDays || 0)).onChange(async (value) => {
+          this.addInheritButton(wipLimitsSetting, "wipLimits");
+          const autoArchiveSetting = new Setting2(layoutSection).setName(tx("settings.auto_archive.name", "Auto-archive done tasks")).setDesc(tx("settings.auto_archive.desc", "Hide completed tasks older than this many days. Set to 0 to disable.")).addText(
+            (text) => text.setValue(String(this.getSetting("autoArchiveDays", 0) || 0)).onChange(async (value) => {
               const parsed = Number.parseInt(value, 10);
               this.setSetting("autoArchiveDays", Number.isFinite(parsed) && parsed >= 0 ? parsed : 0);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
+          this.addInheritButton(autoArchiveSetting, "autoArchiveDays");
           const dateSection = section(containerEl, t2("settings.section.dateDisplay"), t2("settings.section.dateDisplay.desc"));
-          new Setting2(dateSection).setName(tx("settings.date_format.name", "Date format")).setDesc(tx("settings.date_format.desc", "Storage format for new due dates. Uses Moment.js patterns.")).addText(
-            (text) => text.setPlaceholder("YYYY-MM-DD").setValue(this.plugin.settings.dateFormat || "YYYY-MM-DD").onChange(async (value) => {
+          const dateFormatSetting = new Setting2(dateSection).setName(tx("settings.date_format.name", "Date format")).setDesc(tx("settings.date_format.desc", "Storage format for new due dates. Uses Moment.js patterns.")).addText(
+            (text) => text.setPlaceholder("YYYY-MM-DD").setValue(this.getSetting("dateFormat", "YYYY-MM-DD") || "YYYY-MM-DD").onChange(async (value) => {
               this.setSetting("dateFormat", String(value || "").trim() || "YYYY-MM-DD");
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(dateSection).setName(tx("settings.date_display_format.name", "Date display format")).setDesc(tx("settings.date_display_format.desc", "Optional display format. Leave empty to use Date format.")).addText(
-            (text) => text.setPlaceholder("MMM D, YYYY").setValue(this.plugin.settings.dateDisplayFormat || "").onChange(async (value) => {
-              this.setSetting("dateDisplayFormat", String(value || "").trim());
+          this.addInheritButton(dateFormatSetting, "dateFormat");
+          const dateDisplayFormatSetting = new Setting2(dateSection).setName(tx("settings.date_display_format.name", "Date display format")).setDesc(tx("settings.date_display_format.desc", "Optional display format. Leave empty to use Date format.")).addText(
+            (text) => text.setPlaceholder("MMM D, YYYY").setValue(this.getSetting("dateDisplayFormat", "") || "").onChange(async (value) => {
+              this.setSetting("dateDisplayFormat", String(value || "").trim(), { allowInherit: true });
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(dateSection).setName(tx("settings.relative_due.name", "Show relative due labels")).setDesc(tx("settings.relative_due.desc", 'Show labels like "Due in 3d" instead of absolute dates.')).addToggle(
-            (toggle) => toggle.setValue(this.plugin.settings.showRelativeDate !== false).onChange(async (value) => {
+          this.addInheritButton(dateDisplayFormatSetting, "dateDisplayFormat");
+          const relativeDateSetting = new Setting2(dateSection).setName(tx("settings.relative_due.name", "Show relative due labels")).setDesc(tx("settings.relative_due.desc", 'Show labels like "Due in 3d" instead of absolute dates.')).addToggle(
+            (toggle) => toggle.setValue(this.getSetting("showRelativeDate", true) !== false).onChange(async (value) => {
               this.setSetting("showRelativeDate", !!value);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
+          this.addInheritButton(relativeDateSetting, "showRelativeDate");
           const themeSection = section(containerEl, t2("settings.section.appearance"), t2("settings.section.appearance.desc"));
           new Setting2(themeSection).setName(tx("settings.theme_preset.name", "Theme preset")).setDesc(tx("settings.theme_preset.desc", "Choose a color scheme as a starting point. You can override individual colors below.")).addDropdown((dropdown) => {
-            for (const [key, preset] of Object.entries(THEME_PRESETS2)) {
-              dropdown.addOption(key, preset.name);
+            const themeTarget2 = this.getThemeTarget();
+            for (const [key, preset2] of Object.entries(THEME_PRESETS2)) {
+              dropdown.addOption(key, preset2.name);
             }
-            dropdown.setValue(this.plugin.settings.theme && this.plugin.settings.theme.preset || "default");
+            dropdown.setValue(themeTarget2 && themeTarget2.preset || "default");
             dropdown.onChange(async (value) => {
-              this.plugin.settings.theme.preset = value;
-              this.plugin.settings.theme.overrides = {};
+              themeTarget2.preset = value;
+              themeTarget2.overrides = {};
               this.syncTheme();
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
@@ -3158,9 +3441,10 @@ var require_settings_tab = __commonJS({
             });
           });
           new Setting2(themeSection).setName(tx("settings.font_family.name", "Font family")).setDesc(tx("settings.font_family.desc", "Custom font stack for the board. Leave empty for default.")).addText(
-            (text) => text.setPlaceholder("e.g. Inter, sans-serif").setValue(this.plugin.settings.theme && this.plugin.settings.theme.overrides && this.plugin.settings.theme.overrides.fontFamily || "").onChange(async (value) => {
-              if (!this.plugin.settings.theme.overrides) this.plugin.settings.theme.overrides = {};
-              this.plugin.settings.theme.overrides.fontFamily = value.trim();
+            (text) => text.setPlaceholder("e.g. Inter, sans-serif").setValue((this.getThemeTarget().overrides || {}).fontFamily || "").onChange(async (value) => {
+              const themeTarget2 = this.getThemeTarget();
+              if (!themeTarget2.overrides) themeTarget2.overrides = {};
+              themeTarget2.overrides.fontFamily = value.trim();
               this.syncTheme();
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
@@ -3173,11 +3457,12 @@ var require_settings_tab = __commonJS({
           new Setting2(themeSection).setName(tx("settings.lane_tint.name", "Lane body tint strength")).setDesc(tx("settings.lane_tint.desc", "How much lane accent color appears in lane background. 0-40.")).addText(
             (text) => {
               var _a;
-              return text.setPlaceholder("10").setValue(String((_a = this.plugin.settings.theme && this.plugin.settings.theme.overrides && this.plugin.settings.theme.overrides.laneTintStrength) != null ? _a : 10)).onChange(async (value) => {
+              return text.setPlaceholder("10").setValue(String((_a = (this.getThemeTarget().overrides || {}).laneTintStrength) != null ? _a : 10)).onChange(async (value) => {
                 const parsed = Number.parseInt(value, 10);
-                if (!this.plugin.settings.theme.overrides) this.plugin.settings.theme.overrides = {};
-                if (!Number.isFinite(parsed)) delete this.plugin.settings.theme.overrides.laneTintStrength;
-                else this.plugin.settings.theme.overrides.laneTintStrength = Math.max(0, Math.min(40, parsed));
+                const themeTarget2 = this.getThemeTarget();
+                if (!themeTarget2.overrides) themeTarget2.overrides = {};
+                if (!Number.isFinite(parsed)) delete themeTarget2.overrides.laneTintStrength;
+                else themeTarget2.overrides.laneTintStrength = Math.max(0, Math.min(40, parsed));
                 this.syncTheme();
                 await this.plugin.saveSettings();
                 this.plugin.refreshViews();
@@ -3187,11 +3472,12 @@ var require_settings_tab = __commonJS({
           new Setting2(themeSection).setName(tx("settings.lane_header_tint.name", "Lane header tint strength")).setDesc(tx("settings.lane_header_tint.desc", "How much lane accent color appears in lane header chip. 0-60.")).addText(
             (text) => {
               var _a;
-              return text.setPlaceholder("24").setValue(String((_a = this.plugin.settings.theme && this.plugin.settings.theme.overrides && this.plugin.settings.theme.overrides.laneHeaderTintStrength) != null ? _a : 24)).onChange(async (value) => {
+              return text.setPlaceholder("24").setValue(String((_a = (this.getThemeTarget().overrides || {}).laneHeaderTintStrength) != null ? _a : 24)).onChange(async (value) => {
                 const parsed = Number.parseInt(value, 10);
-                if (!this.plugin.settings.theme.overrides) this.plugin.settings.theme.overrides = {};
-                if (!Number.isFinite(parsed)) delete this.plugin.settings.theme.overrides.laneHeaderTintStrength;
-                else this.plugin.settings.theme.overrides.laneHeaderTintStrength = Math.max(0, Math.min(60, parsed));
+                const themeTarget2 = this.getThemeTarget();
+                if (!themeTarget2.overrides) themeTarget2.overrides = {};
+                if (!Number.isFinite(parsed)) delete themeTarget2.overrides.laneHeaderTintStrength;
+                else themeTarget2.overrides.laneHeaderTintStrength = Math.max(0, Math.min(60, parsed));
                 this.syncTheme();
                 await this.plugin.saveSettings();
                 this.plugin.refreshViews();
@@ -3248,8 +3534,11 @@ var require_settings_tab = __commonJS({
               ]
             }
           ];
-          const resolved = this.plugin.getResolvedTheme();
-          const overrides = this.plugin.settings.theme && this.plugin.settings.theme.overrides || {};
+          const eff = this.plugin.getEffectiveSettings(this.plugin.settings.activeBoardId || "");
+          const themeTarget = this.getThemeTarget();
+          const preset = THEME_PRESETS2[eff.theme && eff.theme.preset || "default"] || THEME_PRESETS2.default;
+          const resolved = { ...preset, ...eff.theme && eff.theme.overrides || {} };
+          const overrides = themeTarget.overrides || {};
           for (const group of themeColorGroups) {
             themeSection.createEl("h4", { text: group.label, cls: "sk-settings-color-group-title" });
             for (const field of group.fields) {
@@ -3259,8 +3548,8 @@ var require_settings_tab = __commonJS({
               setting.addColorPicker((picker) => {
                 picker.setValue(currentValue);
                 picker.onChange(async (value) => {
-                  if (!this.plugin.settings.theme.overrides) this.plugin.settings.theme.overrides = {};
-                  this.plugin.settings.theme.overrides[field.key] = value;
+                  if (!themeTarget.overrides) themeTarget.overrides = {};
+                  themeTarget.overrides[field.key] = value;
                   this.syncTheme();
                   await this.plugin.saveSettings();
                   this.plugin.refreshViews();
@@ -3269,7 +3558,7 @@ var require_settings_tab = __commonJS({
               if (isOverridden) {
                 setting.addButton((btn) => {
                   btn.setButtonText(tx("common.reset", "Reset")).onClick(async () => {
-                    delete this.plugin.settings.theme.overrides[field.key];
+                    delete themeTarget.overrides[field.key];
                     this.syncTheme();
                     await this.plugin.saveSettings();
                     this.plugin.refreshViews();
@@ -3280,17 +3569,17 @@ var require_settings_tab = __commonJS({
             }
           }
           themeSection.createEl("h4", { text: tx("settings.per_lane_accent", "Per-Lane Accent Colors"), cls: "sk-settings-color-group-title" });
-          const statuses = this.plugin.getStatusOrder();
+          const statuses = this.plugin.getStatusOrder(this.plugin.settings.activeBoardId || "");
           for (const status of statuses) {
-            const laneColor = this.plugin.getResolvedLaneColor(status);
-            const userLane = this.plugin.settings.theme && this.plugin.settings.theme.laneColors && this.plugin.settings.theme.laneColors[status];
+            const laneColor = this.plugin.getResolvedLaneColor(status, this.plugin.settings.activeBoardId || "");
+            const userLane = themeTarget.laneColors && themeTarget.laneColors[status];
             const setting = new Setting2(themeSection).setName(status).setDesc(tx("settings.per_lane_accent.desc", "Accent and header text color for this lane."));
             setting.addColorPicker((picker) => {
               picker.setValue(laneColor.bg || "#868e96");
               picker.onChange(async (value) => {
-                if (!this.plugin.settings.theme.laneColors) this.plugin.settings.theme.laneColors = {};
-                if (!this.plugin.settings.theme.laneColors[status]) this.plugin.settings.theme.laneColors[status] = {};
-                this.plugin.settings.theme.laneColors[status].bg = value;
+                if (!themeTarget.laneColors) themeTarget.laneColors = {};
+                if (!themeTarget.laneColors[status]) themeTarget.laneColors[status] = {};
+                themeTarget.laneColors[status].bg = value;
                 this.syncTheme();
                 await this.plugin.saveSettings();
                 this.plugin.refreshViews();
@@ -3299,9 +3588,9 @@ var require_settings_tab = __commonJS({
             setting.addColorPicker((picker) => {
               picker.setValue(laneColor.text || "#ffffff");
               picker.onChange(async (value) => {
-                if (!this.plugin.settings.theme.laneColors) this.plugin.settings.theme.laneColors = {};
-                if (!this.plugin.settings.theme.laneColors[status]) this.plugin.settings.theme.laneColors[status] = {};
-                this.plugin.settings.theme.laneColors[status].text = value;
+                if (!themeTarget.laneColors) themeTarget.laneColors = {};
+                if (!themeTarget.laneColors[status]) themeTarget.laneColors[status] = {};
+                themeTarget.laneColors[status].text = value;
                 this.syncTheme();
                 await this.plugin.saveSettings();
                 this.plugin.refreshViews();
@@ -3310,7 +3599,7 @@ var require_settings_tab = __commonJS({
             if (userLane && (userLane.bg || userLane.text)) {
               setting.addButton((btn) => {
                 btn.setButtonText(tx("common.reset", "Reset")).onClick(async () => {
-                  delete this.plugin.settings.theme.laneColors[status];
+                  delete themeTarget.laneColors[status];
                   this.syncTheme();
                   await this.plugin.saveSettings();
                   this.plugin.refreshViews();
@@ -3343,7 +3632,7 @@ var require_settings_tab = __commonJS({
         }
         renderColorMapEditor(parentEl, mapKey, addButtonLabel, keyPlaceholder) {
           const container = parentEl.createDiv({ cls: "sk-settings-color-map-editor" });
-          const currentMap = normalizeColorMap(this.plugin.settings[mapKey] || {});
+          const currentMap = normalizeColorMap(this.getSetting(mapKey, {}) || {});
           const saveMap = async () => {
             this.setSetting(mapKey, currentMap);
             await this.plugin.saveSettings();
