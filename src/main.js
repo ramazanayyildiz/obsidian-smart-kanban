@@ -7,7 +7,7 @@ const {
   BOARD_CONFIG_KEYS,
   DEFAULT_SETTINGS,
 } = require("./constants");
-const { t, setLocale, LOCALES } = require("./i18n");
+const { t, tx, setLocale, LOCALES } = require("./i18n");
 const {
   normalizeDateInput, getDueInfo, parseTaskLine, updateTaskLineFields,
   parseWipLimits, sortCards, uniqueStrings, splitCsv,
@@ -21,12 +21,12 @@ initUtils({ uniqueStrings });
 const ensureFile = createEnsureFile(TFile);
 const {
   BoardManagerModal, DragReorderListModal, SimpleFormModal, SimpleConfirmModal,
-} = require("./modals")({ Modal, Notice, t });
+} = require("./modals")({ Modal, Notice, t, tx, BOARD_CONFIG_KEYS });
 const { SmartKanbanView } = require("./view")({
   ItemView, TFile, Notice, setIcon, VIEW_TYPE_SMART_KANBAN, normalizeDateInput, splitCsv, t,
 });
 const { SmartKanbanSettingTab } = require("./settings-tab")({
-  PluginSettingTab, Setting, Notice, DEFAULT_SETTINGS, BOARD_CONFIG_KEYS, THEME_PRESETS, t, LOCALES, setLocale,
+  PluginSettingTab, Setting, Notice, DEFAULT_SETTINGS, BOARD_CONFIG_KEYS, THEME_PRESETS, t, tx, LOCALES, setLocale,
 });
 
 module.exports = class SmartKanbanPlugin extends Plugin {

@@ -1,8 +1,7 @@
-module.exports = function createModals({ Modal, Notice, t = (k) => k }) {
-  function tx(key, fallback, params) {
-    const value = t(key, params);
-    return value === key ? fallback : value;
-  }
+module.exports = function createModals({ Modal, Notice, t = (k) => k, tx: externalTx, BOARD_CONFIG_KEYS = [] }) {
+  const tx = typeof externalTx === "function"
+    ? externalTx
+    : (key, fallback, params) => { const v = t(key, params); return v === key ? fallback : v; };
 
   class BoardManagerModal extends Modal {
     constructor(app, plugin, options) {
@@ -35,39 +34,16 @@ module.exports = function createModals({ Modal, Notice, t = (k) => k }) {
     }
 
     createEmptyBoard(type = "independent") {
-      return {
+      const board = {
         id: this.createBoardId(),
         name: "",
         type: type === "filtered-view" ? "filtered-view" : "independent",
         parentBoardId: null,
         visibleStatuses: null,
         defaultFilters: null,
-        sourceMode: null,
-        sourceFolder: null,
-        includeSubfolders: null,
-        taskInboxFile: null,
-        noteTemplate: null,
-        statusField: null,
-        categoryField: null,
-        priorityField: null,
-        tagsField: null,
-        dueDateField: null,
-        customFields: null,
-        statusOrder: null,
-        priorityOrder: null,
-        sortBy: null,
-        sortDirection: null,
-        dueSoonDays: null,
-        wipLimits: null,
-        autoArchiveDays: null,
-        dateFormat: null,
-        dateDisplayFormat: null,
-        showRelativeDate: null,
-        tagColors: null,
-        categoryColors: null,
-        theme: null,
-        cardOrder: null,
       };
+      for (const key of BOARD_CONFIG_KEYS) board[key] = null;
+      return board;
     }
 
     renderContent() {

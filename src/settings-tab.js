@@ -1,10 +1,9 @@
-module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice, DEFAULT_SETTINGS, BOARD_CONFIG_KEYS = [], THEME_PRESETS, t = (k) => k, LOCALES = { en: {} }, setLocale = () => {} }) {
+module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice, DEFAULT_SETTINGS, BOARD_CONFIG_KEYS = [], THEME_PRESETS, t = (k) => k, tx: externalTx, LOCALES = { en: {} }, setLocale = () => {} }) {
   const boardConfigKeySet = new Set(BOARD_CONFIG_KEYS);
 
-  function tx(key, fallback, params) {
-    const value = t(key, params);
-    return value === key ? fallback : value;
-  }
+  const tx = typeof externalTx === "function"
+    ? externalTx
+    : (key, fallback, params) => { const v = t(key, params); return v === key ? fallback : v; };
 
   function normalizeColorMap(input) {
     const out = {};

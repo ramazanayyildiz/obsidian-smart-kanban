@@ -529,4 +529,9 @@ function t(key, params) {
   return interpolate(raw, params);
 }
 
-module.exports = { LOCALES, t, setLocale, getLocale };
+function tx(key, fallback, params) {
+  const value = t(key, params);
+  return value === key ? fallback : value;
+}
+
+module.exports = { LOCALES, t, tx, setLocale, getLocale };

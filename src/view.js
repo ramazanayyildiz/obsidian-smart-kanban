@@ -190,7 +190,11 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
     async reload() {
       this._cancelDrag();
+      this._cachedSettings = null;
+      this._cachedStatuses = null;
       this.cards = await this.plugin.collectCards(this.boardId);
+      this._cachedSettings = this.plugin.getEffectiveSettings(this.boardId);
+      this._cachedStatuses = this.plugin.collectStatusesFromCards(this.cards, this.boardId);
       this.applyTheme();
       this.renderFilters();
       this.renderContent();
@@ -337,7 +341,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
     }
 
     getActiveSettings() {
-      return this.plugin.getEffectiveSettings(this.boardId);
+      return this._cachedSettings || this.plugin.getEffectiveSettings(this.boardId);
     }
 
     resolveColorEntry(mapObj, value) {
@@ -424,7 +428,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
     }
 
     async createTaskInteractive() {
-      let statuses = this.plugin.collectStatusesFromCards(this.cards, this.boardId);
+      let statuses = this._cachedStatuses || this.plugin.collectStatusesFromCards(this.cards, this.boardId);
       const board = this.boardId ? this.plugin.getBoard(this.boardId) : null;
       if (board && board.type === "filtered-view" && board.visibleStatuses) {
         const visible = String(board.visibleStatuses)
@@ -752,7 +756,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         return;
       }
 
-      let statuses = this.plugin.collectStatusesFromCards(this.cards, this.boardId);
+      let statuses = this._cachedStatuses || this.plugin.collectStatusesFromCards(this.cards, this.boardId);
       const board = this.boardId ? this.plugin.getBoard(this.boardId) : null;
       if (board && board.type === "filtered-view" && board.visibleStatuses) {
         const visible = board.visibleStatuses.split(",").map((s) => s.trim()).filter(Boolean);
@@ -961,7 +965,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       const eff = this.getActiveSettings();
 
       const filtered = this.filteredCards();
-      const statuses = this.plugin.collectStatusesFromCards(this.cards, this.boardId);
+      const statuses = this._cachedStatuses || this.plugin.collectStatusesFromCards(this.cards, this.boardId);
 
       if (!filtered.length) {
         this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: t("view.empty.no_tasks") });
@@ -1161,7 +1165,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       moveItem.createSpan({ text: t("view.menu.move_to") + " " });
       const moveSelect = moveItem.createEl("select", { cls: "smart-kanban-move-select" });
       moveSelect.createEl("option", { text: t("common.ellipsis"), value: "" });
-      const allStatuses = this.plugin.collectStatusesFromCards(this.cards, this.boardId);
+      const allStatuses = this._cachedStatuses || this.plugin.collectStatusesFromCards(this.cards, this.boardId);
       for (const s of allStatuses) {
         if (s !== card.status) {
           moveSelect.createEl("option", { text: s, value: s });
@@ -1463,6 +1467,8 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
     async onClose() {
       this._cancelDrag();
+      for (const cleanup of this._dropdownCleanups) cleanup();
+      this._dropdownCleanups = [];
       if (this._dragReloadTimer) {
         clearTimeout(this._dragReloadTimer);
         this._dragReloadTimer = null;
