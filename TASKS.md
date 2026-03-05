@@ -155,7 +155,7 @@
   - No hardcoded English strings remain in UI-facing code.
 
 ### P0-009: Build & test Phase 0
-- Status: `in-progress`
+- Status: `done`
 - Priority: `P0`
 - Estimate: `0.5d`
 - Depends on: all P0 tasks
