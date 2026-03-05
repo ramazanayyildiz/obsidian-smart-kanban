@@ -336,9 +336,12 @@
 
 /* ── Lane ── */
 .smart-kanban-lane {
-  min-width: 200px;
-  max-width: 240px;
-  flex-shrink: 0;
+  width: 280px;
+  min-width: 260px;
+  max-width: 300px;
+  flex: 0 0 280px;
+  overflow: hidden;
+  overflow-wrap: anywhere;
   background: color-mix(
     in srgb,
     var(--sk-lane-accent-bg, var(--sk-lane-bg, var(--background-secondary)))
