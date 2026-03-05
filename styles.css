@@ -557,6 +557,10 @@
   line-height: 1.4;
 }
 
+.smart-kanban-filterable-badge {
+  cursor: pointer;
+}
+
 /* Category — solid muted blue */
 .smart-kanban-badge-category {
   background: #d3e5ef;

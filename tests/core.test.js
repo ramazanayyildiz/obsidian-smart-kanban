@@ -24,12 +24,30 @@ test("getDueInfo computes overdue and due-soon labels", () => {
   assert.equal(overdue.cls, "is-overdue");
 
   const soon = getDueInfo("2026-02-15", 2, base);
-  assert.equal(soon.label, "Due in 1d");
+  assert.equal(soon.label, "Due tomorrow");
   assert.equal(soon.cls, "is-due-soon");
 
   const later = getDueInfo("2026-02-20", 2, base);
   assert.equal(later.label, "Due in 6d");
   assert.equal(later.cls, "");
+});
+
+test("getDueInfo supports localization and absolute display mode", () => {
+  const base = new Date("2026-02-14T10:00:00Z");
+  const tr = (key, params) => {
+    if (key === "due.in_days") return `${params.days}g sonra`;
+    if (key === "due.today") return "Bugun teslim";
+    return key;
+  };
+
+  const localized = getDueInfo("2026-02-20", 2, base, { t: tr, showRelativeDate: true });
+  assert.equal(localized.label, "6g sonra");
+
+  const absolute = getDueInfo("2026-02-20", 2, base, { showRelativeDate: false });
+  assert.equal(absolute.label, "2026-02-20");
+
+  const absoluteOverdue = getDueInfo("2026-02-12", 2, base, { showRelativeDate: false });
+  assert.equal(absoluteOverdue.cls, "is-overdue");
 });
 
 test("parseTaskLine extracts inline fields and tags", () => {

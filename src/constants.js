@@ -134,6 +134,13 @@ const DEFAULT_SETTINGS = {
   boards: [],
   activeBoardId: "",
   autoArchiveDays: 0,
+  noteTemplate: "",
+  tagColors: {},
+  categoryColors: {},
+  dateFormat: "YYYY-MM-DD",
+  dateDisplayFormat: "",
+  showRelativeDate: true,
+  language: "en",
   theme: { preset: "default", overrides: {}, laneColors: {} },
   cardOrder: {},
 };

@@ -1,5 +1,6 @@
-const { Plugin, ItemView, Modal, TFile, TFolder, Notice, PluginSettingTab, Setting, setIcon } = require("obsidian");
+const { Plugin, ItemView, Modal, TFile, TFolder, Notice, PluginSettingTab, Setting, setIcon, parseYaml } = require("obsidian");
 const { VIEW_TYPE_SMART_KANBAN, THEME_PRESETS, DEFAULT_SETTINGS } = require("./constants");
+const { t, setLocale, LOCALES } = require("./i18n");
 const {
   normalizeDateInput, getDueInfo, parseTaskLine, updateTaskLineFields,
   parseWipLimits, sortCards, uniqueStrings, splitCsv,
@@ -15,10 +16,10 @@ const {
   BoardManagerModal, DragReorderListModal, SimpleFormModal, SimpleConfirmModal,
 } = require("./modals")({ Modal, Notice });
 const { SmartKanbanView } = require("./view")({
-  ItemView, TFile, Notice, setIcon, VIEW_TYPE_SMART_KANBAN, normalizeDateInput, splitCsv,
+  ItemView, TFile, Notice, setIcon, VIEW_TYPE_SMART_KANBAN, normalizeDateInput, splitCsv, t,
 });
 const { SmartKanbanSettingTab } = require("./settings-tab")({
-  PluginSettingTab, Setting, Notice, DEFAULT_SETTINGS, THEME_PRESETS,
+  PluginSettingTab, Setting, Notice, DEFAULT_SETTINGS, THEME_PRESETS, t, LOCALES, setLocale,
 });
 
 module.exports = class SmartKanbanPlugin extends Plugin {
@@ -244,7 +245,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     const overrides = (this.settings.theme && this.settings.theme.overrides) || {};
     const resolved = { ...preset };
     for (const [key, value] of Object.entries(overrides)) {
-      if (value && typeof value === "string") resolved[key] = value;
+      if (value !== undefined && value !== null && value !== "") resolved[key] = value;
     }
     return resolved;
   }
@@ -312,6 +313,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     const loaded = await this.loadData();
     this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded || {});
     this.settings.filterPresets = this.settings.filterPresets || {};
+    setLocale(this.settings.language || "en");
   }
 
   async saveSettings() {
@@ -391,8 +393,23 @@ module.exports = class SmartKanbanPlugin extends Plugin {
 
     const safeBase = sanitizeFileName(title) || "task";
     const filePath = await this.buildUniqueTaskPath(folderPath, safeBase);
-    const frontmatter = buildFrontmatterBlock(fields);
-    return await this.app.vault.create(filePath, `${frontmatter}\n# ${title}\n`);
+    const preparedFields = this.prepareFieldsForWrite(fields, eff);
+    const templatePath = String(eff.noteTemplate || "").trim();
+    if (!templatePath) {
+      const frontmatter = buildFrontmatterBlock(preparedFields);
+      return await this.app.vault.create(filePath, `${frontmatter}\n# ${title}\n`);
+    }
+
+    const templateFile = this.app.vault.getAbstractFileByPath(templatePath);
+    if (!(templateFile instanceof TFile)) {
+      new Notice(`Template file not found: ${templatePath}. Using default note layout.`);
+      const frontmatter = buildFrontmatterBlock(preparedFields);
+      return await this.app.vault.create(filePath, `${frontmatter}\n# ${title}\n`);
+    }
+
+    const templateContent = await this.app.vault.cachedRead(templateFile);
+    const rendered = this.renderTaskNoteFromTemplate(templateContent, title, preparedFields, eff);
+    return await this.app.vault.create(filePath, rendered);
   }
 
   async createTaskLine(title, fields, eff = this.settings) {
@@ -404,13 +421,14 @@ module.exports = class SmartKanbanPlugin extends Plugin {
 
     const file = await ensureFile(this.app, inboxFile, "# Todo Tasks\n\n");
 
+    const preparedFields = this.prepareFieldsForWrite(fields, eff);
     const line = buildTaskChecklistLine(title, {
       statusField: eff.statusField,
       categoryField: eff.categoryField,
       priorityField: eff.priorityField,
       tagsField: eff.tagsField,
       dueDateField: eff.dueDateField,
-      fields,
+      fields: preparedFields,
     });
 
     const current = await this.app.vault.read(file);
@@ -419,6 +437,89 @@ module.exports = class SmartKanbanPlugin extends Plugin {
 
     await this.app.workspace.getLeaf(true).openFile(file);
     new Notice("Created task line.");
+  }
+
+  prepareFieldsForWrite(fields, eff = this.settings) {
+    const out = { ...(fields || {}) };
+    const dueField = String(eff.dueDateField || "Due Date");
+    const dueValue = normalizeDateInput(out[dueField]);
+    if (dueValue) {
+      out[dueField] = this.formatDateForStorage(dueValue, eff);
+    }
+    return out;
+  }
+
+  formatDateForStorage(isoDate, eff = this.settings) {
+    const normalized = normalizeDateInput(isoDate);
+    if (!normalized) return "";
+    const format = String(eff.dateFormat || "YYYY-MM-DD").trim();
+    if (!format || format === "YYYY-MM-DD") return normalized;
+    const momentRef =
+      (typeof window !== "undefined" && window.moment) ||
+      (typeof globalThis !== "undefined" && globalThis.moment);
+    if (typeof momentRef === "function") {
+      const m = momentRef(normalized, "YYYY-MM-DD", true);
+      if (m && typeof m.isValid === "function" && m.isValid()) return m.format(format);
+    }
+    return normalized;
+  }
+
+  parseDateByFormat(rawDate, eff = this.settings) {
+    const raw = String(rawDate || "").trim();
+    if (!raw) return "";
+    const normalized = normalizeDateInput(raw);
+    if (normalized) return normalized;
+
+    const format = String(eff.dateFormat || "YYYY-MM-DD").trim();
+    const momentRef =
+      (typeof window !== "undefined" && window.moment) ||
+      (typeof globalThis !== "undefined" && globalThis.moment);
+    if (typeof momentRef === "function" && format) {
+      const m = momentRef(raw, format, true);
+      if (m && typeof m.isValid === "function" && m.isValid()) return m.format("YYYY-MM-DD");
+    }
+    return "";
+  }
+
+  renderTaskNoteFromTemplate(templateContent, title, fields, eff = this.settings) {
+    const todayIso = normalizeDateInput(new Date().toISOString().slice(0, 10));
+    const dateToken = this.formatDateForStorage(todayIso, eff) || todayIso;
+    const withTokens = String(templateContent || "")
+      .replace(/\r\n/g, "\n")
+      .replaceAll("{{title}}", title)
+      .replaceAll("{{date}}", dateToken);
+
+    const { frontmatter, body } = this.extractFrontmatterAndBody(withTokens);
+    const merged = { ...frontmatter, ...(fields || {}) };
+    const mergedFrontmatter = buildFrontmatterBlock(merged);
+    const cleanedBody = String(body || "").replace(/^\n+/, "");
+    return `${mergedFrontmatter}\n${cleanedBody || `# ${title}\n`}`;
+  }
+
+  extractFrontmatterAndBody(content) {
+    const text = String(content || "").replace(/\r\n/g, "\n");
+    if (!text.startsWith("---\n")) {
+      return { frontmatter: {}, body: text };
+    }
+
+    const match = text.match(/^---\n([\s\S]*?)\n---\n?/);
+    if (!match) return { frontmatter: {}, body: text };
+    const frontmatterText = match[1];
+    const body = text.slice(match[0].length);
+
+    let frontmatter = {};
+    if (typeof parseYaml === "function") {
+      try {
+        const parsed = parseYaml(frontmatterText);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          frontmatter = parsed;
+        }
+      } catch (_e) {
+        frontmatter = {};
+      }
+    }
+
+    return { frontmatter, body };
   }
 
   async buildUniqueTaskPath(folderPath, baseName) {
@@ -467,8 +568,13 @@ module.exports = class SmartKanbanPlugin extends Plugin {
       const fm = (cache && cache.frontmatter) || {};
       if (isKanbanBoardFile(fm)) continue;
 
-      const dueDate = normalizeDateInput(fm[eff.dueDateField]);
-      const dueInfo = getDueInfo(dueDate, eff.dueSoonDays);
+      const dueDate = this.parseDateByFormat(fm[eff.dueDateField], eff);
+      const dueInfo = getDueInfo(dueDate, eff.dueSoonDays, undefined, {
+        showRelativeDate: eff.showRelativeDate,
+        dateDisplayFormat: eff.dateDisplayFormat,
+        dateFormat: eff.dateFormat,
+        t,
+      });
       const customFields = {};
       for (const key of customFieldKeys) {
         customFields[key] = normalizeFmValue(fm[key]);
@@ -530,7 +636,15 @@ module.exports = class SmartKanbanPlugin extends Plugin {
 
         if (!parsed) continue;
 
-        const dueInfo = getDueInfo(parsed.dueDate, eff.dueSoonDays);
+        const taskDueDate =
+          parsed.dueDate ||
+          this.parseDateByFormat(inlineMap.get(String(eff.dueDateField || "Due Date").toLowerCase()) || "", eff);
+        const dueInfo = getDueInfo(taskDueDate, eff.dueSoonDays, undefined, {
+          showRelativeDate: eff.showRelativeDate,
+          dateDisplayFormat: eff.dateDisplayFormat,
+          dateFormat: eff.dateFormat,
+          t,
+        });
         const customFields = {};
         for (const key of customFieldKeys) {
           customFields[key] = normalizeFmValue(inlineMap.get(key.toLowerCase()) || "");
@@ -546,7 +660,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
           priority: parsed.priority || "",
           tags: parsed.tags || [],
           customFields,
-          dueDate: parsed.dueDate || "",
+          dueDate: taskDueDate || "",
           dueTs: dueInfo ? dueInfo.sortValue : null,
           dueInfo,
         });

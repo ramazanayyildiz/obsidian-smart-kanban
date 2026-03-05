@@ -14,7 +14,7 @@ function normalizeDateInput(value) {
   return formatDateLocal(parsed);
 }
 
-function getDueInfo(dueDate, dueSoonDays, nowDate) {
+function getDueInfo(dueDate, dueSoonDays, nowDate, options) {
   if (!dueDate) return null;
 
   const date = new Date(`${dueDate}T00:00:00`);
@@ -24,10 +24,43 @@ function getDueInfo(dueDate, dueSoonDays, nowDate) {
   const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const dueStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const diffDays = Math.round((dueStart.getTime() - todayStart.getTime()) / 86400000);
+  const opts = options && typeof options === "object" ? options : {};
+  const showRelativeDate = opts.showRelativeDate !== false;
+  const translate = typeof opts.t === "function" ? opts.t : null;
+  const displayFormat = String(opts.dateDisplayFormat || opts.dateFormat || "").trim();
+
+  const labelFor = (key, fallback, params) => {
+    if (!translate) return fallback;
+    return translate(key, params);
+  };
+
+  const absoluteLabel = () => {
+    if (!displayFormat) return dueDate;
+    const momentRef =
+      (typeof window !== "undefined" && window.moment) ||
+      (typeof globalThis !== "undefined" && globalThis.moment);
+    if (typeof momentRef === "function") {
+      const m = momentRef(dueDate, ["YYYY-MM-DD", momentRef.ISO_8601], true);
+      if (m && typeof m.isValid === "function" && m.isValid()) return m.format(displayFormat);
+    }
+    return dueDate;
+  };
+
+  if (!showRelativeDate) {
+    const cls =
+      diffDays < 0
+        ? "is-overdue"
+        : (diffDays <= Math.max(0, Number(dueSoonDays) || 0) ? "is-due-soon" : "");
+    return {
+      label: absoluteLabel(),
+      cls,
+      sortValue: dueStart.getTime(),
+    };
+  }
 
   if (diffDays < 0) {
     return {
-      label: `Overdue ${Math.abs(diffDays)}d`,
+      label: labelFor("due.overdue_days", `Overdue ${Math.abs(diffDays)}d`, { days: Math.abs(diffDays) }),
       cls: "is-overdue",
       sortValue: dueStart.getTime(),
     };
@@ -35,7 +68,15 @@ function getDueInfo(dueDate, dueSoonDays, nowDate) {
 
   if (diffDays === 0) {
     return {
-      label: "Due today",
+      label: labelFor("due.today", "Due today"),
+      cls: "is-due-soon",
+      sortValue: dueStart.getTime(),
+    };
+  }
+
+  if (diffDays === 1) {
+    return {
+      label: labelFor("due.tomorrow", "Due tomorrow"),
       cls: "is-due-soon",
       sortValue: dueStart.getTime(),
     };
@@ -43,14 +84,14 @@ function getDueInfo(dueDate, dueSoonDays, nowDate) {
 
   if (diffDays <= Math.max(0, Number(dueSoonDays) || 0)) {
     return {
-      label: `Due in ${diffDays}d`,
+      label: labelFor("due.in_days", `Due in ${diffDays}d`, { days: diffDays }),
       cls: "is-due-soon",
       sortValue: dueStart.getTime(),
     };
   }
 
   return {
-    label: `Due in ${diffDays}d`,
+    label: labelFor("due.in_days", `Due in ${diffDays}d`, { days: diffDays }),
     cls: "",
     sortValue: dueStart.getTime(),
   };

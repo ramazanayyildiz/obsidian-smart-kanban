@@ -271,12 +271,46 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       return btn;
     }
 
+    getActiveSettings() {
+      return this.plugin.getEffectiveSettings(this.boardId);
+    }
+
+    resolveColorEntry(mapObj, value) {
+      if (!mapObj || typeof mapObj !== "object") return null;
+      const key = String(value || "").trim();
+      if (!key) return null;
+      if (mapObj[key] && typeof mapObj[key] === "object") return mapObj[key];
+      const lower = key.toLowerCase();
+      for (const [entryKey, entryValue] of Object.entries(mapObj)) {
+        if (String(entryKey).toLowerCase() === lower && entryValue && typeof entryValue === "object") return entryValue;
+      }
+      return null;
+    }
+
+    applyBadgeColor(el, mapObj, value) {
+      const entry = this.resolveColorEntry(mapObj, value);
+      if (!entry) return;
+      if (entry.bg) el.style.backgroundColor = String(entry.bg);
+      if (entry.text) el.style.color = String(entry.text);
+    }
+
+    bindFilterBadge(el, key, value) {
+      const text = String(value || "").trim();
+      if (!text) return;
+      el.addClass("smart-kanban-filterable-badge");
+      el.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.toggleFilterValue(key, text);
+      });
+    }
+
     async openPluginSettings() {
       if (this.app.setting && typeof this.app.setting.open === "function") {
-        this.app.setting.open();
+        await Promise.resolve(this.app.setting.open());
       }
       if (this.app.setting && typeof this.app.setting.openTabById === "function") {
-        this.app.setting.openTabById(this.plugin.manifest.id);
+        await Promise.resolve(this.app.setting.openTabById(this.plugin.manifest.id));
       }
     }
 
@@ -687,8 +721,9 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
           /* drop targets are handled by pointer-based drag system */
 
+          const eff = this.getActiveSettings();
           for (const card of laneCards) {
-            this.renderCard(list, card);
+            this.renderCard(list, card, eff);
           }
 
           /* Notion-style "+ New page" that expands to inline input */
@@ -764,6 +799,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       this.boardEl.empty();
       this.boardEl.removeClass("smart-kanban-board");
       this.boardEl.addClass("smart-kanban-table-wrap");
+      const eff = this.getActiveSettings();
 
       const filtered = this.filteredCards();
       const sorted = this.plugin.sortCards(filtered);
@@ -795,7 +831,11 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         tr.createEl("td").createSpan({ text: card.status || "Todo", cls: "smart-kanban-badge smart-kanban-badge-category" });
 
         const tdCat = tr.createEl("td");
-        if (card.category) tdCat.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+        if (card.category) {
+          const catBadge = tdCat.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+          this.applyBadgeColor(catBadge, eff.categoryColors, card.category);
+          this.bindFilterBadge(catBadge, "categories", card.category);
+        }
 
         const tdPri = tr.createEl("td");
         if (card.priority) {
@@ -806,12 +846,14 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         const tdDue = tr.createEl("td");
         if (card.dueDate) {
           const cls = card.dueInfo ? `smart-kanban-badge smart-kanban-due-badge ${card.dueInfo.cls || ""}` : "";
-          tdDue.createSpan({ text: card.dueDate, cls });
+          tdDue.createSpan({ text: (card.dueInfo && card.dueInfo.label) ? card.dueInfo.label : card.dueDate, cls });
         }
 
         const tdTags = tr.createEl("td", { cls: "smart-kanban-table-tags" });
         for (const tag of card.tags || []) {
-          tdTags.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
+          const tagBadge = tdTags.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
+          this.applyBadgeColor(tagBadge, eff.tagColors, tag);
+          this.bindFilterBadge(tagBadge, "tags", tag);
         }
       }
     }
@@ -820,6 +862,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       this.boardEl.empty();
       this.boardEl.removeClass("smart-kanban-board");
       this.boardEl.addClass("smart-kanban-list-wrap");
+      const eff = this.getActiveSettings();
 
       const filtered = this.filteredCards();
       const statuses = this.plugin.collectStatusesFromCards(this.cards);
@@ -852,14 +895,20 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
           });
 
           const badges = row.createDiv({ cls: "smart-kanban-list-item-badges" });
-          if (card.category) badges.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+          if (card.category) {
+            const catBadge = badges.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+            this.applyBadgeColor(catBadge, eff.categoryColors, card.category);
+            this.bindFilterBadge(catBadge, "categories", card.category);
+          }
           if (card.priority) {
             const slug = card.priority.toLowerCase().replace(/\s+/g, "-");
             badges.createSpan({ text: card.priority, cls: `smart-kanban-badge smart-kanban-priority-badge smart-kanban-priority-${slug}` });
           }
           if (card.dueInfo) badges.createSpan({ text: card.dueInfo.label, cls: "smart-kanban-badge smart-kanban-due-badge" });
           for (const tag of card.tags || []) {
-            badges.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
+            const tagBadge = badges.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
+            this.applyBadgeColor(tagBadge, eff.tagColors, tag);
+            this.bindFilterBadge(tagBadge, "tags", tag);
           }
         }
       }
@@ -869,6 +918,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       this.boardEl.empty();
       this.boardEl.removeClass("smart-kanban-board");
       this.boardEl.addClass("smart-kanban-list-wrap");
+      const eff = this.getActiveSettings();
 
       const sorted = this.plugin.sortCards(this.filteredCards());
       if (!sorted.length) {
@@ -887,19 +937,25 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
         const badges = row.createDiv({ cls: "smart-kanban-list-item-badges" });
         badges.createSpan({ text: card.status || "Todo", cls: "smart-kanban-badge smart-kanban-badge-category" });
-        if (card.category) badges.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+        if (card.category) {
+          const catBadge = badges.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+          this.applyBadgeColor(catBadge, eff.categoryColors, card.category);
+          this.bindFilterBadge(catBadge, "categories", card.category);
+        }
         if (card.priority) {
           const slug = card.priority.toLowerCase().replace(/\s+/g, "-");
           badges.createSpan({ text: card.priority, cls: `smart-kanban-badge smart-kanban-priority-badge smart-kanban-priority-${slug}` });
         }
         if (card.dueInfo) badges.createSpan({ text: card.dueInfo.label, cls: "smart-kanban-badge smart-kanban-due-badge" });
         for (const tag of card.tags || []) {
-          badges.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
+          const tagBadge = badges.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
+          this.applyBadgeColor(tagBadge, eff.tagColors, tag);
+          this.bindFilterBadge(tagBadge, "tags", tag);
         }
       }
     }
 
-    renderCard(parent, card) {
+    renderCard(parent, card, eff = this.getActiveSettings()) {
       const cardEl = parent.createDiv({ cls: "smart-kanban-card" });
       cardEl.dataset.cardId = card.id;
       if (card.priority) cardEl.dataset.priority = card.priority.toLowerCase().replace(/\s+/g, "-");
@@ -934,7 +990,9 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       const badges = cardEl.createDiv({ cls: "smart-kanban-card-badges" });
 
       if (card.category) {
-        badges.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+        const catBadge = badges.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+        this.applyBadgeColor(catBadge, eff.categoryColors, card.category);
+        this.bindFilterBadge(catBadge, "categories", card.category);
       }
       if (card.priority) {
         const prioSlug = card.priority.toLowerCase().replace(/\s+/g, "-");
@@ -956,7 +1014,9 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
       if (card.tags && card.tags.length) {
         for (const tag of card.tags) {
-          badges.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
+          const tagBadge = badges.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
+          this.applyBadgeColor(tagBadge, eff.tagColors, tag);
+          this.bindFilterBadge(tagBadge, "tags", tag);
         }
       }
 

@@ -1,4 +1,13 @@
-module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice, DEFAULT_SETTINGS, THEME_PRESETS }) {
+module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice, DEFAULT_SETTINGS, THEME_PRESETS, t = (k) => k, LOCALES = { en: {} }, setLocale = () => {} }) {
+  function parseColorMapInput(value) {
+    try {
+      const parsed = JSON.parse(String(value || "").trim() || "{}");
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+      return parsed;
+    } catch (_e) {
+      return null;
+    }
+  }
 
   function section(containerEl, title, desc) {
     const el = containerEl.createDiv({ cls: "sk-settings-section" });
@@ -19,7 +28,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
       containerEl.empty();
 
       /* ── Section: Data Source ── */
-      const srcSection = section(containerEl, "Data Source", "Where your tasks come from.");
+      const srcSection = section(containerEl, t("settings.section.dataSource"), t("settings.section.dataSource.desc"));
 
       new Setting(srcSection)
         .setName("Source mode")
@@ -71,8 +80,22 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             })
         );
 
+      new Setting(srcSection)
+        .setName("Note template")
+        .setDesc("Optional template file path used when creating note-mode tasks.")
+        .addText((text) =>
+          text
+            .setPlaceholder("Templates/Task.md")
+            .setValue(this.plugin.settings.noteTemplate || "")
+            .onChange(async (value) => {
+              this.plugin.settings.noteTemplate = String(value || "").trim();
+              await this.plugin.saveSettings();
+              this.plugin.refreshViews();
+            })
+        );
+
       /* ── Section: Field Mapping ── */
-      const fieldSection = section(containerEl, "Field Mapping", "Map your frontmatter or inline fields to Kanban properties.");
+      const fieldSection = section(containerEl, t("settings.section.fieldMapping"), t("settings.section.fieldMapping.desc"));
 
       const fieldDefs = [
         ["statusField", "Status field", "Determines which lane a card appears in."],
@@ -104,7 +127,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
         );
 
       /* ── Section: Board Layout ── */
-      const layoutSection = section(containerEl, "Board Layout", "Control lane order, sorting, and work-in-progress limits.");
+      const layoutSection = section(containerEl, t("settings.section.layout"), t("settings.section.layout.desc"));
 
       new Setting(layoutSection)
         .setName("Status order")
@@ -194,8 +217,50 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
           })
         );
 
+      /* ── Section: Date Display ── */
+      const dateSection = section(containerEl, t("settings.section.dateDisplay"), t("settings.section.dateDisplay.desc"));
+
+      new Setting(dateSection)
+        .setName("Date format")
+        .setDesc("Storage format for new due dates. Uses Moment.js patterns.")
+        .addText((text) =>
+          text
+            .setPlaceholder("YYYY-MM-DD")
+            .setValue(this.plugin.settings.dateFormat || "YYYY-MM-DD")
+            .onChange(async (value) => {
+              this.plugin.settings.dateFormat = String(value || "").trim() || "YYYY-MM-DD";
+              await this.plugin.saveSettings();
+              this.plugin.refreshViews();
+            })
+        );
+
+      new Setting(dateSection)
+        .setName("Date display format")
+        .setDesc("Optional display format. Leave empty to use Date format.")
+        .addText((text) =>
+          text
+            .setPlaceholder("MMM D, YYYY")
+            .setValue(this.plugin.settings.dateDisplayFormat || "")
+            .onChange(async (value) => {
+              this.plugin.settings.dateDisplayFormat = String(value || "").trim();
+              await this.plugin.saveSettings();
+              this.plugin.refreshViews();
+            })
+        );
+
+      new Setting(dateSection)
+        .setName("Show relative due labels")
+        .setDesc("Show labels like \"Due in 3d\" instead of absolute dates.")
+        .addToggle((toggle) =>
+          toggle.setValue(this.plugin.settings.showRelativeDate !== false).onChange(async (value) => {
+            this.plugin.settings.showRelativeDate = !!value;
+            await this.plugin.saveSettings();
+            this.plugin.refreshViews();
+          })
+        );
+
       /* ── Section: Appearance ── */
-      const themeSection = section(containerEl, "Appearance", "Customize colors, fonts, and visual theme.");
+      const themeSection = section(containerEl, t("settings.section.appearance"), t("settings.section.appearance.desc"));
 
       new Setting(themeSection)
         .setName("Theme preset")
@@ -224,6 +289,42 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             .onChange(async (value) => {
               if (!this.plugin.settings.theme.overrides) this.plugin.settings.theme.overrides = {};
               this.plugin.settings.theme.overrides.fontFamily = value.trim();
+              await this.plugin.saveSettings();
+              this.plugin.refreshViews();
+            })
+        );
+
+      new Setting(themeSection)
+        .setName("Tag colors (JSON)")
+        .setDesc("Map tags to colors. Example: {\"work\":{\"bg\":\"#dbeafe\",\"text\":\"#1e3a8a\"}}")
+        .addTextArea((text) =>
+          text
+            .setValue(JSON.stringify(this.plugin.settings.tagColors || {}, null, 2))
+            .onChange(async (value) => {
+              const parsed = parseColorMapInput(value);
+              if (!parsed) {
+                new Notice("Invalid tag colors JSON.");
+                return;
+              }
+              this.plugin.settings.tagColors = parsed;
+              await this.plugin.saveSettings();
+              this.plugin.refreshViews();
+            })
+        );
+
+      new Setting(themeSection)
+        .setName("Category colors (JSON)")
+        .setDesc("Map categories to colors. Example: {\"Feature\":{\"bg\":\"#dcfce7\",\"text\":\"#166534\"}}")
+        .addTextArea((text) =>
+          text
+            .setValue(JSON.stringify(this.plugin.settings.categoryColors || {}, null, 2))
+            .onChange(async (value) => {
+              const parsed = parseColorMapInput(value);
+              if (!parsed) {
+                new Notice("Invalid category colors JSON.");
+                return;
+              }
+              this.plugin.settings.categoryColors = parsed;
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
@@ -386,7 +487,24 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
       }
 
       /* ── Section: Advanced ── */
-      const advSection = section(containerEl, "Advanced", "Performance and behavior tuning.");
+      const advSection = section(containerEl, t("settings.section.advanced"), t("settings.section.advanced.desc"));
+
+      new Setting(advSection)
+        .setName(t("settings.language.name"))
+        .setDesc(t("settings.language.desc"))
+        .addDropdown((dropdown) => {
+          for (const key of Object.keys(LOCALES)) {
+            dropdown.addOption(key, t(`settings.language.${key}`));
+          }
+          dropdown.setValue(this.plugin.settings.language || "en");
+          dropdown.onChange(async (value) => {
+            this.plugin.settings.language = value;
+            setLocale(value);
+            await this.plugin.saveSettings();
+            this.plugin.refreshViews();
+            this.display();
+          });
+        });
 
       new Setting(advSection)
         .setName("Refresh debounce")
