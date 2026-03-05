@@ -329,6 +329,13 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
             items: [...this.plugin.getCustomFieldKeys(this.boardId)],
           },
         ],
+        onOpenSettings: async () => {
+          if (this.boardId) {
+            this.plugin.settings.activeBoardId = this.boardId;
+            await this.plugin.saveSettings();
+          }
+          await this.openPluginSettings();
+        },
       });
       if (!result) return;
 

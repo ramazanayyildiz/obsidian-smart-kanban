@@ -483,6 +483,7 @@ var require_i18n = __commonJS({
         "modal.board.field.tag_colors": "Tag colors JSON (blank = inherit)",
         "modal.board.field.category_colors": "Category colors JSON (blank = inherit)",
         "modal.configure.title": "Configure",
+        "modal.configure.open_settings": "All Board Settings",
         "modal.drag.add_placeholder": "Add {section}...",
         "modal.form.title": "Form",
         "modal.form.field": "Field",
@@ -727,6 +728,7 @@ var require_i18n = __commonJS({
         "modal.board.field.tag_colors": "Etiket renkleri JSON (bos = miras al)",
         "modal.board.field.category_colors": "Kategori renkleri JSON (bos = miras al)",
         "modal.configure.title": "Yapilandir",
+        "modal.configure.open_settings": "Tum Pano Ayarlari",
         "modal.drag.add_placeholder": "{section} ekle...",
         "modal.form.title": "Form",
         "modal.form.field": "Alan",
@@ -1711,6 +1713,13 @@ var require_modals = __commonJS({
             this.renderSection(contentEl, section);
           }
           const actions = contentEl.createDiv({ cls: "smart-kanban-modal-actions" });
+          if (typeof this.options.onOpenSettings === "function") {
+            const settingsBtn = actions.createEl("button", { text: tx("modal.configure.open_settings", "All Board Settings") });
+            settingsBtn.addEventListener("click", () => {
+              this.close();
+              this.options.onOpenSettings();
+            });
+          }
           const cancelBtn = actions.createEl("button", { text: t2("common.cancel") });
           cancelBtn.addEventListener("click", () => {
             if (typeof this.options.onCancel === "function") this.options.onCancel();
@@ -2179,7 +2188,14 @@ var require_view = __commonJS({
                 label: t2("view.configure.custom_fields"),
                 items: [...this.plugin.getCustomFieldKeys(this.boardId)]
               }
-            ]
+            ],
+            onOpenSettings: async () => {
+              if (this.boardId) {
+                this.plugin.settings.activeBoardId = this.boardId;
+                await this.plugin.saveSettings();
+              }
+              await this.openPluginSettings();
+            }
           });
           if (!result) return;
           const statusValue = (result.statuses || []).join(", ");

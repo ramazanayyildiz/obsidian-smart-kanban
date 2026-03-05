@@ -277,6 +277,13 @@ module.exports = function createModals({ Modal, Notice, t = (k) => k }) {
       }
 
       const actions = contentEl.createDiv({ cls: "smart-kanban-modal-actions" });
+      if (typeof this.options.onOpenSettings === "function") {
+        const settingsBtn = actions.createEl("button", { text: tx("modal.configure.open_settings", "All Board Settings") });
+        settingsBtn.addEventListener("click", () => {
+          this.close();
+          this.options.onOpenSettings();
+        });
+      }
       const cancelBtn = actions.createEl("button", { text: t("common.cancel") });
       cancelBtn.addEventListener("click", () => {
         if (typeof this.options.onCancel === "function") this.options.onCancel();
