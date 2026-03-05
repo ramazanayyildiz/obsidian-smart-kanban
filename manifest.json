@@ -4,6 +4,6 @@
   "version": "0.1.0",
   "minAppVersion": "1.5.0",
   "description": "Kanban board with metadata filters backed by note frontmatter.",
-  "author": "Ramazan + Codex",
+  "author": "Ramazan Ayyildiz",
   "isDesktopOnly": false
 }
