@@ -343,7 +343,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
     async createTaskInteractive() {
       const statuses = this.plugin.collectStatusesFromCards(this.cards, this.boardId);
-      const defaultStatus = statuses[0] || "Todo";
+      const defaultStatus = statuses[0] || this.plugin.getDefaultStatus(this.boardId);
       const categories = this.uniqueValues("category");
       const priorities = this.uniqueValues("priority");
       const values = await this.plugin.openFormModal({
@@ -700,7 +700,8 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
           this.renderBoard();
         });
 
-        let laneCards = filteredCards.filter((card) => (card.status || "Todo") === status);
+        const fallbackStatus = this.plugin.getDefaultStatus(this.boardId);
+        let laneCards = filteredCards.filter((card) => (card.status || fallbackStatus) === status);
         laneCards = this.plugin.sortCards(laneCards, this.boardId);
 
         /* count right next to the title, no wrapper */
@@ -830,7 +831,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
           if (file instanceof TFile) await this.app.workspace.getLeaf(true).openFile(file);
         });
 
-        tr.createEl("td").createSpan({ text: card.status || "Todo", cls: "smart-kanban-badge smart-kanban-badge-category" });
+        tr.createEl("td").createSpan({ text: card.status || this.plugin.getDefaultStatus(this.boardId), cls: "smart-kanban-badge smart-kanban-badge-category" });
 
         const tdCat = tr.createEl("td");
         if (card.category) {
@@ -875,7 +876,8 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       }
 
       for (const status of statuses) {
-        let laneCards = filtered.filter((c) => (c.status || "Todo") === status);
+        const fallbackStatus = this.plugin.getDefaultStatus(this.boardId);
+        let laneCards = filtered.filter((c) => (c.status || fallbackStatus) === status);
         if (!laneCards.length) continue;
         laneCards = this.plugin.sortCards(laneCards, this.boardId);
 
@@ -938,7 +940,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         });
 
         const badges = row.createDiv({ cls: "smart-kanban-list-item-badges" });
-        badges.createSpan({ text: card.status || "Todo", cls: "smart-kanban-badge smart-kanban-badge-category" });
+        badges.createSpan({ text: card.status || this.plugin.getDefaultStatus(this.boardId), cls: "smart-kanban-badge smart-kanban-badge-category" });
         if (card.category) {
           const catBadge = badges.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
           this.applyBadgeColor(catBadge, eff.categoryColors, card.category);
@@ -1267,7 +1269,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         placeholder,
         offsetX: startX - rect.left,
         offsetY: startY - rect.top,
-        targetStatus: card.status || "Todo",
+        targetStatus: card.status || this.plugin.getDefaultStatus(this.boardId),
         isOverValidTarget: true,
       };
     }
@@ -1355,7 +1357,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       await this.plugin.saveSettings();
 
       /* update status if moved to a different lane */
-      const oldStatus = d.card.status || "Todo";
+      const oldStatus = d.card.status || this.plugin.getDefaultStatus(this.boardId);
       const targetStatus = d.targetStatus;
       if (targetStatus !== oldStatus) {
         await this.plugin.updateCardStatus(d.card, targetStatus, this.boardId);

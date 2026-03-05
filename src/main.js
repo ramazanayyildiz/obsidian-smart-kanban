@@ -254,7 +254,18 @@ module.exports = class SmartKanbanPlugin extends Plugin {
       .split(",")
       .map((x) => x.trim())
       .filter(Boolean);
-    return list.length ? list : ["Todo"];
+    return list.length ? list : [this.getDefaultStatus(eff)];
+  }
+
+  getDefaultStatus(boardIdOrEff = "") {
+    const eff = typeof boardIdOrEff === "object" && boardIdOrEff !== null
+      ? boardIdOrEff
+      : this.getEffectiveSettings(boardIdOrEff || "");
+    const first = String(eff.statusOrder || "")
+      .split(",")
+      .map((x) => x.trim())
+      .find(Boolean);
+    return first || "Todo";
   }
 
   getCustomFieldKeys(boardId = "") {
@@ -298,7 +309,8 @@ module.exports = class SmartKanbanPlugin extends Plugin {
 
   collectStatusesFromCards(cards, boardId = "") {
     const out = [...this.getStatusOrder(boardId)];
-    for (const status of new Set((cards || []).map((c) => c.status || "Todo"))) {
+    const defaultStatus = this.getDefaultStatus(boardId);
+    for (const status of new Set((cards || []).map((c) => c.status || defaultStatus))) {
       if (!out.includes(status)) out.push(status);
     }
     return out;
@@ -653,6 +665,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
 
   async collectNoteCardsWithSettings(eff) {
     const cards = [];
+    const defaultStatus = this.getDefaultStatus(eff);
     const customFieldKeys = String(eff.customFields || "").split(",").map((x) => x.trim()).filter(Boolean);
     for (const file of this.filterFilesByFolderWithSettings(this.app.vault.getMarkdownFiles(), eff)) {
       const cache = this.app.metadataCache.getFileCache(file);
@@ -682,7 +695,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
         kind: "note",
         path: file.path,
         title: file.basename,
-        status: normalizeFmValue(fm[eff.statusField]) || "Todo",
+        status: normalizeFmValue(fm[eff.statusField]) || defaultStatus,
         category: normalizeFmValue(fm[eff.categoryField]),
         priority: normalizeFmValue(fm[eff.priorityField]),
         tags: collectTags(fm, cache, eff.tagsField),
@@ -698,8 +711,9 @@ module.exports = class SmartKanbanPlugin extends Plugin {
 
   async collectTaskCardsWithSettings(eff) {
     const cards = [];
+    const defaultStatus = this.getDefaultStatus(eff);
     const statuses = String(eff.statusOrder || "").split(",").map((x) => x.trim()).filter(Boolean);
-    if (!statuses.length) statuses.push("Todo");
+    if (!statuses.length) statuses.push(defaultStatus);
     const customFieldKeys = String(eff.customFields || "").split(",").map((x) => x.trim()).filter(Boolean);
 
     for (const file of this.filterFilesByFolderWithSettings(this.app.vault.getMarkdownFiles(), eff)) {
@@ -719,6 +733,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
           tagsField: eff.tagsField,
           dueDateField: eff.dueDateField,
           statusOrder: statuses,
+          defaultStatus,
         });
 
         if (!parsed) continue;
@@ -742,7 +757,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
           path: file.path,
           lineNumber: idx + 1,
           title: parsed.title,
-          status: parsed.status || "Todo",
+          status: parsed.status || defaultStatus,
           category: parsed.category || "",
           priority: parsed.priority || "",
           tags: parsed.tags || [],
@@ -759,8 +774,9 @@ module.exports = class SmartKanbanPlugin extends Plugin {
 
   async updateCardStatus(card, nextStatus, boardId = "") {
     const eff = this.getEffectiveSettings(boardId || "");
+    const defaultStatus = this.getDefaultStatus(eff);
     await this.updateCardFields(card, {
-      [eff.statusField]: String(nextStatus || "").trim() || "Todo",
+      [eff.statusField]: String(nextStatus || "").trim() || defaultStatus,
     }, boardId);
   }
 

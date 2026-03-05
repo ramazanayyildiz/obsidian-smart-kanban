@@ -836,14 +836,15 @@ var require_core = __commonJS({
       const priorityField = String(opts && opts.priorityField || "Priority");
       const tagsField = String(opts && opts.tagsField || "Tags");
       const dueDateField = String(opts && opts.dueDateField || "Due Date");
-      const statusOrder = Array.isArray(opts && opts.statusOrder) ? opts.statusOrder : ["Todo"];
+      const defaultStatus = String(opts && opts.defaultStatus || "Todo").trim() || "Todo";
+      const statusOrder = Array.isArray(opts && opts.statusOrder) ? opts.statusOrder : [defaultStatus];
       const inlineFields = parseInlineFields(body);
       const inlineMap = /* @__PURE__ */ new Map();
       for (const field of inlineFields) {
         inlineMap.set(field.key.toLowerCase(), field.value);
       }
       const hashtags = extractHashtags(body);
-      const status = normalizeText(inlineMap.get(statusField.toLowerCase())) || inferStatusFromTags(hashtags, statusOrder) || "Todo";
+      const status = normalizeText(inlineMap.get(statusField.toLowerCase())) || inferStatusFromTags(hashtags, statusOrder) || defaultStatus;
       const tagsFromField = splitCsv2(inlineMap.get(tagsField.toLowerCase()));
       const tags = uniqueStrings2([...hashtags, ...tagsFromField]);
       const title = cleanTaskTitle(body, inlineFields);
@@ -1122,14 +1123,15 @@ var require_core_fallback = __commonJS({
       const priorityField = String(opts && opts.priorityField || "Priority");
       const tagsField = String(opts && opts.tagsField || "Tags");
       const dueDateField = String(opts && opts.dueDateField || "Due Date");
-      const statusOrder = Array.isArray(opts && opts.statusOrder) ? opts.statusOrder : ["Todo"];
+      const defaultStatus = String(opts && opts.defaultStatus || "Todo").trim() || "Todo";
+      const statusOrder = Array.isArray(opts && opts.statusOrder) ? opts.statusOrder : [defaultStatus];
       const inlineFields = localParseInlineFields(body);
       const inlineMap = /* @__PURE__ */ new Map();
       for (const field of inlineFields) {
         inlineMap.set(field.key.toLowerCase(), field.value);
       }
       const hashtags = localExtractHashtags(body);
-      const status = localNormalizeText(inlineMap.get(statusField.toLowerCase())) || localInferStatusFromTags(hashtags, statusOrder) || "Todo";
+      const status = localNormalizeText(inlineMap.get(statusField.toLowerCase())) || localInferStatusFromTags(hashtags, statusOrder) || defaultStatus;
       const tagsFromField = localSplitCsv(inlineMap.get(tagsField.toLowerCase()));
       const tags = localUniqueStrings([...hashtags, ...tagsFromField]);
       return {
@@ -2250,7 +2252,7 @@ var require_view = __commonJS({
         }
         async createTaskInteractive() {
           const statuses = this.plugin.collectStatusesFromCards(this.cards, this.boardId);
-          const defaultStatus = statuses[0] || "Todo";
+          const defaultStatus = statuses[0] || this.plugin.getDefaultStatus(this.boardId);
           const categories = this.uniqueValues("category");
           const priorities = this.uniqueValues("priority");
           const values = await this.plugin.openFormModal({
@@ -2560,7 +2562,8 @@ var require_view = __commonJS({
               else this.collapsedLanes.add(status);
               this.renderBoard();
             });
-            let laneCards = filteredCards.filter((card) => (card.status || "Todo") === status);
+            const fallbackStatus = this.plugin.getDefaultStatus(this.boardId);
+            let laneCards = filteredCards.filter((card) => (card.status || fallbackStatus) === status);
             laneCards = this.plugin.sortCards(laneCards, this.boardId);
             laneHeader.createEl("span", { text: String(laneCards.length), cls: "smart-kanban-count" });
             const wipLimit = this.plugin.getWipLimit(status, this.boardId);
@@ -2672,7 +2675,7 @@ var require_view = __commonJS({
               const file = this.app.vault.getAbstractFileByPath(card.path);
               if (file instanceof TFile2) await this.app.workspace.getLeaf(true).openFile(file);
             });
-            tr.createEl("td").createSpan({ text: card.status || "Todo", cls: "smart-kanban-badge smart-kanban-badge-category" });
+            tr.createEl("td").createSpan({ text: card.status || this.plugin.getDefaultStatus(this.boardId), cls: "smart-kanban-badge smart-kanban-badge-category" });
             const tdCat = tr.createEl("td");
             if (card.category) {
               const catBadge = tdCat.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
@@ -2709,7 +2712,8 @@ var require_view = __commonJS({
             return;
           }
           for (const status of statuses) {
-            let laneCards = filtered.filter((c) => (c.status || "Todo") === status);
+            const fallbackStatus = this.plugin.getDefaultStatus(this.boardId);
+            let laneCards = filtered.filter((c) => (c.status || fallbackStatus) === status);
             if (!laneCards.length) continue;
             laneCards = this.plugin.sortCards(laneCards, this.boardId);
             const section = this.boardEl.createDiv({ cls: "smart-kanban-list-section" });
@@ -2764,7 +2768,7 @@ var require_view = __commonJS({
               if (file instanceof TFile2) await this.app.workspace.getLeaf(true).openFile(file);
             });
             const badges = row.createDiv({ cls: "smart-kanban-list-item-badges" });
-            badges.createSpan({ text: card.status || "Todo", cls: "smart-kanban-badge smart-kanban-badge-category" });
+            badges.createSpan({ text: card.status || this.plugin.getDefaultStatus(this.boardId), cls: "smart-kanban-badge smart-kanban-badge-category" });
             if (card.category) {
               const catBadge = badges.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
               this.applyBadgeColor(catBadge, eff.categoryColors, card.category);
@@ -3043,7 +3047,7 @@ var require_view = __commonJS({
             placeholder,
             offsetX: startX - rect.left,
             offsetY: startY - rect.top,
-            targetStatus: card.status || "Todo",
+            targetStatus: card.status || this.plugin.getDefaultStatus(this.boardId),
             isOverValidTarget: true
           };
         }
@@ -3109,7 +3113,7 @@ var require_view = __commonJS({
             }
           }
           await this.plugin.saveSettings();
-          const oldStatus = d.card.status || "Todo";
+          const oldStatus = d.card.status || this.plugin.getDefaultStatus(this.boardId);
           const targetStatus = d.targetStatus;
           if (targetStatus !== oldStatus) {
             await this.plugin.updateCardStatus(d.card, targetStatus, this.boardId);
@@ -3952,7 +3956,12 @@ module.exports = class SmartKanbanPlugin extends Plugin {
   getStatusOrder(boardId = "") {
     const eff = this.getEffectiveSettings(boardId || "");
     const list = String(eff.statusOrder || "").split(",").map((x) => x.trim()).filter(Boolean);
-    return list.length ? list : ["Todo"];
+    return list.length ? list : [this.getDefaultStatus(eff)];
+  }
+  getDefaultStatus(boardIdOrEff = "") {
+    const eff = typeof boardIdOrEff === "object" && boardIdOrEff !== null ? boardIdOrEff : this.getEffectiveSettings(boardIdOrEff || "");
+    const first = String(eff.statusOrder || "").split(",").map((x) => x.trim()).find(Boolean);
+    return first || "Todo";
   }
   getCustomFieldKeys(boardId = "") {
     const eff = this.getEffectiveSettings(boardId || "");
@@ -3984,7 +3993,8 @@ module.exports = class SmartKanbanPlugin extends Plugin {
   }
   collectStatusesFromCards(cards, boardId = "") {
     const out = [...this.getStatusOrder(boardId)];
-    for (const status of new Set((cards || []).map((c) => c.status || "Todo"))) {
+    const defaultStatus = this.getDefaultStatus(boardId);
+    for (const status of new Set((cards || []).map((c) => c.status || defaultStatus))) {
       if (!out.includes(status)) out.push(status);
     }
     return out;
@@ -4289,6 +4299,7 @@ ${cleanedBody || `# ${title}
   }
   async collectNoteCardsWithSettings(eff) {
     const cards = [];
+    const defaultStatus = this.getDefaultStatus(eff);
     const customFieldKeys = String(eff.customFields || "").split(",").map((x) => x.trim()).filter(Boolean);
     for (const file of this.filterFilesByFolderWithSettings(this.app.vault.getMarkdownFiles(), eff)) {
       const cache = this.app.metadataCache.getFileCache(file);
@@ -4316,7 +4327,7 @@ ${cleanedBody || `# ${title}
         kind: "note",
         path: file.path,
         title: file.basename,
-        status: normalizeFmValue(fm[eff.statusField]) || "Todo",
+        status: normalizeFmValue(fm[eff.statusField]) || defaultStatus,
         category: normalizeFmValue(fm[eff.categoryField]),
         priority: normalizeFmValue(fm[eff.priorityField]),
         tags: collectTags(fm, cache, eff.tagsField),
@@ -4331,8 +4342,9 @@ ${cleanedBody || `# ${title}
   }
   async collectTaskCardsWithSettings(eff) {
     const cards = [];
+    const defaultStatus = this.getDefaultStatus(eff);
     const statuses = String(eff.statusOrder || "").split(",").map((x) => x.trim()).filter(Boolean);
-    if (!statuses.length) statuses.push("Todo");
+    if (!statuses.length) statuses.push(defaultStatus);
     const customFieldKeys = String(eff.customFields || "").split(",").map((x) => x.trim()).filter(Boolean);
     for (const file of this.filterFilesByFolderWithSettings(this.app.vault.getMarkdownFiles(), eff)) {
       const cache = this.app.metadataCache.getFileCache(file);
@@ -4348,7 +4360,8 @@ ${cleanedBody || `# ${title}
           priorityField: eff.priorityField,
           tagsField: eff.tagsField,
           dueDateField: eff.dueDateField,
-          statusOrder: statuses
+          statusOrder: statuses,
+          defaultStatus
         });
         if (!parsed) continue;
         const taskDueDate = parsed.dueDate || this.parseDateByFormat(inlineMap.get(String(eff.dueDateField || "Due Date").toLowerCase()) || "", eff);
@@ -4368,7 +4381,7 @@ ${cleanedBody || `# ${title}
           path: file.path,
           lineNumber: idx + 1,
           title: parsed.title,
-          status: parsed.status || "Todo",
+          status: parsed.status || defaultStatus,
           category: parsed.category || "",
           priority: parsed.priority || "",
           tags: parsed.tags || [],
@@ -4383,8 +4396,9 @@ ${cleanedBody || `# ${title}
   }
   async updateCardStatus(card, nextStatus, boardId = "") {
     const eff = this.getEffectiveSettings(boardId || "");
+    const defaultStatus = this.getDefaultStatus(eff);
     await this.updateCardFields(card, {
-      [eff.statusField]: String(nextStatus || "").trim() || "Todo"
+      [eff.statusField]: String(nextStatus || "").trim() || defaultStatus
     }, boardId);
   }
   async saveCardOrder(cardId, sortValue, boardId = "") {

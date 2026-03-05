@@ -71,6 +71,15 @@ test("parseTaskLine extracts inline fields and tags", () => {
   assert.equal(parsed.title, "Prepare release");
 });
 
+test("parseTaskLine falls back to provided default status", () => {
+  const parsed = parseTaskLine("- [ ] Draft spec #feature", {
+    statusField: "Status",
+    statusOrder: [],
+    defaultStatus: "Backlog",
+  });
+  assert.equal(parsed.status, "Backlog");
+});
+
 test("updateTaskLineFields upserts and removes inline field values", () => {
   const initial = "- [ ] Task [Status:: Todo] [Category:: Work]";
   const updated = updateTaskLineFields(initial, {

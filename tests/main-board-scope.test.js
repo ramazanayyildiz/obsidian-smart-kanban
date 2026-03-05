@@ -201,6 +201,38 @@ test("updateCardStatus uses board-specific status field mapping", async () => {
   assert.equal(captured.Status, undefined);
 });
 
+test("getDefaultStatus uses first configured status from board", () => {
+  const plugin = new SmartKanbanPlugin();
+  plugin.settings = {
+    ...DEFAULT_SETTINGS,
+    defaultBoardConfig: { ...DEFAULT_BOARD_CONFIG },
+    statusOrder: "Todo,Done",
+    boards: [{ id: "b1", name: "Board 1", type: "independent", statusOrder: "Backlog,In Progress,Done" }],
+  };
+
+  assert.equal(plugin.getDefaultStatus(""), "Todo");
+  assert.equal(plugin.getDefaultStatus("b1"), "Backlog");
+});
+
+test("updateCardStatus falls back to board default status when next status is empty", async () => {
+  const plugin = new SmartKanbanPlugin();
+  plugin.settings = {
+    ...DEFAULT_SETTINGS,
+    defaultBoardConfig: { ...DEFAULT_BOARD_CONFIG },
+    statusField: "Status",
+    statusOrder: "Todo,Done",
+    boards: [{ id: "b1", name: "Board 1", type: "independent", statusField: "State", statusOrder: "Backlog,Done" }],
+  };
+
+  let captured = null;
+  plugin.updateCardFields = async (_card, updates) => {
+    captured = updates;
+  };
+
+  await plugin.updateCardStatus({ id: "x" }, "", "b1");
+  assert.equal(captured.State, "Backlog");
+});
+
 test("createTaskEntry routes to source mode from board effective settings", async () => {
   const plugin = new SmartKanbanPlugin();
   plugin.settings = {

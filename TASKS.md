@@ -299,7 +299,7 @@
 ## Phase 3 — Dynamic Lanes
 
 ### P3-001: Dynamic status/lane discovery
-- Status: `todo`
+- Status: `done`
 - Priority: `P0`
 - Estimate: `1d`
 - Depends on: `P1-003`, `P2-002`

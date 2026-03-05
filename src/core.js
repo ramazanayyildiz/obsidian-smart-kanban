@@ -107,7 +107,8 @@ function parseTaskLine(line, opts) {
   const priorityField = String((opts && opts.priorityField) || "Priority");
   const tagsField = String((opts && opts.tagsField) || "Tags");
   const dueDateField = String((opts && opts.dueDateField) || "Due Date");
-  const statusOrder = Array.isArray(opts && opts.statusOrder) ? opts.statusOrder : ["Todo"];
+  const defaultStatus = String((opts && opts.defaultStatus) || "Todo").trim() || "Todo";
+  const statusOrder = Array.isArray(opts && opts.statusOrder) ? opts.statusOrder : [defaultStatus];
 
   const inlineFields = parseInlineFields(body);
   const inlineMap = new Map();
@@ -120,7 +121,7 @@ function parseTaskLine(line, opts) {
   const status =
     normalizeText(inlineMap.get(statusField.toLowerCase())) ||
     inferStatusFromTags(hashtags, statusOrder) ||
-    "Todo";
+    defaultStatus;
 
   const tagsFromField = splitCsv(inlineMap.get(tagsField.toLowerCase()));
   const tags = uniqueStrings([...hashtags, ...tagsFromField]);
