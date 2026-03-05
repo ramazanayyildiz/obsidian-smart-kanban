@@ -296,6 +296,25 @@ module.exports = class SmartKanbanPlugin extends Plugin {
       .filter(Boolean);
   }
 
+  getDiscoveredFrontmatterKeys(boardId = "") {
+    const files = this.app && this.app.vault && typeof this.app.vault.getMarkdownFiles === "function"
+      ? this.app.vault.getMarkdownFiles()
+      : [];
+    const eff = this.getEffectiveSettings(boardId || "");
+    const keys = new Set();
+    for (const file of this.filterFilesByFolderWithSettings(files, eff)) {
+      const cache = this.app.metadataCache.getFileCache(file);
+      const fm = cache && cache.frontmatter;
+      if (!fm || typeof fm !== "object") continue;
+      for (const rawKey of Object.keys(fm)) {
+        const key = String(rawKey || "").trim();
+        if (!key || key === "position") continue;
+        keys.add(key);
+      }
+    }
+    return [...keys].sort((a, b) => a.localeCompare(b));
+  }
+
   getCardMetaEntries(card, boardIdOrEff = "") {
     const eff = typeof boardIdOrEff === "object" && boardIdOrEff !== null
       ? boardIdOrEff

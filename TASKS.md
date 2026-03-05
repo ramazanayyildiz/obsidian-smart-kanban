@@ -383,6 +383,54 @@
 - Acceptance:
   - Release notes clearly explain migration and board-centric behavior.
 
+## Phase 5 — Settings UX Polish
+
+### P5-001: Inherited vs overridden visibility in settings
+- Status: `done`
+- Priority: `P1`
+- Estimate: `0.5d`
+- Depends on: none
+- Files:
+  - `src/settings-tab.js`
+  - `src/i18n.js`
+  - `styles.css`
+- Tasks:
+  - Add visible state indicator for board-scoped settings (`inherited` vs `overridden`).
+  - Keep existing reset-to-inherit action.
+  - Ensure indicators update after setting changes.
+- Acceptance:
+  - While editing a custom board, board-scoped rows clearly show whether value is inherited or overridden.
+
+### P5-002: Simplify Board Manager edit modal
+- Status: `done`
+- Priority: `P1`
+- Estimate: `1d`
+- Depends on: `P5-001`
+- Files:
+  - `src/modals.js`
+  - `src/settings-tab.js`
+- Tasks:
+  - Keep Board Manager modal focused on board metadata (`name`, `type`, `parent`).
+  - Move detailed configuration editing fully to settings tab board-aware controls.
+  - Remove raw JSON-heavy editing fields from modal.
+- Acceptance:
+  - Board edit modal is concise; detailed board settings are managed in one place.
+
+### P5-003: Frontmatter key auto-suggest for field mapping
+- Status: `done`
+- Priority: `P1`
+- Estimate: `1d`
+- Depends on: `P5-001`
+- Files:
+  - `src/settings-tab.js`
+  - `src/main.js` (if helper needed)
+- Tasks:
+  - Scan cards/frontmatter for discovered key names.
+  - Use suggestions (dropdown/datalist) for mapping fields (`status`, `category`, `priority`, `tags`, `due`).
+  - Keep manual custom input support.
+- Acceptance:
+  - Users can pick common keys from suggestions and still type custom values.
+
 ## Review Notes & Decisions Needed
 
 ### Already completed (from previous sessions)

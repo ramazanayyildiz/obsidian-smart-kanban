@@ -105,6 +105,25 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
       });
     }
 
+    addScopeBadge(setting, key) {
+      if (!setting || !this.getActiveBoard() || !boardConfigKeySet.has(key)) return;
+      const inherited = !this.hasBoardOverride(key);
+      const label = inherited
+        ? tx("settings.scope.badge.inherited", "inherited")
+        : tx("settings.scope.badge.overridden", "overridden");
+      if (setting.nameEl) {
+        setting.nameEl.createSpan({
+          text: label,
+          cls: `sk-settings-scope-badge ${inherited ? "is-inherited" : "is-overridden"}`,
+        });
+      }
+      if (setting.settingEl) {
+        setting.settingEl.addClass("sk-settings-scoped-row");
+        setting.settingEl.toggleClass("is-inherited", inherited);
+        setting.settingEl.toggleClass("is-overridden", !inherited);
+      }
+    }
+
     async manageStatusesInteractive() {
       const boardId = this.plugin.settings.activeBoardId || "";
       let cards = [];
@@ -196,6 +215,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             })
         );
       this.addInheritButton(sourceModeSetting, "sourceMode");
+      this.addScopeBadge(sourceModeSetting, "sourceMode");
 
       const sourceFolderSetting = new Setting(srcSection)
         .setName(tx("settings.source_folder.name", "Source folder"))
@@ -208,6 +228,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
           })
         );
       this.addInheritButton(sourceFolderSetting, "sourceFolder");
+      this.addScopeBadge(sourceFolderSetting, "sourceFolder");
 
       const includeSubfoldersSetting = new Setting(srcSection)
         .setName(tx("settings.include_subfolders.name", "Include subfolders"))
@@ -220,6 +241,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
           })
         );
       this.addInheritButton(includeSubfoldersSetting, "includeSubfolders");
+      this.addScopeBadge(includeSubfoldersSetting, "includeSubfolders");
 
       const taskInboxSetting = new Setting(srcSection)
         .setName(tx("settings.task_inbox.name", "Task inbox file"))
@@ -237,6 +259,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             })
         );
       this.addInheritButton(taskInboxSetting, "taskInboxFile");
+      this.addScopeBadge(taskInboxSetting, "taskInboxFile");
 
       const noteTemplateSetting = new Setting(srcSection)
         .setName(tx("settings.note_template.name", "Note template"))
@@ -252,9 +275,13 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             })
         );
       this.addInheritButton(noteTemplateSetting, "noteTemplate");
+      this.addScopeBadge(noteTemplateSetting, "noteTemplate");
 
       /* ── Section: Field Mapping ── */
       const fieldSection = section(containerEl, t("settings.section.fieldMapping"), t("settings.section.fieldMapping.desc"));
+      const discoveredFieldKeys = typeof this.plugin.getDiscoveredFrontmatterKeys === "function"
+        ? this.plugin.getDiscoveredFrontmatterKeys(this.plugin.settings.activeBoardId || "")
+        : [];
 
       const fieldDefs = [
         ["statusField", tx("settings.field.status.name", "Status field"), tx("settings.field.status.desc", "Determines which lane a card appears in.")],
@@ -265,6 +292,18 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
       ];
 
       for (const [key, label, desc] of fieldDefs) {
+        const listId = `smart-kanban-field-suggest-${key}`;
+        const datalist = fieldSection.createEl("datalist");
+        datalist.setAttr("id", listId);
+        const suggestions = Array.from(new Set([
+          DEFAULT_SETTINGS[key],
+          this.getSetting(key),
+          ...discoveredFieldKeys,
+        ].filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b)));
+        for (const optionValue of suggestions) {
+          datalist.createEl("option", { value: String(optionValue) });
+        }
+
         const st = new Setting(fieldSection).setName(label).setDesc(desc).addText((text) =>
           text.setValue(this.getSetting(key)).onChange(async (value) => {
             const trimmed = value.trim();
@@ -275,7 +314,11 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             this.plugin.refreshViews();
           })
         );
+        if (st.components && st.components[0] && st.components[0].inputEl) {
+          st.components[0].inputEl.setAttr("list", listId);
+        }
         this.addInheritButton(st, key);
+        this.addScopeBadge(st, key);
       }
 
       const customFieldsSetting = new Setting(fieldSection)
@@ -289,6 +332,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
           })
         );
       this.addInheritButton(customFieldsSetting, "customFields");
+      this.addScopeBadge(customFieldsSetting, "customFields");
 
       /* ── Section: Board Layout ── */
       const layoutSection = section(containerEl, t("settings.section.layout"), t("settings.section.layout.desc"));
@@ -304,6 +348,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
           })
         );
       this.addInheritButton(statusOrderSetting, "statusOrder");
+      this.addScopeBadge(statusOrderSetting, "statusOrder");
 
       new Setting(layoutSection)
         .setName(tx("settings.status_manager.name", "Lane manager"))
@@ -325,6 +370,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
           })
         );
       this.addInheritButton(priorityOrderSetting, "priorityOrder");
+      this.addScopeBadge(priorityOrderSetting, "priorityOrder");
 
       const sortBySetting = new Setting(layoutSection)
         .setName(tx("settings.sort_by.name", "Sort by"))
@@ -343,6 +389,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             })
         );
       this.addInheritButton(sortBySetting, "sortBy");
+      this.addScopeBadge(sortBySetting, "sortBy");
 
       const sortDirectionSetting = new Setting(layoutSection)
         .setName(tx("settings.sort_direction.name", "Sort direction"))
@@ -358,6 +405,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             })
         );
       this.addInheritButton(sortDirectionSetting, "sortDirection");
+      this.addScopeBadge(sortDirectionSetting, "sortDirection");
 
       const dueSoonSetting = new Setting(layoutSection)
         .setName(tx("settings.due_soon.name", "Due soon threshold"))
@@ -371,6 +419,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
           })
         );
       this.addInheritButton(dueSoonSetting, "dueSoonDays");
+      this.addScopeBadge(dueSoonSetting, "dueSoonDays");
 
       const wipLimitsSetting = new Setting(layoutSection)
         .setName(tx("settings.wip_limits.name", "WIP limits"))
@@ -383,6 +432,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
           })
         );
       this.addInheritButton(wipLimitsSetting, "wipLimits");
+      this.addScopeBadge(wipLimitsSetting, "wipLimits");
 
       const autoArchiveSetting = new Setting(layoutSection)
         .setName(tx("settings.auto_archive.name", "Auto-archive done tasks"))
@@ -396,6 +446,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
           })
         );
       this.addInheritButton(autoArchiveSetting, "autoArchiveDays");
+      this.addScopeBadge(autoArchiveSetting, "autoArchiveDays");
 
       /* ── Section: Date Display ── */
       const dateSection = section(containerEl, t("settings.section.dateDisplay"), t("settings.section.dateDisplay.desc"));
@@ -414,6 +465,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             })
         );
       this.addInheritButton(dateFormatSetting, "dateFormat");
+      this.addScopeBadge(dateFormatSetting, "dateFormat");
 
       const dateDisplayFormatSetting = new Setting(dateSection)
         .setName(tx("settings.date_display_format.name", "Date display format"))
@@ -429,6 +481,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             })
         );
       this.addInheritButton(dateDisplayFormatSetting, "dateDisplayFormat");
+      this.addScopeBadge(dateDisplayFormatSetting, "dateDisplayFormat");
 
       const relativeDateSetting = new Setting(dateSection)
         .setName(tx("settings.relative_due.name", "Show relative due labels"))
@@ -441,11 +494,12 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
           })
         );
       this.addInheritButton(relativeDateSetting, "showRelativeDate");
+      this.addScopeBadge(relativeDateSetting, "showRelativeDate");
 
       /* ── Section: Appearance ── */
       const themeSection = section(containerEl, t("settings.section.appearance"), t("settings.section.appearance.desc"));
 
-      new Setting(themeSection)
+      const themePresetSetting = new Setting(themeSection)
         .setName(tx("settings.theme_preset.name", "Theme preset"))
         .setDesc(tx("settings.theme_preset.desc", "Choose a color scheme as a starting point. You can override individual colors below."))
         .addDropdown((dropdown) => {
@@ -463,8 +517,9 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             this.display();
           });
         });
+      this.addScopeBadge(themePresetSetting, "theme");
 
-      new Setting(themeSection)
+      const fontFamilySetting = new Setting(themeSection)
         .setName(tx("settings.font_family.name", "Font family"))
         .setDesc(tx("settings.font_family.desc", "Custom font stack for the board. Leave empty for default."))
         .addText((text) =>
@@ -480,18 +535,21 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
               this.plugin.refreshViews();
             })
         );
+      this.addScopeBadge(fontFamilySetting, "theme");
 
-      new Setting(themeSection)
+      const tagColorsSetting = new Setting(themeSection)
         .setName(tx("settings.tag_colors.name", "Tag colors"))
         .setDesc(tx("settings.tag_colors.desc", "Define per-tag badge colors."));
+      this.addScopeBadge(tagColorsSetting, "tagColors");
       this.renderColorMapEditor(themeSection, "tagColors", tx("settings.tag_colors.add", "Add tag color"), tx("settings.tag_colors.key_placeholder", "tag name"));
 
-      new Setting(themeSection)
+      const categoryColorsSetting = new Setting(themeSection)
         .setName(tx("settings.category_colors.name", "Category colors"))
         .setDesc(tx("settings.category_colors.desc", "Define per-category badge colors."));
+      this.addScopeBadge(categoryColorsSetting, "categoryColors");
       this.renderColorMapEditor(themeSection, "categoryColors", tx("settings.category_colors.add", "Add category color"), tx("settings.category_colors.key_placeholder", "category name"));
 
-      new Setting(themeSection)
+      const laneTintSetting = new Setting(themeSection)
         .setName(tx("settings.lane_tint.name", "Lane body tint strength"))
         .setDesc(tx("settings.lane_tint.desc", "How much lane accent color appears in lane background. 0-40."))
         .addText((text) =>
@@ -509,8 +567,9 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
               this.plugin.refreshViews();
             })
         );
+      this.addScopeBadge(laneTintSetting, "theme");
 
-      new Setting(themeSection)
+      const laneHeaderTintSetting = new Setting(themeSection)
         .setName(tx("settings.lane_header_tint.name", "Lane header tint strength"))
         .setDesc(tx("settings.lane_header_tint.desc", "How much lane accent color appears in lane header chip. 0-60."))
         .addText((text) =>
@@ -528,6 +587,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
               this.plugin.refreshViews();
             })
         );
+      this.addScopeBadge(laneHeaderTintSetting, "theme");
 
       const themeColorGroups = [
         {
