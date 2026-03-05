@@ -204,8 +204,18 @@ function localParseWipLimits(value) {
   return map;
 }
 
-function localSortCards(cards, sortBy, sortDirection, priorityOrderMap) {
-  if (sortBy === "none") return [...cards];
+function localSortCards(cards, sortBy, sortDirection, priorityOrderMap, cardOrder) {
+  const order = cardOrder && typeof cardOrder === "object" ? cardOrder : {};
+  const hasOrder = Object.keys(order).length > 0;
+
+  if (sortBy === "none") {
+    if (!hasOrder) return [...cards];
+    return [...cards].sort((a, b) => {
+      const aVal = order[a.id] != null ? order[a.id] : Number.MAX_SAFE_INTEGER;
+      const bVal = order[b.id] != null ? order[b.id] : Number.MAX_SAFE_INTEGER;
+      return aVal - bVal;
+    });
+  }
 
   const direction = sortDirection === "desc" ? -1 : 1;
   const priorities = priorityOrderMap instanceof Map ? priorityOrderMap : new Map();

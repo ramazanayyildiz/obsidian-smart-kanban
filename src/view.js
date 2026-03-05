@@ -88,7 +88,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
     }
 
     applyTheme() {
-      const theme = this.plugin.getResolvedTheme();
+      const theme = this.plugin.getResolvedTheme(this.boardId);
       const el = this.containerEl;
       const props = {
         "--sk-card-bg": theme.cardBg,
@@ -321,26 +321,28 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
           {
             key: "statuses",
             label: t("view.configure.lanes"),
-            items: [...this.plugin.getStatusOrder()],
+            items: [...this.plugin.getStatusOrder(this.boardId)],
           },
           {
             key: "customFields",
             label: t("view.configure.custom_fields"),
-            items: [...this.plugin.getCustomFieldKeys()],
+            items: [...this.plugin.getCustomFieldKeys(this.boardId)],
           },
         ],
       });
       if (!result) return;
 
-      this.plugin.settings.statusOrder = (result.statuses || []).join(", ");
-      this.plugin.settings.customFields = (result.customFields || []).join(", ");
+      const target = this.boardId ? this.plugin.getBoard(this.boardId) : this.plugin.settings;
+      if (!target) return;
+      target.statusOrder = (result.statuses || []).join(", ");
+      target.customFields = (result.customFields || []).join(", ");
       await this.plugin.saveSettings();
       await this.reload();
       new Notice(t("view.configure.updated_notice"));
     }
 
     async createTaskInteractive() {
-      const statuses = this.plugin.collectStatusesFromCards(this.cards);
+      const statuses = this.plugin.collectStatusesFromCards(this.cards, this.boardId);
       const defaultStatus = statuses[0] || "Todo";
       const categories = this.uniqueValues("category");
       const priorities = this.uniqueValues("priority");
@@ -657,7 +659,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         return;
       }
 
-      let statuses = this.plugin.collectStatusesFromCards(this.cards);
+      let statuses = this.plugin.collectStatusesFromCards(this.cards, this.boardId);
       const board = this.boardId ? this.plugin.getBoard(this.boardId) : null;
       if (board && board.type === "filtered-view" && board.visibleStatuses) {
         const visible = board.visibleStatuses.split(",").map((s) => s.trim()).filter(Boolean);
@@ -685,7 +687,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         const isCollapsed = this.collapsedLanes.has(status);
         if (isCollapsed) lane.addClass("is-collapsed");
 
-        const laneColor = this.plugin.getResolvedLaneColor(status);
+        const laneColor = this.plugin.getResolvedLaneColor(status, this.boardId);
         if (laneColor.bg) lane.style.setProperty("--sk-lane-accent-bg", laneColor.bg);
         if (laneColor.text) lane.style.setProperty("--sk-lane-accent-text", laneColor.text);
         const laneHeader = lane.createDiv({ cls: "smart-kanban-lane-header" });
@@ -699,12 +701,12 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         });
 
         let laneCards = filteredCards.filter((card) => (card.status || "Todo") === status);
-        laneCards = this.plugin.sortCards(laneCards);
+        laneCards = this.plugin.sortCards(laneCards, this.boardId);
 
         /* count right next to the title, no wrapper */
         laneHeader.createEl("span", { text: String(laneCards.length), cls: "smart-kanban-count" });
 
-        const wipLimit = this.plugin.getWipLimit(status);
+        const wipLimit = this.plugin.getWipLimit(status, this.boardId);
         if (wipLimit > 0) {
           const wip = laneHeader.createEl("span", {
             text: `${laneCards.length}/${wipLimit}`,
@@ -802,7 +804,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       const eff = this.getActiveSettings();
 
       const filtered = this.filteredCards();
-      const sorted = this.plugin.sortCards(filtered);
+      const sorted = this.plugin.sortCards(filtered, this.boardId);
 
       if (!sorted.length) {
         this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: t("view.empty.no_tasks") });
@@ -865,7 +867,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       const eff = this.getActiveSettings();
 
       const filtered = this.filteredCards();
-      const statuses = this.plugin.collectStatusesFromCards(this.cards);
+      const statuses = this.plugin.collectStatusesFromCards(this.cards, this.boardId);
 
       if (!filtered.length) {
         this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: t("view.empty.no_tasks") });
@@ -875,11 +877,11 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       for (const status of statuses) {
         let laneCards = filtered.filter((c) => (c.status || "Todo") === status);
         if (!laneCards.length) continue;
-        laneCards = this.plugin.sortCards(laneCards);
+        laneCards = this.plugin.sortCards(laneCards, this.boardId);
 
         const section = this.boardEl.createDiv({ cls: "smart-kanban-list-section" });
         const header = section.createDiv({ cls: "smart-kanban-list-section-header" });
-        const laneColor = this.plugin.getResolvedLaneColor(status);
+        const laneColor = this.plugin.getResolvedLaneColor(status, this.boardId);
         const listTitle = header.createSpan({ text: status, cls: "smart-kanban-list-section-title" });
         if (laneColor.bg) listTitle.style.color = laneColor.bg;
         header.createSpan({ text: String(laneCards.length), cls: "smart-kanban-list-section-count" });
@@ -920,7 +922,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       this.boardEl.addClass("smart-kanban-list-wrap");
       const eff = this.getActiveSettings();
 
-      const sorted = this.plugin.sortCards(this.filteredCards());
+      const sorted = this.plugin.sortCards(this.filteredCards(), this.boardId);
       if (!sorted.length) {
         this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: t("view.empty.no_tasks") });
         return;
@@ -1005,7 +1007,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         badges.createSpan({ text: card.dueInfo.label, cls: "smart-kanban-badge smart-kanban-due-badge" });
       }
 
-      const customEntries = this.plugin.getCardMetaEntries(card);
+      const customEntries = this.plugin.getCardMetaEntries(card, eff);
       for (const [label, value] of customEntries) {
         if (!value || value === "-") continue;
         if (label === "Category" || label === "Priority" || label === "Due") continue;
@@ -1064,7 +1066,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       moveItem.createSpan({ text: t("view.menu.move_to") + " " });
       const moveSelect = moveItem.createEl("select", { cls: "smart-kanban-move-select" });
       moveSelect.createEl("option", { text: t("common.ellipsis"), value: "" });
-      const allStatuses = this.plugin.collectStatusesFromCards(this.cards);
+      const allStatuses = this.plugin.collectStatusesFromCards(this.cards, this.boardId);
       for (const s of allStatuses) {
         if (s !== card.status) {
           moveSelect.createEl("option", { text: s, value: s });
@@ -1166,7 +1168,8 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
     }
 
     filteredCards() {
-      const autoArchiveDays = Number(this.plugin.settings.autoArchiveDays) || 0;
+      const eff = this.plugin.getEffectiveSettings(this.boardId);
+      const autoArchiveDays = Number(eff.autoArchiveDays) || 0;
       const now = new Date();
 
       return this.cards.filter((card) => {
@@ -1338,13 +1341,15 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       d.cardEl.classList.remove("is-dragging-source");
 
       /* read DOM order for ALL visible lanes and persist to data.json */
-      if (!this.plugin.settings.cardOrder) this.plugin.settings.cardOrder = {};
+      const orderTarget = this.boardId ? this.plugin.getBoard(this.boardId) : this.plugin.settings;
+      if (!orderTarget) return;
+      if (!orderTarget.cardOrder || typeof orderTarget.cardOrder !== "object") orderTarget.cardOrder = {};
       const allLists = this.boardEl.querySelectorAll(".smart-kanban-card-list");
       for (const list of allLists) {
         const cardEls = list.querySelectorAll(".smart-kanban-card");
         for (let i = 0; i < cardEls.length; i++) {
           const id = cardEls[i].dataset.cardId;
-          if (id) this.plugin.settings.cardOrder[id] = i * 1000;
+          if (id) orderTarget.cardOrder[id] = i * 1000;
         }
       }
       await this.plugin.saveSettings();

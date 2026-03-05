@@ -1,4 +1,5 @@
 const VIEW_TYPE_SMART_KANBAN = "smart-kanban-view";
+const SETTINGS_SCHEMA_VERSION = 1;
 
 const THEME_PRESETS = {
   default: {
@@ -112,7 +113,7 @@ const THEME_PRESETS = {
   },
 };
 
-const DEFAULT_SETTINGS = {
+const DEFAULT_BOARD_CONFIG = {
   sourceMode: "notes",
   sourceFolder: "Tasks",
   includeSubfolders: false,
@@ -129,10 +130,6 @@ const DEFAULT_SETTINGS = {
   sortDirection: "asc",
   dueSoonDays: 2,
   wipLimits: "",
-  refreshDebounceMs: 250,
-  filterPresets: {},
-  boards: [],
-  activeBoardId: "",
   autoArchiveDays: 0,
   noteTemplate: "",
   tagColors: {},
@@ -140,9 +137,28 @@ const DEFAULT_SETTINGS = {
   dateFormat: "YYYY-MM-DD",
   dateDisplayFormat: "",
   showRelativeDate: true,
-  language: "en",
   theme: { preset: "default", overrides: {}, laneColors: {} },
   cardOrder: {},
 };
 
-module.exports = { VIEW_TYPE_SMART_KANBAN, THEME_PRESETS, DEFAULT_SETTINGS };
+const BOARD_CONFIG_KEYS = Object.freeze(Object.keys(DEFAULT_BOARD_CONFIG));
+
+const DEFAULT_SETTINGS = {
+  settingsSchemaVersion: SETTINGS_SCHEMA_VERSION,
+  defaultBoardConfig: { ...DEFAULT_BOARD_CONFIG },
+  ...DEFAULT_BOARD_CONFIG,
+  refreshDebounceMs: 250,
+  filterPresets: {},
+  boards: [],
+  activeBoardId: "",
+  language: "en",
+};
+
+module.exports = {
+  VIEW_TYPE_SMART_KANBAN,
+  SETTINGS_SCHEMA_VERSION,
+  THEME_PRESETS,
+  DEFAULT_BOARD_CONFIG,
+  BOARD_CONFIG_KEYS,
+  DEFAULT_SETTINGS,
+};

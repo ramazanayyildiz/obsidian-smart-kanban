@@ -1,5 +1,12 @@
 const { Plugin, ItemView, Modal, TFile, TFolder, Notice, PluginSettingTab, Setting, setIcon, parseYaml } = require("obsidian");
-const { VIEW_TYPE_SMART_KANBAN, THEME_PRESETS, DEFAULT_SETTINGS } = require("./constants");
+const {
+  VIEW_TYPE_SMART_KANBAN,
+  SETTINGS_SCHEMA_VERSION,
+  THEME_PRESETS,
+  DEFAULT_BOARD_CONFIG,
+  BOARD_CONFIG_KEYS,
+  DEFAULT_SETTINGS,
+} = require("./constants");
 const { t, setLocale, LOCALES } = require("./i18n");
 const {
   normalizeDateInput, getDueInfo, parseTaskLine, updateTaskLineFields,
@@ -19,10 +26,81 @@ const { SmartKanbanView } = require("./view")({
   ItemView, TFile, Notice, setIcon, VIEW_TYPE_SMART_KANBAN, normalizeDateInput, splitCsv, t,
 });
 const { SmartKanbanSettingTab } = require("./settings-tab")({
-  PluginSettingTab, Setting, Notice, DEFAULT_SETTINGS, THEME_PRESETS, t, LOCALES, setLocale,
+  PluginSettingTab, Setting, Notice, DEFAULT_SETTINGS, BOARD_CONFIG_KEYS, THEME_PRESETS, t, LOCALES, setLocale,
 });
 
 module.exports = class SmartKanbanPlugin extends Plugin {
+  cloneValue(value) {
+    if (Array.isArray(value)) return value.map((item) => this.cloneValue(item));
+    if (!value || typeof value !== "object") return value;
+    const out = {};
+    for (const [k, v] of Object.entries(value)) out[k] = this.cloneValue(v);
+    return out;
+  }
+
+  ensureThemeShape(theme) {
+    const input = theme && typeof theme === "object" ? theme : {};
+    return {
+      preset: String(input.preset || "default"),
+      overrides: input.overrides && typeof input.overrides === "object" ? this.cloneValue(input.overrides) : {},
+      laneColors: input.laneColors && typeof input.laneColors === "object" ? this.cloneValue(input.laneColors) : {},
+    };
+  }
+
+  createDefaultBoardConfigSnapshot(source) {
+    const src = source && typeof source === "object" ? source : {};
+    const out = {};
+    for (const key of BOARD_CONFIG_KEYS) {
+      if (key === "theme") out[key] = this.ensureThemeShape(src[key] || DEFAULT_BOARD_CONFIG.theme);
+      else if (Object.prototype.hasOwnProperty.call(src, key)) out[key] = this.cloneValue(src[key]);
+      else out[key] = this.cloneValue(DEFAULT_BOARD_CONFIG[key]);
+    }
+    return out;
+  }
+
+  normalizeBoardRecord(board) {
+    const src = board && typeof board === "object" ? board : {};
+    const out = { ...src };
+    out.id = String(src.id || "");
+    out.name = String(src.name || "");
+    out.type = src.type === "filtered-view" ? "filtered-view" : "independent";
+    out.parentBoardId = src.parentBoardId || null;
+    if (!Object.prototype.hasOwnProperty.call(out, "visibleStatuses")) out.visibleStatuses = null;
+    if (!Object.prototype.hasOwnProperty.call(out, "defaultFilters")) out.defaultFilters = null;
+    for (const key of BOARD_CONFIG_KEYS) {
+      if (!Object.prototype.hasOwnProperty.call(out, key) || out[key] === undefined) {
+        out[key] = null;
+      }
+    }
+    return out;
+  }
+
+  migrateSettings(loaded) {
+    const src = loaded && typeof loaded === "object" ? loaded : {};
+    const migrated = { ...src };
+    const hadSchema = Number.isFinite(src.settingsSchemaVersion);
+    const hadDefaultBoardConfig = !!(src.defaultBoardConfig && typeof src.defaultBoardConfig === "object");
+    const hadBoardsArray = Array.isArray(src.boards);
+
+    if (!Array.isArray(migrated.boards)) migrated.boards = [];
+    migrated.boards = migrated.boards
+      .map((board) => this.normalizeBoardRecord(board))
+      .filter((board) => board.id);
+
+    if (!migrated.defaultBoardConfig || typeof migrated.defaultBoardConfig !== "object") {
+      migrated.defaultBoardConfig = this.createDefaultBoardConfigSnapshot(src);
+    } else {
+      migrated.defaultBoardConfig = this.createDefaultBoardConfigSnapshot(migrated.defaultBoardConfig);
+    }
+
+    migrated.settingsSchemaVersion = SETTINGS_SCHEMA_VERSION;
+    const didMigrate = !hadSchema
+      || Number(src.settingsSchemaVersion) !== SETTINGS_SCHEMA_VERSION
+      || !hadDefaultBoardConfig
+      || !hadBoardsArray;
+    return { migrated, didMigrate };
+  }
+
   async onload() {
     await this.loadSettings();
 
@@ -170,22 +248,27 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     await this.saveSettings();
   }
 
-  getStatusOrder() {
-    const list = String(this.settings.statusOrder || "")
+  getStatusOrder(boardId = "") {
+    const eff = this.getEffectiveSettings(boardId || "");
+    const list = String(eff.statusOrder || "")
       .split(",")
       .map((x) => x.trim())
       .filter(Boolean);
     return list.length ? list : ["Todo"];
   }
 
-  getCustomFieldKeys() {
-    return String(this.settings.customFields || "")
+  getCustomFieldKeys(boardId = "") {
+    const eff = this.getEffectiveSettings(boardId || "");
+    return String(eff.customFields || "")
       .split(",")
       .map((x) => x.trim())
       .filter(Boolean);
   }
 
-  getCardMetaEntries(card) {
+  getCardMetaEntries(card, boardIdOrEff = "") {
+    const eff = typeof boardIdOrEff === "object" && boardIdOrEff !== null
+      ? boardIdOrEff
+      : this.getEffectiveSettings(boardIdOrEff || "");
     const entries = [
       ["Category", card.category || ""],
       ["Priority", card.priority || ""],
@@ -197,14 +280,15 @@ module.exports = class SmartKanbanPlugin extends Plugin {
 
     const custom = card.customFields || {};
     const reserved = new Set([
-      this.settings.statusField.toLowerCase(),
-      this.settings.categoryField.toLowerCase(),
-      this.settings.priorityField.toLowerCase(),
-      this.settings.tagsField.toLowerCase(),
-      this.settings.dueDateField.toLowerCase(),
+      String(eff.statusField || "").toLowerCase(),
+      String(eff.categoryField || "").toLowerCase(),
+      String(eff.priorityField || "").toLowerCase(),
+      String(eff.tagsField || "").toLowerCase(),
+      String(eff.dueDateField || "").toLowerCase(),
     ]);
 
-    for (const key of this.getCustomFieldKeys()) {
+    const customFieldKeys = String(eff.customFields || "").split(",").map((x) => x.trim()).filter(Boolean);
+    for (const key of customFieldKeys) {
       if (reserved.has(key.toLowerCase())) continue;
       entries.push([key, normalizeFmValue(custom[key])]);
     }
@@ -212,17 +296,18 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     return entries;
   }
 
-  collectStatusesFromCards(cards) {
-    const out = [...this.getStatusOrder()];
+  collectStatusesFromCards(cards, boardId = "") {
+    const out = [...this.getStatusOrder(boardId)];
     for (const status of new Set((cards || []).map((c) => c.status || "Todo"))) {
       if (!out.includes(status)) out.push(status);
     }
     return out;
   }
 
-  getPriorityOrderMap() {
+  getPriorityOrderMap(boardId = "") {
+    const eff = this.getEffectiveSettings(boardId || "");
     const map = new Map();
-    String(this.settings.priorityOrder || "")
+    String(eff.priorityOrder || "")
       .split(",")
       .map((x) => x.trim())
       .filter(Boolean)
@@ -230,19 +315,23 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     return map;
   }
 
-  sortCards(cards) {
-    return sortCards(cards, this.settings.sortBy || "none", this.settings.sortDirection || "asc", this.getPriorityOrderMap(), this.settings.cardOrder);
+  sortCards(cards, boardId = "") {
+    const eff = this.getEffectiveSettings(boardId || "");
+    return sortCards(cards, eff.sortBy || "none", eff.sortDirection || "asc", this.getPriorityOrderMap(boardId), eff.cardOrder);
   }
 
-  getWipLimit(status) {
-    const limits = parseWipLimits(this.settings.wipLimits);
+  getWipLimit(status, boardId = "") {
+    const eff = this.getEffectiveSettings(boardId || "");
+    const limits = parseWipLimits(eff.wipLimits);
     return limits.get(String(status || "").toLowerCase()) || 0;
   }
 
-  getResolvedTheme() {
-    const presetName = (this.settings.theme && this.settings.theme.preset) || "default";
+  getResolvedTheme(boardId = "") {
+    const eff = this.getEffectiveSettings(boardId || "");
+    const theme = eff.theme && typeof eff.theme === "object" ? eff.theme : {};
+    const presetName = theme.preset || "default";
     const preset = THEME_PRESETS[presetName] || THEME_PRESETS.default;
-    const overrides = (this.settings.theme && this.settings.theme.overrides) || {};
+    const overrides = theme.overrides || {};
     const resolved = { ...preset };
     for (const [key, value] of Object.entries(overrides)) {
       if (value !== undefined && value !== null && value !== "") resolved[key] = value;
@@ -256,12 +345,16 @@ module.exports = class SmartKanbanPlugin extends Plugin {
   }
 
   getEffectiveSettings(boardId, visited = new Set()) {
+    const base = {
+      ...this.createDefaultBoardConfigSnapshot(this.settings.defaultBoardConfig),
+      ...this.settings,
+    };
     const board = this.getBoard(boardId);
-    if (!board) return { ...this.settings };
+    if (!board) return base;
     if (board.type === "filtered-view" && board.parentBoardId) {
       if (visited.has(board.id)) {
         new Notice(t("main.board_parent_cycle", { name: board.name || board.id }));
-        return { ...this.settings };
+        return base;
       }
       const nextVisited = new Set(visited);
       nextVisited.add(board.id);
@@ -273,7 +366,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
       }
       return merged;
     }
-    const eff = { ...this.settings };
+    const eff = { ...base };
     for (const key of Object.keys(board)) {
       if (key === "id" || key === "name" || key === "type") continue;
       if (board[key] != null && board[key] !== "") eff[key] = board[key];
@@ -281,13 +374,15 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     return eff;
   }
 
-  getResolvedLaneColor(status) {
-    const userLane = this.settings.theme && this.settings.theme.laneColors && this.settings.theme.laneColors[status];
+  getResolvedLaneColor(status, boardId = "") {
+    const eff = this.getEffectiveSettings(boardId || "");
+    const theme = eff.theme && typeof eff.theme === "object" ? eff.theme : {};
+    const userLane = theme.laneColors && theme.laneColors[status];
     if (userLane && (userLane.bg || userLane.text)) return userLane;
-    const presetName = (this.settings.theme && this.settings.theme.preset) || "default";
+    const presetName = theme.preset || "default";
     const preset = THEME_PRESETS[presetName] || THEME_PRESETS.default;
     if (preset.defaultLaneColors && preset.defaultLaneColors[status]) return preset.defaultLaneColors[status];
-    const resolved = this.getResolvedTheme();
+    const resolved = this.getResolvedTheme(boardId);
     return { bg: resolved.laneHeaderBg || "", text: resolved.laneHeaderText || "" };
   }
 
@@ -311,9 +406,13 @@ module.exports = class SmartKanbanPlugin extends Plugin {
 
   async loadSettings() {
     const loaded = await this.loadData();
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded || {});
+    const { migrated, didMigrate } = this.migrateSettings(loaded || {});
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, migrated || {});
+    this.settings.defaultBoardConfig = this.createDefaultBoardConfigSnapshot(this.settings.defaultBoardConfig);
     this.settings.filterPresets = this.settings.filterPresets || {};
+    this.settings.theme = this.ensureThemeShape(this.settings.theme);
     setLocale(this.settings.language || "en");
+    if (didMigrate) await this.saveData(this.settings);
   }
 
   async saveSettings() {
@@ -539,10 +638,6 @@ module.exports = class SmartKanbanPlugin extends Plugin {
       : await this.collectNoteCardsWithSettings(eff);
   }
 
-  filterFilesByFolder(allFiles) {
-    return this.filterFilesByFolderWithSettings(allFiles, this.settings);
-  }
-
   filterFilesByFolderWithSettings(allFiles, eff) {
     const folderPath = eff.sourceFolder;
     const includeSubfolders = eff.includeSubfolders;
@@ -554,10 +649,6 @@ module.exports = class SmartKanbanPlugin extends Plugin {
       if (includeSubfolders) return file.path.startsWith(folderPrefix);
       return file.parent && file.parent.path === folderPath;
     });
-  }
-
-  async collectNoteCards() {
-    return this.collectNoteCardsWithSettings(this.settings);
   }
 
   async collectNoteCardsWithSettings(eff) {
@@ -603,10 +694,6 @@ module.exports = class SmartKanbanPlugin extends Plugin {
       });
     }
     return cards;
-  }
-
-  async collectTaskCards() {
-    return this.collectTaskCardsWithSettings(this.settings);
   }
 
   async collectTaskCardsWithSettings(eff) {
@@ -677,9 +764,11 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     }, boardId);
   }
 
-  async saveCardOrder(cardId, sortValue) {
-    if (!this.settings.cardOrder) this.settings.cardOrder = {};
-    this.settings.cardOrder[cardId] = sortValue;
+  async saveCardOrder(cardId, sortValue, boardId = "") {
+    const target = boardId ? this.getBoard(boardId) : this.settings;
+    if (!target) return;
+    if (!target.cardOrder || typeof target.cardOrder !== "object") target.cardOrder = {};
+    target.cardOrder[cardId] = sortValue;
     await this.saveSettings();
   }
 

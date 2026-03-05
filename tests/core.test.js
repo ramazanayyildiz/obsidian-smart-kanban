@@ -109,4 +109,13 @@ test("sortCards supports priority and due sorting", () => {
 
   const byDueDesc = sortCards(cards, "due", "desc", priorityOrder).map((c) => c.title);
   assert.deepEqual(byDueDesc, ["B", "C", "A"]);
+
+  const cardsWithId = [
+    { id: "c1", title: "First" },
+    { id: "c2", title: "Second" },
+    { id: "c3", title: "Third" },
+  ];
+  const cardOrder = { c3: 0, c1: 1, c2: 2 };
+  const byOrder = sortCards(cardsWithId, "none", "asc", new Map(), cardOrder).map((c) => c.title);
+  assert.deepEqual(byOrder, ["Third", "First", "Second"]);
 });

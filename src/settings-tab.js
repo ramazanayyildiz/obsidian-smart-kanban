@@ -1,4 +1,6 @@
-module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice, DEFAULT_SETTINGS, THEME_PRESETS, t = (k) => k, LOCALES = { en: {} }, setLocale = () => {} }) {
+module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice, DEFAULT_SETTINGS, BOARD_CONFIG_KEYS = [], THEME_PRESETS, t = (k) => k, LOCALES = { en: {} }, setLocale = () => {} }) {
+  const boardConfigKeySet = new Set(BOARD_CONFIG_KEYS);
+
   function tx(key, fallback, params) {
     const value = t(key, params);
     return value === key ? fallback : value;
@@ -32,6 +34,19 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
       this.plugin = plugin;
     }
 
+    setSetting(key, value) {
+      this.plugin.settings[key] = value;
+      if (boardConfigKeySet.has(key) && this.plugin.settings.defaultBoardConfig) {
+        this.plugin.settings.defaultBoardConfig[key] = value;
+      }
+    }
+
+    syncTheme() {
+      if (this.plugin.settings.defaultBoardConfig && this.plugin.settings.theme) {
+        this.plugin.settings.defaultBoardConfig.theme = JSON.parse(JSON.stringify(this.plugin.settings.theme));
+      }
+    }
+
     display() {
       const { containerEl } = this;
       containerEl.empty();
@@ -48,7 +63,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             .addOption("tasks", tx("settings.source_mode.tasks", "Task lines"))
             .setValue(this.plugin.settings.sourceMode)
             .onChange(async (value) => {
-              this.plugin.settings.sourceMode = value;
+              this.setSetting("sourceMode", value);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
@@ -59,7 +74,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
         .setDesc(tx("settings.source_folder.desc", "Folder containing your task notes or files."))
         .addText((text) =>
           text.setPlaceholder("Tasks").setValue(this.plugin.settings.sourceFolder).onChange(async (value) => {
-            this.plugin.settings.sourceFolder = value.trim();
+            this.setSetting("sourceFolder", value.trim());
             await this.plugin.saveSettings();
             this.plugin.refreshViews();
           })
@@ -70,7 +85,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
         .setDesc(tx("settings.include_subfolders.desc", "Also scan nested folders inside the source folder."))
         .addToggle((toggle) =>
           toggle.setValue(this.plugin.settings.includeSubfolders).onChange(async (value) => {
-            this.plugin.settings.includeSubfolders = value;
+            this.setSetting("includeSubfolders", value);
             await this.plugin.saveSettings();
             this.plugin.refreshViews();
           })
@@ -84,7 +99,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             .setPlaceholder("Tasks/Task Inbox.md")
             .setValue(this.plugin.settings.taskInboxFile)
             .onChange(async (value) => {
-              this.plugin.settings.taskInboxFile = value.trim() || "Tasks/Task Inbox.md";
+              this.setSetting("taskInboxFile", value.trim() || "Tasks/Task Inbox.md");
               await this.plugin.saveSettings();
             })
         );
@@ -97,7 +112,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             .setPlaceholder("Templates/Task.md")
             .setValue(this.plugin.settings.noteTemplate || "")
             .onChange(async (value) => {
-              this.plugin.settings.noteTemplate = String(value || "").trim();
+              this.setSetting("noteTemplate", String(value || "").trim());
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
@@ -117,7 +132,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
       for (const [key, label, desc] of fieldDefs) {
         new Setting(fieldSection).setName(label).setDesc(desc).addText((text) =>
           text.setValue(this.plugin.settings[key]).onChange(async (value) => {
-            this.plugin.settings[key] = value.trim() || DEFAULT_SETTINGS[key];
+            this.setSetting(key, value.trim() || DEFAULT_SETTINGS[key]);
             await this.plugin.saveSettings();
             this.plugin.refreshViews();
           })
@@ -129,7 +144,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
         .setDesc(tx("settings.custom_fields.desc", "Extra frontmatter keys to display on cards. Comma-separated."))
         .addText((text) =>
           text.setPlaceholder("effort, assignee").setValue(this.plugin.settings.customFields).onChange(async (value) => {
-            this.plugin.settings.customFields = value;
+            this.setSetting("customFields", value);
             await this.plugin.saveSettings();
             this.plugin.refreshViews();
           })
@@ -143,7 +158,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
         .setDesc(tx("settings.status_order.desc", "Comma-separated lane names in display order."))
         .addTextArea((text) =>
           text.setValue(this.plugin.settings.statusOrder).onChange(async (value) => {
-            this.plugin.settings.statusOrder = value;
+            this.setSetting("statusOrder", value);
             await this.plugin.saveSettings();
             this.plugin.refreshViews();
           })
@@ -154,7 +169,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
         .setDesc(tx("settings.priority_order.desc", "Defines priority ranking for sorting. Comma-separated, highest first."))
         .addText((text) =>
           text.setPlaceholder("Urgent,High,Medium,Low").setValue(this.plugin.settings.priorityOrder).onChange(async (value) => {
-            this.plugin.settings.priorityOrder = value;
+            this.setSetting("priorityOrder", value);
             await this.plugin.saveSettings();
             this.plugin.refreshViews();
           })
@@ -171,7 +186,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             .addOption("title", tx("settings.sort_by.title", "Title"))
             .setValue(this.plugin.settings.sortBy)
             .onChange(async (value) => {
-              this.plugin.settings.sortBy = value;
+              this.setSetting("sortBy", value);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
@@ -185,7 +200,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             .addOption("desc", tx("settings.sort_direction.desc", "Descending"))
             .setValue(this.plugin.settings.sortDirection)
             .onChange(async (value) => {
-              this.plugin.settings.sortDirection = value;
+              this.setSetting("sortDirection", value);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
@@ -197,7 +212,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
         .addText((text) =>
           text.setValue(String(this.plugin.settings.dueSoonDays)).onChange(async (value) => {
             const parsed = Number.parseInt(value, 10);
-            this.plugin.settings.dueSoonDays = Number.isFinite(parsed) && parsed >= 0 ? parsed : 2;
+            this.setSetting("dueSoonDays", Number.isFinite(parsed) && parsed >= 0 ? parsed : 2);
             await this.plugin.saveSettings();
             this.plugin.refreshViews();
           })
@@ -208,7 +223,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
         .setDesc(tx("settings.wip_limits.desc", "Limit cards per lane. Format: Todo:10, In Progress:3"))
         .addTextArea((text) =>
           text.setValue(this.plugin.settings.wipLimits).onChange(async (value) => {
-            this.plugin.settings.wipLimits = value;
+            this.setSetting("wipLimits", value);
             await this.plugin.saveSettings();
             this.plugin.refreshViews();
           })
@@ -220,7 +235,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
         .addText((text) =>
           text.setValue(String(this.plugin.settings.autoArchiveDays || 0)).onChange(async (value) => {
             const parsed = Number.parseInt(value, 10);
-            this.plugin.settings.autoArchiveDays = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+            this.setSetting("autoArchiveDays", Number.isFinite(parsed) && parsed >= 0 ? parsed : 0);
             await this.plugin.saveSettings();
             this.plugin.refreshViews();
           })
@@ -237,7 +252,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             .setPlaceholder("YYYY-MM-DD")
             .setValue(this.plugin.settings.dateFormat || "YYYY-MM-DD")
             .onChange(async (value) => {
-              this.plugin.settings.dateFormat = String(value || "").trim() || "YYYY-MM-DD";
+              this.setSetting("dateFormat", String(value || "").trim() || "YYYY-MM-DD");
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
@@ -251,7 +266,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             .setPlaceholder("MMM D, YYYY")
             .setValue(this.plugin.settings.dateDisplayFormat || "")
             .onChange(async (value) => {
-              this.plugin.settings.dateDisplayFormat = String(value || "").trim();
+              this.setSetting("dateDisplayFormat", String(value || "").trim());
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
@@ -262,7 +277,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
         .setDesc(tx("settings.relative_due.desc", "Show labels like \"Due in 3d\" instead of absolute dates."))
         .addToggle((toggle) =>
           toggle.setValue(this.plugin.settings.showRelativeDate !== false).onChange(async (value) => {
-            this.plugin.settings.showRelativeDate = !!value;
+            this.setSetting("showRelativeDate", !!value);
             await this.plugin.saveSettings();
             this.plugin.refreshViews();
           })
@@ -282,6 +297,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
           dropdown.onChange(async (value) => {
             this.plugin.settings.theme.preset = value;
             this.plugin.settings.theme.overrides = {};
+            this.syncTheme();
             await this.plugin.saveSettings();
             this.plugin.refreshViews();
             this.display();
@@ -298,6 +314,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             .onChange(async (value) => {
               if (!this.plugin.settings.theme.overrides) this.plugin.settings.theme.overrides = {};
               this.plugin.settings.theme.overrides.fontFamily = value.trim();
+              this.syncTheme();
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
@@ -325,6 +342,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
               if (!this.plugin.settings.theme.overrides) this.plugin.settings.theme.overrides = {};
               if (!Number.isFinite(parsed)) delete this.plugin.settings.theme.overrides.laneTintStrength;
               else this.plugin.settings.theme.overrides.laneTintStrength = Math.max(0, Math.min(40, parsed));
+              this.syncTheme();
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
@@ -342,6 +360,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
               if (!this.plugin.settings.theme.overrides) this.plugin.settings.theme.overrides = {};
               if (!Number.isFinite(parsed)) delete this.plugin.settings.theme.overrides.laneHeaderTintStrength;
               else this.plugin.settings.theme.overrides.laneHeaderTintStrength = Math.max(0, Math.min(60, parsed));
+              this.syncTheme();
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
@@ -412,6 +431,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             picker.onChange(async (value) => {
               if (!this.plugin.settings.theme.overrides) this.plugin.settings.theme.overrides = {};
               this.plugin.settings.theme.overrides[field.key] = value;
+              this.syncTheme();
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             });
@@ -420,6 +440,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             setting.addButton((btn) => {
               btn.setButtonText(tx("common.reset", "Reset")).onClick(async () => {
                 delete this.plugin.settings.theme.overrides[field.key];
+                this.syncTheme();
                 await this.plugin.saveSettings();
                 this.plugin.refreshViews();
                 this.display();
@@ -443,6 +464,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             if (!this.plugin.settings.theme.laneColors) this.plugin.settings.theme.laneColors = {};
             if (!this.plugin.settings.theme.laneColors[status]) this.plugin.settings.theme.laneColors[status] = {};
             this.plugin.settings.theme.laneColors[status].bg = value;
+            this.syncTheme();
             await this.plugin.saveSettings();
             this.plugin.refreshViews();
           });
@@ -453,6 +475,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             if (!this.plugin.settings.theme.laneColors) this.plugin.settings.theme.laneColors = {};
             if (!this.plugin.settings.theme.laneColors[status]) this.plugin.settings.theme.laneColors[status] = {};
             this.plugin.settings.theme.laneColors[status].text = value;
+            this.syncTheme();
             await this.plugin.saveSettings();
             this.plugin.refreshViews();
           });
@@ -461,6 +484,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
           setting.addButton((btn) => {
             btn.setButtonText(tx("common.reset", "Reset")).onClick(async () => {
               delete this.plugin.settings.theme.laneColors[status];
+              this.syncTheme();
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
               this.display();
@@ -506,7 +530,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
       const currentMap = normalizeColorMap(this.plugin.settings[mapKey] || {});
 
       const saveMap = async () => {
-        this.plugin.settings[mapKey] = currentMap;
+        this.setSetting(mapKey, currentMap);
         await this.plugin.saveSettings();
         this.plugin.refreshViews();
       };

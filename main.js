@@ -7,6 +7,7 @@ var __commonJS = (cb, mod) => function __require() {
 var require_constants = __commonJS({
   "src/constants.js"(exports2, module2) {
     var VIEW_TYPE_SMART_KANBAN2 = "smart-kanban-view";
+    var SETTINGS_SCHEMA_VERSION2 = 1;
     var THEME_PRESETS2 = {
       default: {
         name: "Default",
@@ -195,7 +196,7 @@ var require_constants = __commonJS({
         }
       }
     };
-    var DEFAULT_SETTINGS2 = {
+    var DEFAULT_BOARD_CONFIG2 = {
       sourceMode: "notes",
       sourceFolder: "Tasks",
       includeSubfolders: false,
@@ -212,10 +213,6 @@ var require_constants = __commonJS({
       sortDirection: "asc",
       dueSoonDays: 2,
       wipLimits: "",
-      refreshDebounceMs: 250,
-      filterPresets: {},
-      boards: [],
-      activeBoardId: "",
       autoArchiveDays: 0,
       noteTemplate: "",
       tagColors: {},
@@ -223,11 +220,28 @@ var require_constants = __commonJS({
       dateFormat: "YYYY-MM-DD",
       dateDisplayFormat: "",
       showRelativeDate: true,
-      language: "en",
       theme: { preset: "default", overrides: {}, laneColors: {} },
       cardOrder: {}
     };
-    module2.exports = { VIEW_TYPE_SMART_KANBAN: VIEW_TYPE_SMART_KANBAN2, THEME_PRESETS: THEME_PRESETS2, DEFAULT_SETTINGS: DEFAULT_SETTINGS2 };
+    var BOARD_CONFIG_KEYS2 = Object.freeze(Object.keys(DEFAULT_BOARD_CONFIG2));
+    var DEFAULT_SETTINGS2 = {
+      settingsSchemaVersion: SETTINGS_SCHEMA_VERSION2,
+      defaultBoardConfig: { ...DEFAULT_BOARD_CONFIG2 },
+      ...DEFAULT_BOARD_CONFIG2,
+      refreshDebounceMs: 250,
+      filterPresets: {},
+      boards: [],
+      activeBoardId: "",
+      language: "en"
+    };
+    module2.exports = {
+      VIEW_TYPE_SMART_KANBAN: VIEW_TYPE_SMART_KANBAN2,
+      SETTINGS_SCHEMA_VERSION: SETTINGS_SCHEMA_VERSION2,
+      THEME_PRESETS: THEME_PRESETS2,
+      DEFAULT_BOARD_CONFIG: DEFAULT_BOARD_CONFIG2,
+      BOARD_CONFIG_KEYS: BOARD_CONFIG_KEYS2,
+      DEFAULT_SETTINGS: DEFAULT_SETTINGS2
+    };
   }
 });
 
@@ -1142,8 +1156,17 @@ var require_core_fallback = __commonJS({
       }
       return map;
     }
-    function localSortCards(cards, sortBy, sortDirection, priorityOrderMap) {
-      if (sortBy === "none") return [...cards];
+    function localSortCards(cards, sortBy, sortDirection, priorityOrderMap, cardOrder) {
+      const order = cardOrder && typeof cardOrder === "object" ? cardOrder : {};
+      const hasOrder = Object.keys(order).length > 0;
+      if (sortBy === "none") {
+        if (!hasOrder) return [...cards];
+        return [...cards].sort((a, b) => {
+          const aVal = order[a.id] != null ? order[a.id] : Number.MAX_SAFE_INTEGER;
+          const bVal = order[b.id] != null ? order[b.id] : Number.MAX_SAFE_INTEGER;
+          return aVal - bVal;
+        });
+      }
       const direction = sortDirection === "desc" ? -1 : 1;
       const priorities = priorityOrderMap instanceof Map ? priorityOrderMap : /* @__PURE__ */ new Map();
       return [...cards].sort((a, b) => {
@@ -1816,7 +1839,7 @@ var require_view = __commonJS({
           document.addEventListener("click", this._clickOutsideHandler);
         }
         applyTheme() {
-          const theme = this.plugin.getResolvedTheme();
+          const theme = this.plugin.getResolvedTheme(this.boardId);
           const el = this.containerEl;
           const props = {
             "--sk-card-bg": theme.cardBg,
@@ -2029,24 +2052,26 @@ var require_view = __commonJS({
               {
                 key: "statuses",
                 label: t2("view.configure.lanes"),
-                items: [...this.plugin.getStatusOrder()]
+                items: [...this.plugin.getStatusOrder(this.boardId)]
               },
               {
                 key: "customFields",
                 label: t2("view.configure.custom_fields"),
-                items: [...this.plugin.getCustomFieldKeys()]
+                items: [...this.plugin.getCustomFieldKeys(this.boardId)]
               }
             ]
           });
           if (!result) return;
-          this.plugin.settings.statusOrder = (result.statuses || []).join(", ");
-          this.plugin.settings.customFields = (result.customFields || []).join(", ");
+          const target = this.boardId ? this.plugin.getBoard(this.boardId) : this.plugin.settings;
+          if (!target) return;
+          target.statusOrder = (result.statuses || []).join(", ");
+          target.customFields = (result.customFields || []).join(", ");
           await this.plugin.saveSettings();
           await this.reload();
           new Notice2(t2("view.configure.updated_notice"));
         }
         async createTaskInteractive() {
-          const statuses = this.plugin.collectStatusesFromCards(this.cards);
+          const statuses = this.plugin.collectStatusesFromCards(this.cards, this.boardId);
           const defaultStatus = statuses[0] || "Todo";
           const categories = this.uniqueValues("category");
           const priorities = this.uniqueValues("priority");
@@ -2323,7 +2348,7 @@ var require_view = __commonJS({
             });
             return;
           }
-          let statuses = this.plugin.collectStatusesFromCards(this.cards);
+          let statuses = this.plugin.collectStatusesFromCards(this.cards, this.boardId);
           const board = this.boardId ? this.plugin.getBoard(this.boardId) : null;
           if (board && board.type === "filtered-view" && board.visibleStatuses) {
             const visible = board.visibleStatuses.split(",").map((s) => s.trim()).filter(Boolean);
@@ -2347,7 +2372,7 @@ var require_view = __commonJS({
             lane.dataset.status = status;
             const isCollapsed = this.collapsedLanes.has(status);
             if (isCollapsed) lane.addClass("is-collapsed");
-            const laneColor = this.plugin.getResolvedLaneColor(status);
+            const laneColor = this.plugin.getResolvedLaneColor(status, this.boardId);
             if (laneColor.bg) lane.style.setProperty("--sk-lane-accent-bg", laneColor.bg);
             if (laneColor.text) lane.style.setProperty("--sk-lane-accent-text", laneColor.text);
             const laneHeader = lane.createDiv({ cls: "smart-kanban-lane-header" });
@@ -2358,9 +2383,9 @@ var require_view = __commonJS({
               this.renderBoard();
             });
             let laneCards = filteredCards.filter((card) => (card.status || "Todo") === status);
-            laneCards = this.plugin.sortCards(laneCards);
+            laneCards = this.plugin.sortCards(laneCards, this.boardId);
             laneHeader.createEl("span", { text: String(laneCards.length), cls: "smart-kanban-count" });
-            const wipLimit = this.plugin.getWipLimit(status);
+            const wipLimit = this.plugin.getWipLimit(status, this.boardId);
             if (wipLimit > 0) {
               const wip = laneHeader.createEl("span", {
                 text: `${laneCards.length}/${wipLimit}`,
@@ -2448,7 +2473,7 @@ var require_view = __commonJS({
           this.boardEl.addClass("smart-kanban-table-wrap");
           const eff = this.getActiveSettings();
           const filtered = this.filteredCards();
-          const sorted = this.plugin.sortCards(filtered);
+          const sorted = this.plugin.sortCards(filtered, this.boardId);
           if (!sorted.length) {
             this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: t2("view.empty.no_tasks") });
             return;
@@ -2500,7 +2525,7 @@ var require_view = __commonJS({
           this.boardEl.addClass("smart-kanban-list-wrap");
           const eff = this.getActiveSettings();
           const filtered = this.filteredCards();
-          const statuses = this.plugin.collectStatusesFromCards(this.cards);
+          const statuses = this.plugin.collectStatusesFromCards(this.cards, this.boardId);
           if (!filtered.length) {
             this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: t2("view.empty.no_tasks") });
             return;
@@ -2508,10 +2533,10 @@ var require_view = __commonJS({
           for (const status of statuses) {
             let laneCards = filtered.filter((c) => (c.status || "Todo") === status);
             if (!laneCards.length) continue;
-            laneCards = this.plugin.sortCards(laneCards);
+            laneCards = this.plugin.sortCards(laneCards, this.boardId);
             const section = this.boardEl.createDiv({ cls: "smart-kanban-list-section" });
             const header = section.createDiv({ cls: "smart-kanban-list-section-header" });
-            const laneColor = this.plugin.getResolvedLaneColor(status);
+            const laneColor = this.plugin.getResolvedLaneColor(status, this.boardId);
             const listTitle = header.createSpan({ text: status, cls: "smart-kanban-list-section-title" });
             if (laneColor.bg) listTitle.style.color = laneColor.bg;
             header.createSpan({ text: String(laneCards.length), cls: "smart-kanban-list-section-count" });
@@ -2547,7 +2572,7 @@ var require_view = __commonJS({
           this.boardEl.removeClass("smart-kanban-board");
           this.boardEl.addClass("smart-kanban-list-wrap");
           const eff = this.getActiveSettings();
-          const sorted = this.plugin.sortCards(this.filteredCards());
+          const sorted = this.plugin.sortCards(this.filteredCards(), this.boardId);
           if (!sorted.length) {
             this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: t2("view.empty.no_tasks") });
             return;
@@ -2621,7 +2646,7 @@ var require_view = __commonJS({
           if (card.dueInfo) {
             badges.createSpan({ text: card.dueInfo.label, cls: "smart-kanban-badge smart-kanban-due-badge" });
           }
-          const customEntries = this.plugin.getCardMetaEntries(card);
+          const customEntries = this.plugin.getCardMetaEntries(card, eff);
           for (const [label, value] of customEntries) {
             if (!value || value === "-") continue;
             if (label === "Category" || label === "Priority" || label === "Due") continue;
@@ -2673,7 +2698,7 @@ var require_view = __commonJS({
           moveItem.createSpan({ text: t2("view.menu.move_to") + " " });
           const moveSelect = moveItem.createEl("select", { cls: "smart-kanban-move-select" });
           moveSelect.createEl("option", { text: t2("common.ellipsis"), value: "" });
-          const allStatuses = this.plugin.collectStatusesFromCards(this.cards);
+          const allStatuses = this.plugin.collectStatusesFromCards(this.cards, this.boardId);
           for (const s of allStatuses) {
             if (s !== card.status) {
               moveSelect.createEl("option", { text: s, value: s });
@@ -2765,7 +2790,8 @@ var require_view = __commonJS({
           await this.reload();
         }
         filteredCards() {
-          const autoArchiveDays = Number(this.plugin.settings.autoArchiveDays) || 0;
+          const eff = this.plugin.getEffectiveSettings(this.boardId);
+          const autoArchiveDays = Number(eff.autoArchiveDays) || 0;
           const now = /* @__PURE__ */ new Date();
           return this.cards.filter((card) => {
             if (autoArchiveDays > 0 && (card.status || "").toLowerCase() === "done" && card.dueDate) {
@@ -2893,13 +2919,15 @@ var require_view = __commonJS({
           }
           d.placeholder.replaceWith(d.cardEl);
           d.cardEl.classList.remove("is-dragging-source");
-          if (!this.plugin.settings.cardOrder) this.plugin.settings.cardOrder = {};
+          const orderTarget = this.boardId ? this.plugin.getBoard(this.boardId) : this.plugin.settings;
+          if (!orderTarget) return;
+          if (!orderTarget.cardOrder || typeof orderTarget.cardOrder !== "object") orderTarget.cardOrder = {};
           const allLists = this.boardEl.querySelectorAll(".smart-kanban-card-list");
           for (const list of allLists) {
             const cardEls = list.querySelectorAll(".smart-kanban-card");
             for (let i = 0; i < cardEls.length; i++) {
               const id = cardEls[i].dataset.cardId;
-              if (id) this.plugin.settings.cardOrder[id] = i * 1e3;
+              if (id) orderTarget.cardOrder[id] = i * 1e3;
             }
           }
           await this.plugin.saveSettings();
@@ -2935,8 +2963,9 @@ var require_view = __commonJS({
 // src/settings-tab.js
 var require_settings_tab = __commonJS({
   "src/settings-tab.js"(exports2, module2) {
-    module2.exports = function createSettingsTab({ PluginSettingTab: PluginSettingTab2, Setting: Setting2, Notice: Notice2, DEFAULT_SETTINGS: DEFAULT_SETTINGS2, THEME_PRESETS: THEME_PRESETS2, t: t2 = (k) => k, LOCALES: LOCALES2 = { en: {} }, setLocale: setLocale2 = () => {
+    module2.exports = function createSettingsTab({ PluginSettingTab: PluginSettingTab2, Setting: Setting2, Notice: Notice2, DEFAULT_SETTINGS: DEFAULT_SETTINGS2, BOARD_CONFIG_KEYS: BOARD_CONFIG_KEYS2 = [], THEME_PRESETS: THEME_PRESETS2, t: t2 = (k) => k, LOCALES: LOCALES2 = { en: {} }, setLocale: setLocale2 = () => {
     } }) {
+      const boardConfigKeySet = new Set(BOARD_CONFIG_KEYS2);
       function tx(key, fallback, params) {
         const value = t2(key, params);
         return value === key ? fallback : value;
@@ -2966,40 +2995,51 @@ var require_settings_tab = __commonJS({
           super(app, plugin);
           this.plugin = plugin;
         }
+        setSetting(key, value) {
+          this.plugin.settings[key] = value;
+          if (boardConfigKeySet.has(key) && this.plugin.settings.defaultBoardConfig) {
+            this.plugin.settings.defaultBoardConfig[key] = value;
+          }
+        }
+        syncTheme() {
+          if (this.plugin.settings.defaultBoardConfig && this.plugin.settings.theme) {
+            this.plugin.settings.defaultBoardConfig.theme = JSON.parse(JSON.stringify(this.plugin.settings.theme));
+          }
+        }
         display() {
           const { containerEl } = this;
           containerEl.empty();
           const srcSection = section(containerEl, t2("settings.section.dataSource"), t2("settings.section.dataSource.desc"));
           new Setting2(srcSection).setName(tx("settings.source_mode.name", "Source mode")).setDesc(tx("settings.source_mode.desc", "Note cards create one file per task. Task lines use checklist syntax in a single file.")).addDropdown(
             (dropdown) => dropdown.addOption("notes", tx("settings.source_mode.notes", "Note cards")).addOption("tasks", tx("settings.source_mode.tasks", "Task lines")).setValue(this.plugin.settings.sourceMode).onChange(async (value) => {
-              this.plugin.settings.sourceMode = value;
+              this.setSetting("sourceMode", value);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
           new Setting2(srcSection).setName(tx("settings.source_folder.name", "Source folder")).setDesc(tx("settings.source_folder.desc", "Folder containing your task notes or files.")).addText(
             (text) => text.setPlaceholder("Tasks").setValue(this.plugin.settings.sourceFolder).onChange(async (value) => {
-              this.plugin.settings.sourceFolder = value.trim();
+              this.setSetting("sourceFolder", value.trim());
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
           new Setting2(srcSection).setName(tx("settings.include_subfolders.name", "Include subfolders")).setDesc(tx("settings.include_subfolders.desc", "Also scan nested folders inside the source folder.")).addToggle(
             (toggle) => toggle.setValue(this.plugin.settings.includeSubfolders).onChange(async (value) => {
-              this.plugin.settings.includeSubfolders = value;
+              this.setSetting("includeSubfolders", value);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
           new Setting2(srcSection).setName(tx("settings.task_inbox.name", "Task inbox file")).setDesc(tx("settings.task_inbox.desc", "File used when adding new tasks in Task Lines mode.")).addText(
             (text) => text.setPlaceholder("Tasks/Task Inbox.md").setValue(this.plugin.settings.taskInboxFile).onChange(async (value) => {
-              this.plugin.settings.taskInboxFile = value.trim() || "Tasks/Task Inbox.md";
+              this.setSetting("taskInboxFile", value.trim() || "Tasks/Task Inbox.md");
               await this.plugin.saveSettings();
             })
           );
           new Setting2(srcSection).setName(tx("settings.note_template.name", "Note template")).setDesc(tx("settings.note_template.desc", "Optional template file path used when creating note-mode tasks.")).addText(
             (text) => text.setPlaceholder("Templates/Task.md").setValue(this.plugin.settings.noteTemplate || "").onChange(async (value) => {
-              this.plugin.settings.noteTemplate = String(value || "").trim();
+              this.setSetting("noteTemplate", String(value || "").trim());
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
@@ -3015,7 +3055,7 @@ var require_settings_tab = __commonJS({
           for (const [key, label, desc] of fieldDefs) {
             new Setting2(fieldSection).setName(label).setDesc(desc).addText(
               (text) => text.setValue(this.plugin.settings[key]).onChange(async (value) => {
-                this.plugin.settings[key] = value.trim() || DEFAULT_SETTINGS2[key];
+                this.setSetting(key, value.trim() || DEFAULT_SETTINGS2[key]);
                 await this.plugin.saveSettings();
                 this.plugin.refreshViews();
               })
@@ -3023,7 +3063,7 @@ var require_settings_tab = __commonJS({
           }
           new Setting2(fieldSection).setName(tx("settings.custom_fields.name", "Custom fields")).setDesc(tx("settings.custom_fields.desc", "Extra frontmatter keys to display on cards. Comma-separated.")).addText(
             (text) => text.setPlaceholder("effort, assignee").setValue(this.plugin.settings.customFields).onChange(async (value) => {
-              this.plugin.settings.customFields = value;
+              this.setSetting("customFields", value);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
@@ -3031,28 +3071,28 @@ var require_settings_tab = __commonJS({
           const layoutSection = section(containerEl, t2("settings.section.layout"), t2("settings.section.layout.desc"));
           new Setting2(layoutSection).setName(tx("settings.status_order.name", "Status order")).setDesc(tx("settings.status_order.desc", "Comma-separated lane names in display order.")).addTextArea(
             (text) => text.setValue(this.plugin.settings.statusOrder).onChange(async (value) => {
-              this.plugin.settings.statusOrder = value;
+              this.setSetting("statusOrder", value);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
           new Setting2(layoutSection).setName(tx("settings.priority_order.name", "Priority order")).setDesc(tx("settings.priority_order.desc", "Defines priority ranking for sorting. Comma-separated, highest first.")).addText(
             (text) => text.setPlaceholder("Urgent,High,Medium,Low").setValue(this.plugin.settings.priorityOrder).onChange(async (value) => {
-              this.plugin.settings.priorityOrder = value;
+              this.setSetting("priorityOrder", value);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
           new Setting2(layoutSection).setName(tx("settings.sort_by.name", "Sort by")).setDesc(tx("settings.sort_by.desc", "Default card sorting within each lane.")).addDropdown(
             (dropdown) => dropdown.addOption("none", tx("settings.sort_by.none", "Manual (drag to reorder)")).addOption("priority", tx("settings.sort_by.priority", "Priority")).addOption("due", tx("settings.sort_by.due", "Due date")).addOption("title", tx("settings.sort_by.title", "Title")).setValue(this.plugin.settings.sortBy).onChange(async (value) => {
-              this.plugin.settings.sortBy = value;
+              this.setSetting("sortBy", value);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
           new Setting2(layoutSection).setName(tx("settings.sort_direction.name", "Sort direction")).addDropdown(
             (dropdown) => dropdown.addOption("asc", tx("settings.sort_direction.asc", "Ascending")).addOption("desc", tx("settings.sort_direction.desc", "Descending")).setValue(this.plugin.settings.sortDirection).onChange(async (value) => {
-              this.plugin.settings.sortDirection = value;
+              this.setSetting("sortDirection", value);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
@@ -3060,14 +3100,14 @@ var require_settings_tab = __commonJS({
           new Setting2(layoutSection).setName(tx("settings.due_soon.name", "Due soon threshold")).setDesc(tx("settings.due_soon.desc", "Cards due within this many days are highlighted.")).addText(
             (text) => text.setValue(String(this.plugin.settings.dueSoonDays)).onChange(async (value) => {
               const parsed = Number.parseInt(value, 10);
-              this.plugin.settings.dueSoonDays = Number.isFinite(parsed) && parsed >= 0 ? parsed : 2;
+              this.setSetting("dueSoonDays", Number.isFinite(parsed) && parsed >= 0 ? parsed : 2);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
           new Setting2(layoutSection).setName(tx("settings.wip_limits.name", "WIP limits")).setDesc(tx("settings.wip_limits.desc", "Limit cards per lane. Format: Todo:10, In Progress:3")).addTextArea(
             (text) => text.setValue(this.plugin.settings.wipLimits).onChange(async (value) => {
-              this.plugin.settings.wipLimits = value;
+              this.setSetting("wipLimits", value);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
@@ -3075,7 +3115,7 @@ var require_settings_tab = __commonJS({
           new Setting2(layoutSection).setName(tx("settings.auto_archive.name", "Auto-archive done tasks")).setDesc(tx("settings.auto_archive.desc", "Hide completed tasks older than this many days. Set to 0 to disable.")).addText(
             (text) => text.setValue(String(this.plugin.settings.autoArchiveDays || 0)).onChange(async (value) => {
               const parsed = Number.parseInt(value, 10);
-              this.plugin.settings.autoArchiveDays = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+              this.setSetting("autoArchiveDays", Number.isFinite(parsed) && parsed >= 0 ? parsed : 0);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
@@ -3083,21 +3123,21 @@ var require_settings_tab = __commonJS({
           const dateSection = section(containerEl, t2("settings.section.dateDisplay"), t2("settings.section.dateDisplay.desc"));
           new Setting2(dateSection).setName(tx("settings.date_format.name", "Date format")).setDesc(tx("settings.date_format.desc", "Storage format for new due dates. Uses Moment.js patterns.")).addText(
             (text) => text.setPlaceholder("YYYY-MM-DD").setValue(this.plugin.settings.dateFormat || "YYYY-MM-DD").onChange(async (value) => {
-              this.plugin.settings.dateFormat = String(value || "").trim() || "YYYY-MM-DD";
+              this.setSetting("dateFormat", String(value || "").trim() || "YYYY-MM-DD");
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
           new Setting2(dateSection).setName(tx("settings.date_display_format.name", "Date display format")).setDesc(tx("settings.date_display_format.desc", "Optional display format. Leave empty to use Date format.")).addText(
             (text) => text.setPlaceholder("MMM D, YYYY").setValue(this.plugin.settings.dateDisplayFormat || "").onChange(async (value) => {
-              this.plugin.settings.dateDisplayFormat = String(value || "").trim();
+              this.setSetting("dateDisplayFormat", String(value || "").trim());
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
           new Setting2(dateSection).setName(tx("settings.relative_due.name", "Show relative due labels")).setDesc(tx("settings.relative_due.desc", 'Show labels like "Due in 3d" instead of absolute dates.')).addToggle(
             (toggle) => toggle.setValue(this.plugin.settings.showRelativeDate !== false).onChange(async (value) => {
-              this.plugin.settings.showRelativeDate = !!value;
+              this.setSetting("showRelativeDate", !!value);
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
@@ -3111,6 +3151,7 @@ var require_settings_tab = __commonJS({
             dropdown.onChange(async (value) => {
               this.plugin.settings.theme.preset = value;
               this.plugin.settings.theme.overrides = {};
+              this.syncTheme();
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
               this.display();
@@ -3120,6 +3161,7 @@ var require_settings_tab = __commonJS({
             (text) => text.setPlaceholder("e.g. Inter, sans-serif").setValue(this.plugin.settings.theme && this.plugin.settings.theme.overrides && this.plugin.settings.theme.overrides.fontFamily || "").onChange(async (value) => {
               if (!this.plugin.settings.theme.overrides) this.plugin.settings.theme.overrides = {};
               this.plugin.settings.theme.overrides.fontFamily = value.trim();
+              this.syncTheme();
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
@@ -3136,6 +3178,7 @@ var require_settings_tab = __commonJS({
                 if (!this.plugin.settings.theme.overrides) this.plugin.settings.theme.overrides = {};
                 if (!Number.isFinite(parsed)) delete this.plugin.settings.theme.overrides.laneTintStrength;
                 else this.plugin.settings.theme.overrides.laneTintStrength = Math.max(0, Math.min(40, parsed));
+                this.syncTheme();
                 await this.plugin.saveSettings();
                 this.plugin.refreshViews();
               });
@@ -3149,6 +3192,7 @@ var require_settings_tab = __commonJS({
                 if (!this.plugin.settings.theme.overrides) this.plugin.settings.theme.overrides = {};
                 if (!Number.isFinite(parsed)) delete this.plugin.settings.theme.overrides.laneHeaderTintStrength;
                 else this.plugin.settings.theme.overrides.laneHeaderTintStrength = Math.max(0, Math.min(60, parsed));
+                this.syncTheme();
                 await this.plugin.saveSettings();
                 this.plugin.refreshViews();
               });
@@ -3217,6 +3261,7 @@ var require_settings_tab = __commonJS({
                 picker.onChange(async (value) => {
                   if (!this.plugin.settings.theme.overrides) this.plugin.settings.theme.overrides = {};
                   this.plugin.settings.theme.overrides[field.key] = value;
+                  this.syncTheme();
                   await this.plugin.saveSettings();
                   this.plugin.refreshViews();
                 });
@@ -3225,6 +3270,7 @@ var require_settings_tab = __commonJS({
                 setting.addButton((btn) => {
                   btn.setButtonText(tx("common.reset", "Reset")).onClick(async () => {
                     delete this.plugin.settings.theme.overrides[field.key];
+                    this.syncTheme();
                     await this.plugin.saveSettings();
                     this.plugin.refreshViews();
                     this.display();
@@ -3245,6 +3291,7 @@ var require_settings_tab = __commonJS({
                 if (!this.plugin.settings.theme.laneColors) this.plugin.settings.theme.laneColors = {};
                 if (!this.plugin.settings.theme.laneColors[status]) this.plugin.settings.theme.laneColors[status] = {};
                 this.plugin.settings.theme.laneColors[status].bg = value;
+                this.syncTheme();
                 await this.plugin.saveSettings();
                 this.plugin.refreshViews();
               });
@@ -3255,6 +3302,7 @@ var require_settings_tab = __commonJS({
                 if (!this.plugin.settings.theme.laneColors) this.plugin.settings.theme.laneColors = {};
                 if (!this.plugin.settings.theme.laneColors[status]) this.plugin.settings.theme.laneColors[status] = {};
                 this.plugin.settings.theme.laneColors[status].text = value;
+                this.syncTheme();
                 await this.plugin.saveSettings();
                 this.plugin.refreshViews();
               });
@@ -3263,6 +3311,7 @@ var require_settings_tab = __commonJS({
               setting.addButton((btn) => {
                 btn.setButtonText(tx("common.reset", "Reset")).onClick(async () => {
                   delete this.plugin.settings.theme.laneColors[status];
+                  this.syncTheme();
                   await this.plugin.saveSettings();
                   this.plugin.refreshViews();
                   this.display();
@@ -3296,7 +3345,7 @@ var require_settings_tab = __commonJS({
           const container = parentEl.createDiv({ cls: "sk-settings-color-map-editor" });
           const currentMap = normalizeColorMap(this.plugin.settings[mapKey] || {});
           const saveMap = async () => {
-            this.plugin.settings[mapKey] = currentMap;
+            this.setSetting(mapKey, currentMap);
             await this.plugin.saveSettings();
             this.plugin.refreshViews();
           };
@@ -3367,7 +3416,14 @@ var require_settings_tab = __commonJS({
 
 // src/main.js
 var { Plugin, ItemView, Modal, TFile, TFolder, Notice, PluginSettingTab, Setting, setIcon, parseYaml } = require("obsidian");
-var { VIEW_TYPE_SMART_KANBAN, THEME_PRESETS, DEFAULT_SETTINGS } = require_constants();
+var {
+  VIEW_TYPE_SMART_KANBAN,
+  SETTINGS_SCHEMA_VERSION,
+  THEME_PRESETS,
+  DEFAULT_BOARD_CONFIG,
+  BOARD_CONFIG_KEYS,
+  DEFAULT_SETTINGS
+} = require_constants();
 var { t, setLocale, LOCALES } = require_i18n();
 var {
   normalizeDateInput,
@@ -3415,12 +3471,71 @@ var { SmartKanbanSettingTab } = require_settings_tab()({
   Setting,
   Notice,
   DEFAULT_SETTINGS,
+  BOARD_CONFIG_KEYS,
   THEME_PRESETS,
   t,
   LOCALES,
   setLocale
 });
 module.exports = class SmartKanbanPlugin extends Plugin {
+  cloneValue(value) {
+    if (Array.isArray(value)) return value.map((item) => this.cloneValue(item));
+    if (!value || typeof value !== "object") return value;
+    const out = {};
+    for (const [k, v] of Object.entries(value)) out[k] = this.cloneValue(v);
+    return out;
+  }
+  ensureThemeShape(theme) {
+    const input = theme && typeof theme === "object" ? theme : {};
+    return {
+      preset: String(input.preset || "default"),
+      overrides: input.overrides && typeof input.overrides === "object" ? this.cloneValue(input.overrides) : {},
+      laneColors: input.laneColors && typeof input.laneColors === "object" ? this.cloneValue(input.laneColors) : {}
+    };
+  }
+  createDefaultBoardConfigSnapshot(source) {
+    const src = source && typeof source === "object" ? source : {};
+    const out = {};
+    for (const key of BOARD_CONFIG_KEYS) {
+      if (key === "theme") out[key] = this.ensureThemeShape(src[key] || DEFAULT_BOARD_CONFIG.theme);
+      else if (Object.prototype.hasOwnProperty.call(src, key)) out[key] = this.cloneValue(src[key]);
+      else out[key] = this.cloneValue(DEFAULT_BOARD_CONFIG[key]);
+    }
+    return out;
+  }
+  normalizeBoardRecord(board) {
+    const src = board && typeof board === "object" ? board : {};
+    const out = { ...src };
+    out.id = String(src.id || "");
+    out.name = String(src.name || "");
+    out.type = src.type === "filtered-view" ? "filtered-view" : "independent";
+    out.parentBoardId = src.parentBoardId || null;
+    if (!Object.prototype.hasOwnProperty.call(out, "visibleStatuses")) out.visibleStatuses = null;
+    if (!Object.prototype.hasOwnProperty.call(out, "defaultFilters")) out.defaultFilters = null;
+    for (const key of BOARD_CONFIG_KEYS) {
+      if (!Object.prototype.hasOwnProperty.call(out, key) || out[key] === void 0) {
+        out[key] = null;
+      }
+    }
+    return out;
+  }
+  migrateSettings(loaded) {
+    const src = loaded && typeof loaded === "object" ? loaded : {};
+    const migrated = { ...src };
+    const hadSchema = Number.isFinite(src.settingsSchemaVersion);
+    const hadDefaultBoardConfig = !!(src.defaultBoardConfig && typeof src.defaultBoardConfig === "object");
+    const hadBoardsArray = Array.isArray(src.boards);
+    if (!Array.isArray(migrated.boards)) migrated.boards = [];
+    migrated.boards = migrated.boards.map((board) => this.normalizeBoardRecord(board)).filter((board) => board.id);
+    if (!migrated.defaultBoardConfig || typeof migrated.defaultBoardConfig !== "object") {
+      migrated.defaultBoardConfig = this.createDefaultBoardConfigSnapshot(src);
+    } else {
+      migrated.defaultBoardConfig = this.createDefaultBoardConfigSnapshot(migrated.defaultBoardConfig);
+    }
+    migrated.settingsSchemaVersion = SETTINGS_SCHEMA_VERSION;
+    const didMigrate = !hadSchema || Number(src.settingsSchemaVersion) !== SETTINGS_SCHEMA_VERSION || !hadDefaultBoardConfig || !hadBoardsArray;
+    return { migrated, didMigrate };
+  }
   async onload() {
     await this.loadSettings();
     this.registerView(VIEW_TYPE_SMART_KANBAN, (leaf) => new SmartKanbanView(leaf, this));
@@ -3545,14 +3660,17 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     delete this.settings.filterPresets[name];
     await this.saveSettings();
   }
-  getStatusOrder() {
-    const list = String(this.settings.statusOrder || "").split(",").map((x) => x.trim()).filter(Boolean);
+  getStatusOrder(boardId = "") {
+    const eff = this.getEffectiveSettings(boardId || "");
+    const list = String(eff.statusOrder || "").split(",").map((x) => x.trim()).filter(Boolean);
     return list.length ? list : ["Todo"];
   }
-  getCustomFieldKeys() {
-    return String(this.settings.customFields || "").split(",").map((x) => x.trim()).filter(Boolean);
+  getCustomFieldKeys(boardId = "") {
+    const eff = this.getEffectiveSettings(boardId || "");
+    return String(eff.customFields || "").split(",").map((x) => x.trim()).filter(Boolean);
   }
-  getCardMetaEntries(card) {
+  getCardMetaEntries(card, boardIdOrEff = "") {
+    const eff = typeof boardIdOrEff === "object" && boardIdOrEff !== null ? boardIdOrEff : this.getEffectiveSettings(boardIdOrEff || "");
     const entries = [
       ["Category", card.category || ""],
       ["Priority", card.priority || ""]
@@ -3562,41 +3680,47 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     }
     const custom = card.customFields || {};
     const reserved = /* @__PURE__ */ new Set([
-      this.settings.statusField.toLowerCase(),
-      this.settings.categoryField.toLowerCase(),
-      this.settings.priorityField.toLowerCase(),
-      this.settings.tagsField.toLowerCase(),
-      this.settings.dueDateField.toLowerCase()
+      String(eff.statusField || "").toLowerCase(),
+      String(eff.categoryField || "").toLowerCase(),
+      String(eff.priorityField || "").toLowerCase(),
+      String(eff.tagsField || "").toLowerCase(),
+      String(eff.dueDateField || "").toLowerCase()
     ]);
-    for (const key of this.getCustomFieldKeys()) {
+    const customFieldKeys = String(eff.customFields || "").split(",").map((x) => x.trim()).filter(Boolean);
+    for (const key of customFieldKeys) {
       if (reserved.has(key.toLowerCase())) continue;
       entries.push([key, normalizeFmValue(custom[key])]);
     }
     return entries;
   }
-  collectStatusesFromCards(cards) {
-    const out = [...this.getStatusOrder()];
+  collectStatusesFromCards(cards, boardId = "") {
+    const out = [...this.getStatusOrder(boardId)];
     for (const status of new Set((cards || []).map((c) => c.status || "Todo"))) {
       if (!out.includes(status)) out.push(status);
     }
     return out;
   }
-  getPriorityOrderMap() {
+  getPriorityOrderMap(boardId = "") {
+    const eff = this.getEffectiveSettings(boardId || "");
     const map = /* @__PURE__ */ new Map();
-    String(this.settings.priorityOrder || "").split(",").map((x) => x.trim()).filter(Boolean).forEach((value, index) => map.set(value.toLowerCase(), index));
+    String(eff.priorityOrder || "").split(",").map((x) => x.trim()).filter(Boolean).forEach((value, index) => map.set(value.toLowerCase(), index));
     return map;
   }
-  sortCards(cards) {
-    return sortCards(cards, this.settings.sortBy || "none", this.settings.sortDirection || "asc", this.getPriorityOrderMap(), this.settings.cardOrder);
+  sortCards(cards, boardId = "") {
+    const eff = this.getEffectiveSettings(boardId || "");
+    return sortCards(cards, eff.sortBy || "none", eff.sortDirection || "asc", this.getPriorityOrderMap(boardId), eff.cardOrder);
   }
-  getWipLimit(status) {
-    const limits = parseWipLimits(this.settings.wipLimits);
+  getWipLimit(status, boardId = "") {
+    const eff = this.getEffectiveSettings(boardId || "");
+    const limits = parseWipLimits(eff.wipLimits);
     return limits.get(String(status || "").toLowerCase()) || 0;
   }
-  getResolvedTheme() {
-    const presetName = this.settings.theme && this.settings.theme.preset || "default";
+  getResolvedTheme(boardId = "") {
+    const eff = this.getEffectiveSettings(boardId || "");
+    const theme = eff.theme && typeof eff.theme === "object" ? eff.theme : {};
+    const presetName = theme.preset || "default";
     const preset = THEME_PRESETS[presetName] || THEME_PRESETS.default;
-    const overrides = this.settings.theme && this.settings.theme.overrides || {};
+    const overrides = theme.overrides || {};
     const resolved = { ...preset };
     for (const [key, value] of Object.entries(overrides)) {
       if (value !== void 0 && value !== null && value !== "") resolved[key] = value;
@@ -3608,12 +3732,16 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     return (this.settings.boards || []).find((b) => b.id === boardId) || null;
   }
   getEffectiveSettings(boardId, visited = /* @__PURE__ */ new Set()) {
+    const base = {
+      ...this.createDefaultBoardConfigSnapshot(this.settings.defaultBoardConfig),
+      ...this.settings
+    };
     const board = this.getBoard(boardId);
-    if (!board) return { ...this.settings };
+    if (!board) return base;
     if (board.type === "filtered-view" && board.parentBoardId) {
       if (visited.has(board.id)) {
         new Notice(t("main.board_parent_cycle", { name: board.name || board.id }));
-        return { ...this.settings };
+        return base;
       }
       const nextVisited = new Set(visited);
       nextVisited.add(board.id);
@@ -3625,20 +3753,22 @@ module.exports = class SmartKanbanPlugin extends Plugin {
       }
       return merged;
     }
-    const eff = { ...this.settings };
+    const eff = { ...base };
     for (const key of Object.keys(board)) {
       if (key === "id" || key === "name" || key === "type") continue;
       if (board[key] != null && board[key] !== "") eff[key] = board[key];
     }
     return eff;
   }
-  getResolvedLaneColor(status) {
-    const userLane = this.settings.theme && this.settings.theme.laneColors && this.settings.theme.laneColors[status];
+  getResolvedLaneColor(status, boardId = "") {
+    const eff = this.getEffectiveSettings(boardId || "");
+    const theme = eff.theme && typeof eff.theme === "object" ? eff.theme : {};
+    const userLane = theme.laneColors && theme.laneColors[status];
     if (userLane && (userLane.bg || userLane.text)) return userLane;
-    const presetName = this.settings.theme && this.settings.theme.preset || "default";
+    const presetName = theme.preset || "default";
     const preset = THEME_PRESETS[presetName] || THEME_PRESETS.default;
     if (preset.defaultLaneColors && preset.defaultLaneColors[status]) return preset.defaultLaneColors[status];
-    const resolved = this.getResolvedTheme();
+    const resolved = this.getResolvedTheme(boardId);
     return { bg: resolved.laneHeaderBg || "", text: resolved.laneHeaderText || "" };
   }
   scheduleRefresh() {
@@ -3658,9 +3788,13 @@ module.exports = class SmartKanbanPlugin extends Plugin {
   }
   async loadSettings() {
     const loaded = await this.loadData();
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded || {});
+    const { migrated, didMigrate } = this.migrateSettings(loaded || {});
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, migrated || {});
+    this.settings.defaultBoardConfig = this.createDefaultBoardConfigSnapshot(this.settings.defaultBoardConfig);
     this.settings.filterPresets = this.settings.filterPresets || {};
+    this.settings.theme = this.ensureThemeShape(this.settings.theme);
     setLocale(this.settings.language || "en");
+    if (didMigrate) await this.saveData(this.settings);
   }
   async saveSettings() {
     await this.saveData(this.settings);
@@ -3853,9 +3987,6 @@ ${cleanedBody || `# ${title}
     const eff = this.getEffectiveSettings(boardId || "");
     return eff.sourceMode === "tasks" ? await this.collectTaskCardsWithSettings(eff) : await this.collectNoteCardsWithSettings(eff);
   }
-  filterFilesByFolder(allFiles) {
-    return this.filterFilesByFolderWithSettings(allFiles, this.settings);
-  }
   filterFilesByFolderWithSettings(allFiles, eff) {
     const folderPath = eff.sourceFolder;
     const includeSubfolders = eff.includeSubfolders;
@@ -3866,9 +3997,6 @@ ${cleanedBody || `# ${title}
       if (includeSubfolders) return file.path.startsWith(folderPrefix);
       return file.parent && file.parent.path === folderPath;
     });
-  }
-  async collectNoteCards() {
-    return this.collectNoteCardsWithSettings(this.settings);
   }
   async collectNoteCardsWithSettings(eff) {
     const cards = [];
@@ -3911,9 +4039,6 @@ ${cleanedBody || `# ${title}
       });
     }
     return cards;
-  }
-  async collectTaskCards() {
-    return this.collectTaskCardsWithSettings(this.settings);
   }
   async collectTaskCardsWithSettings(eff) {
     const cards = [];
@@ -3973,9 +4098,11 @@ ${cleanedBody || `# ${title}
       [eff.statusField]: String(nextStatus || "").trim() || "Todo"
     }, boardId);
   }
-  async saveCardOrder(cardId, sortValue) {
-    if (!this.settings.cardOrder) this.settings.cardOrder = {};
-    this.settings.cardOrder[cardId] = sortValue;
+  async saveCardOrder(cardId, sortValue, boardId = "") {
+    const target = boardId ? this.getBoard(boardId) : this.settings;
+    if (!target) return;
+    if (!target.cardOrder || typeof target.cardOrder !== "object") target.cardOrder = {};
+    target.cardOrder[cardId] = sortValue;
     await this.saveSettings();
   }
   async deleteTaskLine(card) {
