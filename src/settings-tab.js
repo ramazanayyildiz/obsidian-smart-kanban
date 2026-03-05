@@ -156,6 +156,126 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
       new Notice(tx("settings.status_manager.saved", "Lane order updated."));
     }
 
+    renderChipEditor(parentEl, { key, items, placeholder, onSave, allowInherit = true }) {
+      const container = parentEl.createDiv({ cls: "sk-chip-editor" });
+
+      const renderChips = () => {
+        container.empty();
+        const chipWrap = container.createDiv({ cls: "sk-chip-wrap" });
+
+        for (let i = 0; i < items.length; i++) {
+          const chip = chipWrap.createDiv({ cls: "sk-chip" });
+          chip.createSpan({ text: items[i], cls: "sk-chip-text" });
+          const removeBtn = chip.createSpan({ text: "\u00d7", cls: "sk-chip-remove" });
+          removeBtn.addEventListener("click", async () => {
+            items.splice(i, 1);
+            await onSave(items);
+            renderChips();
+          });
+        }
+
+        const input = chipWrap.createEl("input", {
+          type: "text",
+          placeholder: placeholder || tx("settings.chip.add_placeholder", "Add..."),
+          cls: "sk-chip-input",
+        });
+
+        const addChip = async (raw) => {
+          const val = String(raw || "").trim();
+          if (!val) return;
+          if (!items.includes(val)) {
+            items.push(val);
+            await onSave(items);
+          }
+          input.value = "";
+          renderChips();
+        };
+
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            addChip(input.value);
+          } else if (e.key === "Backspace" && !input.value && items.length > 0) {
+            items.pop();
+            onSave(items);
+            renderChips();
+          }
+        });
+      };
+
+      renderChips();
+      return container;
+    }
+
+    renderWipEditor(parentEl, { key, pairs, onSave }) {
+      const container = parentEl.createDiv({ cls: "sk-wip-editor" });
+
+      const renderRows = () => {
+        container.empty();
+
+        for (let i = 0; i < pairs.length; i++) {
+          const row = container.createDiv({ cls: "sk-wip-row" });
+          row.createSpan({ text: pairs[i].lane, cls: "sk-wip-lane-name" });
+
+          const numInput = row.createEl("input", {
+            type: "number",
+            value: String(pairs[i].limit),
+            cls: "sk-wip-num-input",
+          });
+          numInput.min = "1";
+          numInput.addEventListener("change", async () => {
+            const parsed = Number.parseInt(numInput.value, 10);
+            if (Number.isFinite(parsed) && parsed > 0) {
+              pairs[i].limit = parsed;
+              await onSave(pairs);
+            }
+          });
+
+          const removeBtn = row.createSpan({ text: "\u00d7", cls: "sk-chip-remove" });
+          removeBtn.addEventListener("click", async () => {
+            pairs.splice(i, 1);
+            await onSave(pairs);
+            renderRows();
+          });
+        }
+
+        const addRow = container.createDiv({ cls: "sk-wip-add-row" });
+        const laneInput = addRow.createEl("input", {
+          type: "text",
+          placeholder: tx("settings.wip.lane_placeholder", "Lane name"),
+          cls: "sk-wip-add-lane",
+        });
+        const limitInput = addRow.createEl("input", {
+          type: "number",
+          placeholder: tx("settings.wip.limit_placeholder", "Limit"),
+          cls: "sk-wip-add-limit",
+        });
+        limitInput.min = "1";
+        const addBtn = addRow.createEl("button", {
+          text: tx("common.add", "Add"),
+          cls: "sk-wip-add-btn",
+        });
+
+        const doAdd = async () => {
+          const lane = String(laneInput.value || "").trim();
+          const limit = Number.parseInt(limitInput.value, 10);
+          if (!lane || !Number.isFinite(limit) || limit <= 0) return;
+          if (!pairs.find((p) => p.lane === lane)) {
+            pairs.push({ lane, limit });
+            await onSave(pairs);
+            renderRows();
+          }
+        };
+
+        addBtn.addEventListener("click", doAdd);
+        laneInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); doAdd(); } });
+        limitInput.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); doAdd(); } });
+      };
+
+      renderRows();
+      return container;
+    }
+
     syncTheme() {
       if (!this.getActiveBoard() && this.plugin.settings.defaultBoardConfig && this.plugin.settings.theme) {
         this.plugin.settings.defaultBoardConfig.theme = JSON.parse(JSON.stringify(this.plugin.settings.theme));
@@ -323,32 +443,46 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
 
       const customFieldsSetting = new Setting(fieldSection)
         .setName(tx("settings.custom_fields.name", "Custom fields"))
-        .setDesc(tx("settings.custom_fields.desc", "Extra frontmatter keys to display on cards. Comma-separated."))
-        .addText((text) =>
-          text.setPlaceholder("effort, assignee").setValue(this.getSetting("customFields")).onChange(async (value) => {
-            this.setSetting("customFields", value, { allowInherit: true });
-            await this.plugin.saveSettings();
-            this.plugin.refreshViews();
-          })
-        );
+        .setDesc(tx("settings.custom_fields.desc", "Extra frontmatter keys to display on cards."));
       this.addInheritButton(customFieldsSetting, "customFields");
       this.addScopeBadge(customFieldsSetting, "customFields");
+      {
+        const raw = this.getSetting("customFields") || "";
+        const items = raw.split(",").map((s) => s.trim()).filter(Boolean);
+        this.renderChipEditor(fieldSection, {
+          key: "customFields",
+          items,
+          placeholder: tx("settings.chip.custom_field_placeholder", "Add field..."),
+          onSave: async (chips) => {
+            this.setSetting("customFields", chips.join(", "), { allowInherit: true });
+            await this.plugin.saveSettings();
+            this.plugin.refreshViews();
+          },
+        });
+      }
 
       /* ── Section: Board Layout ── */
       const layoutSection = section(containerEl, t("settings.section.layout"), t("settings.section.layout.desc"));
 
       const statusOrderSetting = new Setting(layoutSection)
         .setName(tx("settings.status_order.name", "Status order"))
-        .setDesc(tx("settings.status_order.desc", "Comma-separated lane names in display order."))
-        .addTextArea((text) =>
-          text.setValue(this.getSetting("statusOrder")).onChange(async (value) => {
-            this.setSetting("statusOrder", value, { allowInherit: true });
-            await this.plugin.saveSettings();
-            this.plugin.refreshViews();
-          })
-        );
+        .setDesc(tx("settings.status_order.desc", "Lane names in display order. Drag to reorder or use Lane Manager below."));
       this.addInheritButton(statusOrderSetting, "statusOrder");
       this.addScopeBadge(statusOrderSetting, "statusOrder");
+      {
+        const raw = this.getSetting("statusOrder") || "";
+        const items = raw.split(",").map((s) => s.trim()).filter(Boolean);
+        this.renderChipEditor(layoutSection, {
+          key: "statusOrder",
+          items,
+          placeholder: tx("settings.chip.status_placeholder", "Add lane..."),
+          onSave: async (chips) => {
+            this.setSetting("statusOrder", chips.join(", "), { allowInherit: true });
+            await this.plugin.saveSettings();
+            this.plugin.refreshViews();
+          },
+        });
+      }
 
       new Setting(layoutSection)
         .setName(tx("settings.status_manager.name", "Lane manager"))
@@ -361,16 +495,23 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
 
       const priorityOrderSetting = new Setting(layoutSection)
         .setName(tx("settings.priority_order.name", "Priority order"))
-        .setDesc(tx("settings.priority_order.desc", "Defines priority ranking for sorting. Comma-separated, highest first."))
-        .addText((text) =>
-          text.setPlaceholder("Urgent,High,Medium,Low").setValue(this.getSetting("priorityOrder")).onChange(async (value) => {
-            this.setSetting("priorityOrder", value, { allowInherit: true });
-            await this.plugin.saveSettings();
-            this.plugin.refreshViews();
-          })
-        );
+        .setDesc(tx("settings.priority_order.desc", "Priority ranking for sorting. Highest first."));
       this.addInheritButton(priorityOrderSetting, "priorityOrder");
       this.addScopeBadge(priorityOrderSetting, "priorityOrder");
+      {
+        const raw = this.getSetting("priorityOrder") || "";
+        const items = raw.split(",").map((s) => s.trim()).filter(Boolean);
+        this.renderChipEditor(layoutSection, {
+          key: "priorityOrder",
+          items,
+          placeholder: tx("settings.chip.priority_placeholder", "Add priority..."),
+          onSave: async (chips) => {
+            this.setSetting("priorityOrder", chips.join(", "), { allowInherit: true });
+            await this.plugin.saveSettings();
+            this.plugin.refreshViews();
+          },
+        });
+      }
 
       const sortBySetting = new Setting(layoutSection)
         .setName(tx("settings.sort_by.name", "Sort by"))
@@ -423,16 +564,26 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
 
       const wipLimitsSetting = new Setting(layoutSection)
         .setName(tx("settings.wip_limits.name", "WIP limits"))
-        .setDesc(tx("settings.wip_limits.desc", "Limit cards per lane. Format: Todo:10, In Progress:3"))
-        .addTextArea((text) =>
-          text.setValue(this.getSetting("wipLimits")).onChange(async (value) => {
-            this.setSetting("wipLimits", value, { allowInherit: true });
-            await this.plugin.saveSettings();
-            this.plugin.refreshViews();
-          })
-        );
+        .setDesc(tx("settings.wip_limits.desc", "Limit cards per lane."));
       this.addInheritButton(wipLimitsSetting, "wipLimits");
       this.addScopeBadge(wipLimitsSetting, "wipLimits");
+      {
+        const raw = this.getSetting("wipLimits") || "";
+        const pairs = raw.split(",").map((s) => s.trim()).filter(Boolean).map((entry) => {
+          const [lane, num] = entry.split(":").map((p) => p.trim());
+          return { lane: lane || "", limit: Number.parseInt(num, 10) || 5 };
+        }).filter((p) => p.lane);
+        this.renderWipEditor(layoutSection, {
+          key: "wipLimits",
+          pairs,
+          onSave: async (wipPairs) => {
+            const str = wipPairs.map((p) => `${p.lane}:${p.limit}`).join(", ");
+            this.setSetting("wipLimits", str, { allowInherit: true });
+            await this.plugin.saveSettings();
+            this.plugin.refreshViews();
+          },
+        });
+      }
 
       const autoArchiveSetting = new Setting(layoutSection)
         .setName(tx("settings.auto_archive.name", "Auto-archive done tasks"))

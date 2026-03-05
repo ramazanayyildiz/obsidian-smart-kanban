@@ -89,6 +89,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
     applyTheme() {
       const theme = this.plugin.getResolvedTheme(this.boardId);
+      const eff = this.plugin.getEffectiveSettings(this.boardId);
       const el = this.containerEl;
       const props = {
         "--sk-card-bg": theme.cardBg,
@@ -123,6 +124,20 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         if (value) el.style.setProperty(prop, value);
         else el.style.removeProperty(prop);
       }
+
+      const presetName = String((eff.theme && eff.theme.preset) || "default");
+      const hex = String(theme.boardBg || theme.cardBg || "").trim();
+      const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+      let isDark = false;
+      if (m) {
+        const rgb = m[1];
+        const r = Number.parseInt(rgb.slice(0, 2), 16);
+        const g = Number.parseInt(rgb.slice(2, 4), 16);
+        const b = Number.parseInt(rgb.slice(4, 6), 16);
+        const luma = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+        isDark = luma < 0.45;
+      }
+      el.toggleClass("sk-theme-dark-preset", presetName === "midnight" || isDark);
     }
 
     renderBoardTabs() {
@@ -230,6 +245,37 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       const searchIcon = searchWrap.createSpan({ cls: "smart-kanban-search-icon" });
       setIcon(searchIcon, "search");
 
+      const eff = this.plugin.getEffectiveSettings(this.boardId);
+      const sortWrap = toolbar.createDiv({ cls: "smart-kanban-sort-controls" });
+      const sortBySelect = sortWrap.createEl("select", {
+        cls: "smart-kanban-sort-select",
+        attr: { title: t("settings.sort_by.name"), "aria-label": t("settings.sort_by.name") },
+      });
+      const sortOptions = [
+        ["none", t("settings.sort_by.none")],
+        ["priority", t("settings.sort_by.priority")],
+        ["due", t("settings.sort_by.due")],
+        ["title", t("settings.sort_by.title")],
+      ];
+      for (const [value, label] of sortOptions) {
+        sortBySelect.createEl("option", { value, text: label });
+      }
+      sortBySelect.value = eff.sortBy || "none";
+
+      const sortDirectionSelect = sortWrap.createEl("select", {
+        cls: "smart-kanban-sort-select",
+        attr: { title: t("settings.sort_direction.name"), "aria-label": t("settings.sort_direction.name") },
+      });
+      sortDirectionSelect.createEl("option", { value: "asc", text: t("settings.sort_direction.asc") });
+      sortDirectionSelect.createEl("option", { value: "desc", text: t("settings.sort_direction.desc") });
+      sortDirectionSelect.value = eff.sortDirection || "asc";
+
+      const applySortSettings = async () => {
+        await this.setBoardSortSettings(sortBySelect.value, sortDirectionSelect.value);
+      };
+      sortBySelect.addEventListener("change", applySortSettings);
+      sortDirectionSelect.addEventListener("change", applySortSettings);
+
       this.createIconBtn(toolbar, "filter", t("view.toolbar.toggle_filters"), () => {
         this.filtersCollapsed = !this.filtersCollapsed;
         this.filtersEl.style.display = this.filtersCollapsed ? "none" : "";
@@ -269,6 +315,25 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       setIcon(btn, icon);
       btn.addEventListener("click", async (e) => { e.stopPropagation(); await onClick(); });
       return btn;
+    }
+
+    async setBoardSortSettings(sortBy, sortDirection) {
+      const nextSortBy = String(sortBy || "").trim() || "none";
+      const nextSortDirection = String(sortDirection || "").trim() || "asc";
+      const board = this.boardId ? this.plugin.getBoard(this.boardId) : null;
+      if (board) {
+        board.sortBy = nextSortBy;
+        board.sortDirection = nextSortDirection;
+      } else {
+        this.plugin.settings.sortBy = nextSortBy;
+        this.plugin.settings.sortDirection = nextSortDirection;
+        if (this.plugin.settings.defaultBoardConfig) {
+          this.plugin.settings.defaultBoardConfig.sortBy = nextSortBy;
+          this.plugin.settings.defaultBoardConfig.sortDirection = nextSortDirection;
+        }
+      }
+      await this.plugin.saveSettings();
+      this.renderContent();
     }
 
     getActiveSettings() {

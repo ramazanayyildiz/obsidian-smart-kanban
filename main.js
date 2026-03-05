@@ -32,168 +32,116 @@ var require_constants = __commonJS({
         fontFamily: "",
         defaultLaneColors: {}
       },
+      warm: {
+        name: "Warm Board",
+        cardBg: "#ffffff",
+        cardText: "#37352f",
+        cardBorder: "#e7e4e1",
+        laneBg: "#f7f6f3",
+        laneHeaderBg: "#ece9e5",
+        laneHeaderText: "#5f5a52",
+        laneBorder: "#e9e6e2",
+        boardBg: "#f5f4f1",
+        tagBg: "#ebe9e6",
+        tagText: "#6f6a64",
+        tagBorder: "#ddd8d2",
+        accentColor: "#2f80ed",
+        priorityUrgent: "#e03e3e",
+        priorityHigh: "#d9730d",
+        priorityMedium: "#dfab01",
+        priorityLow: "#0f7b6c",
+        dueBadgeOverdue: "#e03e3e",
+        dueBadgeSoon: "#d9730d",
+        fontFamily: "",
+        defaultLaneColors: {
+          "Backlog": { bg: "#b08968", text: "#fffaf5" },
+          "Todo": { bg: "#c08b5a", text: "#fffaf5" },
+          "In Progress": { bg: "#ad7fa8", text: "#fff7ff" },
+          "Follow": { bg: "#6f7f8f", text: "#f6fbff" },
+          "Try": { bg: "#5f9bc9", text: "#f5fbff" },
+          "Recurring": { bg: "#8f79bc", text: "#f8f5ff" },
+          "Research": { bg: "#b57a7a", text: "#fff7f7" },
+          "Done": { bg: "#7ca56c", text: "#f7fff5" }
+        }
+      },
+      graphite: {
+        name: "Graphite",
+        cardBg: "#ffffff",
+        cardText: "#2f3437",
+        cardBorder: "#d8dde2",
+        laneBg: "#f2f4f7",
+        laneHeaderBg: "#e4e8ed",
+        laneHeaderText: "#4a525a",
+        laneBorder: "#d6dce3",
+        boardBg: "#eef2f6",
+        tagBg: "#e8edf2",
+        tagText: "#58606a",
+        tagBorder: "#d2d9e0",
+        accentColor: "#4c6ef5",
+        priorityUrgent: "#d94848",
+        priorityHigh: "#e67700",
+        priorityMedium: "#c99700",
+        priorityLow: "#2f9e44",
+        dueBadgeOverdue: "#d94848",
+        dueBadgeSoon: "#e67700",
+        fontFamily: "",
+        defaultLaneColors: {
+          "Backlog": { bg: "#7a8694", text: "#f8fbff" },
+          "Todo": { bg: "#637381", text: "#f8fbff" },
+          "In Progress": { bg: "#556270", text: "#f8fbff" },
+          "Done": { bg: "#3f4a57", text: "#f6f9ff" }
+        }
+      },
       ocean: {
-        name: "Ocean",
-        cardBg: "#e7f5ff",
-        cardText: "#1c3d5a",
-        cardBorder: "#a5d8ff",
-        laneBg: "#d0ebff",
-        laneHeaderBg: "#1971c2",
-        laneHeaderText: "#ffffff",
-        laneBorder: "#74c0fc",
-        boardBg: "#e7f5ff",
-        tagBg: "#a5d8ff",
-        tagText: "#1864ab",
-        tagBorder: "#74c0fc",
-        accentColor: "#1971c2",
-        priorityUrgent: "#c92a2a",
-        priorityHigh: "#d9480f",
-        priorityMedium: "#e8590c",
-        priorityLow: "#2b8a3e",
-        dueBadgeOverdue: "#c92a2a",
-        dueBadgeSoon: "#e8590c",
+        name: "Ocean Mist",
+        cardBg: "#f6fbff",
+        cardText: "#1f3b53",
+        cardBorder: "#d6e8f7",
+        laneBg: "#edf6fd",
+        laneHeaderBg: "#dcecf9",
+        laneHeaderText: "#305672",
+        laneBorder: "#d0e3f4",
+        boardBg: "#eef7ff",
+        tagBg: "#dcecf9",
+        tagText: "#2f5d82",
+        tagBorder: "#c7def1",
+        accentColor: "#0b6e99",
+        priorityUrgent: "#d94848",
+        priorityHigh: "#d97706",
+        priorityMedium: "#ca8a04",
+        priorityLow: "#0f7b6c",
+        dueBadgeOverdue: "#d94848",
+        dueBadgeSoon: "#d97706",
         fontFamily: "",
         defaultLaneColors: {
-          "Backlog": { bg: "#1864ab", text: "#ffffff" },
-          "Todo": { bg: "#1971c2", text: "#ffffff" },
-          "In Progress": { bg: "#1c7ed6", text: "#ffffff" },
-          "Done": { bg: "#228be6", text: "#ffffff" }
-        }
-      },
-      forest: {
-        name: "Forest",
-        cardBg: "#ebfbee",
-        cardText: "#1b4332",
-        cardBorder: "#b2f2bb",
-        laneBg: "#d3f9d8",
-        laneHeaderBg: "#2b8a3e",
-        laneHeaderText: "#ffffff",
-        laneBorder: "#8ce99a",
-        boardBg: "#ebfbee",
-        tagBg: "#b2f2bb",
-        tagText: "#1b4332",
-        tagBorder: "#8ce99a",
-        accentColor: "#2b8a3e",
-        priorityUrgent: "#c92a2a",
-        priorityHigh: "#e8590c",
-        priorityMedium: "#f08c00",
-        priorityLow: "#37b24d",
-        dueBadgeOverdue: "#c92a2a",
-        dueBadgeSoon: "#e8590c",
-        fontFamily: "",
-        defaultLaneColors: {
-          "Backlog": { bg: "#1b4332", text: "#ffffff" },
-          "Todo": { bg: "#2b8a3e", text: "#ffffff" },
-          "In Progress": { bg: "#37b24d", text: "#ffffff" },
-          "Done": { bg: "#40c057", text: "#ffffff" }
-        }
-      },
-      sunset: {
-        name: "Sunset",
-        cardBg: "#fff9db",
-        cardText: "#5c3d0e",
-        cardBorder: "#ffe066",
-        laneBg: "#fff3bf",
-        laneHeaderBg: "#e8590c",
-        laneHeaderText: "#ffffff",
-        laneBorder: "#ffd43b",
-        boardBg: "#fff9db",
-        tagBg: "#ffe066",
-        tagText: "#5c3d0e",
-        tagBorder: "#ffd43b",
-        accentColor: "#e8590c",
-        priorityUrgent: "#c92a2a",
-        priorityHigh: "#d9480f",
-        priorityMedium: "#f08c00",
-        priorityLow: "#5c940d",
-        dueBadgeOverdue: "#c92a2a",
-        dueBadgeSoon: "#e8590c",
-        fontFamily: "",
-        defaultLaneColors: {
-          "Backlog": { bg: "#d9480f", text: "#ffffff" },
-          "Todo": { bg: "#e8590c", text: "#ffffff" },
-          "In Progress": { bg: "#f76707", text: "#ffffff" },
-          "Done": { bg: "#fd7e14", text: "#ffffff" }
+          "Backlog": { bg: "#5f89ad", text: "#f5fbff" },
+          "Todo": { bg: "#4f7ea8", text: "#f5fbff" },
+          "In Progress": { bg: "#3f739f", text: "#f5fbff" },
+          "Done": { bg: "#2f678f", text: "#f5fbff" }
         }
       },
       midnight: {
-        name: "Midnight",
-        cardBg: "#1a1b2e",
-        cardText: "#c1c2d3",
-        cardBorder: "#2d2e4a",
-        laneBg: "#141524",
-        laneHeaderBg: "#3b3d8c",
-        laneHeaderText: "#e0e0ff",
-        laneBorder: "#2d2e4a",
-        boardBg: "#0f1020",
-        tagBg: "#2d2e4a",
-        tagText: "#a5a6ff",
-        tagBorder: "#3b3d8c",
-        accentColor: "#5c5ce0",
-        priorityUrgent: "#ff6b6b",
-        priorityHigh: "#ff922b",
-        priorityMedium: "#ffd43b",
-        priorityLow: "#69db7c",
-        dueBadgeOverdue: "#ff6b6b",
-        dueBadgeSoon: "#ff922b",
-        fontFamily: "",
-        defaultLaneColors: {
-          "Backlog": { bg: "#2b2c5e", text: "#e0e0ff" },
-          "Todo": { bg: "#3b3d8c", text: "#e0e0ff" },
-          "In Progress": { bg: "#4c4fb3", text: "#e0e0ff" },
-          "Done": { bg: "#5c5ce0", text: "#ffffff" }
-        }
-      },
-      minimal: {
-        name: "Minimal",
-        cardBg: "#fafafa",
-        cardText: "#343a40",
-        cardBorder: "#dee2e6",
-        laneBg: "#f1f3f5",
-        laneHeaderBg: "#868e96",
-        laneHeaderText: "#ffffff",
-        laneBorder: "#ced4da",
-        boardBg: "#f8f9fa",
-        tagBg: "#e9ecef",
-        tagText: "#495057",
-        tagBorder: "#ced4da",
-        accentColor: "#495057",
-        priorityUrgent: "#c92a2a",
-        priorityHigh: "#d9480f",
-        priorityMedium: "#e8590c",
-        priorityLow: "#5c940d",
-        dueBadgeOverdue: "#c92a2a",
-        dueBadgeSoon: "#e8590c",
+        name: "Midnight Pro",
+        cardBg: "#1b1d22",
+        cardText: "#e7e9ee",
+        cardBorder: "#343841",
+        laneBg: "#15171b",
+        laneHeaderBg: "#23262d",
+        laneHeaderText: "#f5f7fb",
+        laneBorder: "#30343d",
+        boardBg: "#101216",
+        tagBg: "#2a2d34",
+        tagText: "#d7dce6",
+        tagBorder: "#3c4048",
+        accentColor: "#8aa6ff",
+        priorityUrgent: "#ff7b7b",
+        priorityHigh: "#ffb366",
+        priorityMedium: "#ffd98a",
+        priorityLow: "#7cd9a4",
+        dueBadgeOverdue: "#ff7b7b",
+        dueBadgeSoon: "#ffb366",
         fontFamily: "",
         defaultLaneColors: {}
-      },
-      candy: {
-        name: "Candy",
-        cardBg: "#fff0f6",
-        cardText: "#6b1d3a",
-        cardBorder: "#fcc2d7",
-        laneBg: "#ffe3ec",
-        laneHeaderBg: "#c2255c",
-        laneHeaderText: "#ffffff",
-        laneBorder: "#f783ac",
-        boardBg: "#fff0f6",
-        tagBg: "#fcc2d7",
-        tagText: "#a61e4d",
-        tagBorder: "#f783ac",
-        accentColor: "#c2255c",
-        priorityUrgent: "#e03131",
-        priorityHigh: "#d9480f",
-        priorityMedium: "#f08c00",
-        priorityLow: "#37b24d",
-        dueBadgeOverdue: "#e03131",
-        dueBadgeSoon: "#e8590c",
-        fontFamily: "",
-        defaultLaneColors: {
-          "Backlog": { bg: "#a61e4d", text: "#ffffff" },
-          "Todo": { bg: "#c2255c", text: "#ffffff" },
-          "In Progress": { bg: "#d6336c", text: "#ffffff" },
-          "Done": { bg: "#e64980", text: "#ffffff" }
-        }
       }
     };
     var DEFAULT_BOARD_CONFIG2 = {
@@ -310,9 +258,15 @@ var require_i18n = __commonJS({
         "settings.field.due.name": "Due date field",
         "settings.field.due.desc": "Date in YYYY-MM-DD format for due tracking.",
         "settings.custom_fields.name": "Custom fields",
-        "settings.custom_fields.desc": "Extra frontmatter keys to display on cards. Comma-separated.",
+        "settings.custom_fields.desc": "Extra frontmatter keys to display on cards.",
         "settings.status_order.name": "Status order",
-        "settings.status_order.desc": "Comma-separated lane names in display order.",
+        "settings.status_order.desc": "Lane names in display order. Drag to reorder or use Lane Manager below.",
+        "settings.chip.add_placeholder": "Add...",
+        "settings.chip.status_placeholder": "Add lane...",
+        "settings.chip.priority_placeholder": "Add priority...",
+        "settings.chip.custom_field_placeholder": "Add field...",
+        "settings.wip.lane_placeholder": "Lane name",
+        "settings.wip.limit_placeholder": "Limit",
         "settings.status_manager.title": "Manage Lanes",
         "settings.status_manager.section": "Lanes",
         "settings.status_manager.name": "Lane manager",
@@ -321,7 +275,7 @@ var require_i18n = __commonJS({
         "settings.status_manager.empty": "At least one lane is required.",
         "settings.status_manager.saved": "Lane order updated.",
         "settings.priority_order.name": "Priority order",
-        "settings.priority_order.desc": "Defines priority ranking for sorting. Comma-separated, highest first.",
+        "settings.priority_order.desc": "Priority ranking for sorting. Highest first.",
         "settings.sort_by.name": "Sort by",
         "settings.sort_by.desc": "Default card sorting within each lane.",
         "settings.sort_by.none": "Manual (drag to reorder)",
@@ -334,7 +288,7 @@ var require_i18n = __commonJS({
         "settings.due_soon.name": "Due soon threshold",
         "settings.due_soon.desc": "Cards due within this many days are highlighted.",
         "settings.wip_limits.name": "WIP limits",
-        "settings.wip_limits.desc": "Limit cards per lane. Format: Todo:10, In Progress:3",
+        "settings.wip_limits.desc": "Limit cards per lane.",
         "settings.auto_archive.name": "Auto-archive done tasks",
         "settings.auto_archive.desc": "Hide completed tasks older than this many days. Set to 0 to disable.",
         "settings.date_format.name": "Date format",
@@ -555,9 +509,15 @@ var require_i18n = __commonJS({
         "settings.field.due.name": "Teslim tarihi alani",
         "settings.field.due.desc": "Teslim takibi icin YYYY-MM-DD formatinda tarih.",
         "settings.custom_fields.name": "Ozel alanlar",
-        "settings.custom_fields.desc": "Kartta gosterilecek ek frontmatter anahtarlari. Virgul ayracli.",
+        "settings.custom_fields.desc": "Kartta gosterilecek ek frontmatter anahtarlari.",
         "settings.status_order.name": "Durum sirasi",
-        "settings.status_order.desc": "Gosterim sirasi icin virgul ayracli lane adlari.",
+        "settings.status_order.desc": "Gosterim sirasina gore lane adlari. Surukleyerek siralayabilir veya Lane Yoneticisini kullanabilirsiniz.",
+        "settings.chip.add_placeholder": "Ekle...",
+        "settings.chip.status_placeholder": "Lane ekle...",
+        "settings.chip.priority_placeholder": "Oncelik ekle...",
+        "settings.chip.custom_field_placeholder": "Alan ekle...",
+        "settings.wip.lane_placeholder": "Lane adi",
+        "settings.wip.limit_placeholder": "Limit",
         "settings.status_manager.title": "Lane'leri Yonet",
         "settings.status_manager.section": "Lane'ler",
         "settings.status_manager.name": "Lane yoneticisi",
@@ -566,7 +526,7 @@ var require_i18n = __commonJS({
         "settings.status_manager.empty": "En az bir lane gerekli.",
         "settings.status_manager.saved": "Lane sirasi guncellendi.",
         "settings.priority_order.name": "Oncelik sirasi",
-        "settings.priority_order.desc": "Siralama icin oncelik sirasi. Virgul ayracli, yuksekten dusuge.",
+        "settings.priority_order.desc": "Siralama icin oncelik sirasi. Yuksekten dusuge.",
         "settings.sort_by.name": "Siralama alani",
         "settings.sort_by.desc": "Her lane icin varsayilan kart siralamasi.",
         "settings.sort_by.none": "Manuel (surukle-birak)",
@@ -579,7 +539,7 @@ var require_i18n = __commonJS({
         "settings.due_soon.name": "Yaklasan teslim esigi",
         "settings.due_soon.desc": "Bu gun sayisi icindeki kartlar vurgulanir.",
         "settings.wip_limits.name": "WIP limitleri",
-        "settings.wip_limits.desc": "Lane basina kart limiti. Format: Todo:10, In Progress:3",
+        "settings.wip_limits.desc": "Lane basina kart limiti.",
         "settings.auto_archive.name": "Tamamlanan gorevleri oto-arsivle",
         "settings.auto_archive.desc": "Bu gunden daha eski tamamlananlari gizle. Devre disi icin 0.",
         "settings.date_format.name": "Tarih formati",
@@ -1969,6 +1929,7 @@ var require_view = __commonJS({
         }
         applyTheme() {
           const theme = this.plugin.getResolvedTheme(this.boardId);
+          const eff = this.plugin.getEffectiveSettings(this.boardId);
           const el = this.containerEl;
           const props = {
             "--sk-card-bg": theme.cardBg,
@@ -2003,6 +1964,19 @@ var require_view = __commonJS({
             if (value) el.style.setProperty(prop, value);
             else el.style.removeProperty(prop);
           }
+          const presetName = String(eff.theme && eff.theme.preset || "default");
+          const hex = String(theme.boardBg || theme.cardBg || "").trim();
+          const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+          let isDark = false;
+          if (m) {
+            const rgb = m[1];
+            const r = Number.parseInt(rgb.slice(0, 2), 16);
+            const g = Number.parseInt(rgb.slice(2, 4), 16);
+            const b = Number.parseInt(rgb.slice(4, 6), 16);
+            const luma = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+            isDark = luma < 0.45;
+          }
+          el.toggleClass("sk-theme-dark-preset", presetName === "midnight" || isDark);
         }
         renderBoardTabs() {
           this.boardTabsEl.empty();
@@ -2095,6 +2069,34 @@ var require_view = __commonJS({
           });
           const searchIcon = searchWrap.createSpan({ cls: "smart-kanban-search-icon" });
           setIcon2(searchIcon, "search");
+          const eff = this.plugin.getEffectiveSettings(this.boardId);
+          const sortWrap = toolbar.createDiv({ cls: "smart-kanban-sort-controls" });
+          const sortBySelect = sortWrap.createEl("select", {
+            cls: "smart-kanban-sort-select",
+            attr: { title: t2("settings.sort_by.name"), "aria-label": t2("settings.sort_by.name") }
+          });
+          const sortOptions = [
+            ["none", t2("settings.sort_by.none")],
+            ["priority", t2("settings.sort_by.priority")],
+            ["due", t2("settings.sort_by.due")],
+            ["title", t2("settings.sort_by.title")]
+          ];
+          for (const [value, label] of sortOptions) {
+            sortBySelect.createEl("option", { value, text: label });
+          }
+          sortBySelect.value = eff.sortBy || "none";
+          const sortDirectionSelect = sortWrap.createEl("select", {
+            cls: "smart-kanban-sort-select",
+            attr: { title: t2("settings.sort_direction.name"), "aria-label": t2("settings.sort_direction.name") }
+          });
+          sortDirectionSelect.createEl("option", { value: "asc", text: t2("settings.sort_direction.asc") });
+          sortDirectionSelect.createEl("option", { value: "desc", text: t2("settings.sort_direction.desc") });
+          sortDirectionSelect.value = eff.sortDirection || "asc";
+          const applySortSettings = async () => {
+            await this.setBoardSortSettings(sortBySelect.value, sortDirectionSelect.value);
+          };
+          sortBySelect.addEventListener("change", applySortSettings);
+          sortDirectionSelect.addEventListener("change", applySortSettings);
           this.createIconBtn(toolbar, "filter", t2("view.toolbar.toggle_filters"), () => {
             this.filtersCollapsed = !this.filtersCollapsed;
             this.filtersEl.style.display = this.filtersCollapsed ? "none" : "";
@@ -2135,6 +2137,24 @@ var require_view = __commonJS({
             await onClick();
           });
           return btn;
+        }
+        async setBoardSortSettings(sortBy, sortDirection) {
+          const nextSortBy = String(sortBy || "").trim() || "none";
+          const nextSortDirection = String(sortDirection || "").trim() || "asc";
+          const board = this.boardId ? this.plugin.getBoard(this.boardId) : null;
+          if (board) {
+            board.sortBy = nextSortBy;
+            board.sortDirection = nextSortDirection;
+          } else {
+            this.plugin.settings.sortBy = nextSortBy;
+            this.plugin.settings.sortDirection = nextSortDirection;
+            if (this.plugin.settings.defaultBoardConfig) {
+              this.plugin.settings.defaultBoardConfig.sortBy = nextSortBy;
+              this.plugin.settings.defaultBoardConfig.sortDirection = nextSortDirection;
+            }
+          }
+          await this.plugin.saveSettings();
+          this.renderContent();
         }
         getActiveSettings() {
           return this.plugin.getEffectiveSettings(this.boardId);
@@ -3262,6 +3282,120 @@ var require_settings_tab = __commonJS({
           this.display();
           new Notice2(tx("settings.status_manager.saved", "Lane order updated."));
         }
+        renderChipEditor(parentEl, { key, items, placeholder, onSave, allowInherit = true }) {
+          const container = parentEl.createDiv({ cls: "sk-chip-editor" });
+          const renderChips = () => {
+            container.empty();
+            const chipWrap = container.createDiv({ cls: "sk-chip-wrap" });
+            for (let i = 0; i < items.length; i++) {
+              const chip = chipWrap.createDiv({ cls: "sk-chip" });
+              chip.createSpan({ text: items[i], cls: "sk-chip-text" });
+              const removeBtn = chip.createSpan({ text: "\xD7", cls: "sk-chip-remove" });
+              removeBtn.addEventListener("click", async () => {
+                items.splice(i, 1);
+                await onSave(items);
+                renderChips();
+              });
+            }
+            const input = chipWrap.createEl("input", {
+              type: "text",
+              placeholder: placeholder || tx("settings.chip.add_placeholder", "Add..."),
+              cls: "sk-chip-input"
+            });
+            const addChip = async (raw) => {
+              const val = String(raw || "").trim();
+              if (!val) return;
+              if (!items.includes(val)) {
+                items.push(val);
+                await onSave(items);
+              }
+              input.value = "";
+              renderChips();
+            };
+            input.addEventListener("keydown", (e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                addChip(input.value);
+              } else if (e.key === "Backspace" && !input.value && items.length > 0) {
+                items.pop();
+                onSave(items);
+                renderChips();
+              }
+            });
+          };
+          renderChips();
+          return container;
+        }
+        renderWipEditor(parentEl, { key, pairs, onSave }) {
+          const container = parentEl.createDiv({ cls: "sk-wip-editor" });
+          const renderRows = () => {
+            container.empty();
+            for (let i = 0; i < pairs.length; i++) {
+              const row = container.createDiv({ cls: "sk-wip-row" });
+              row.createSpan({ text: pairs[i].lane, cls: "sk-wip-lane-name" });
+              const numInput = row.createEl("input", {
+                type: "number",
+                value: String(pairs[i].limit),
+                cls: "sk-wip-num-input"
+              });
+              numInput.min = "1";
+              numInput.addEventListener("change", async () => {
+                const parsed = Number.parseInt(numInput.value, 10);
+                if (Number.isFinite(parsed) && parsed > 0) {
+                  pairs[i].limit = parsed;
+                  await onSave(pairs);
+                }
+              });
+              const removeBtn = row.createSpan({ text: "\xD7", cls: "sk-chip-remove" });
+              removeBtn.addEventListener("click", async () => {
+                pairs.splice(i, 1);
+                await onSave(pairs);
+                renderRows();
+              });
+            }
+            const addRow = container.createDiv({ cls: "sk-wip-add-row" });
+            const laneInput = addRow.createEl("input", {
+              type: "text",
+              placeholder: tx("settings.wip.lane_placeholder", "Lane name"),
+              cls: "sk-wip-add-lane"
+            });
+            const limitInput = addRow.createEl("input", {
+              type: "number",
+              placeholder: tx("settings.wip.limit_placeholder", "Limit"),
+              cls: "sk-wip-add-limit"
+            });
+            limitInput.min = "1";
+            const addBtn = addRow.createEl("button", {
+              text: tx("common.add", "Add"),
+              cls: "sk-wip-add-btn"
+            });
+            const doAdd = async () => {
+              const lane = String(laneInput.value || "").trim();
+              const limit = Number.parseInt(limitInput.value, 10);
+              if (!lane || !Number.isFinite(limit) || limit <= 0) return;
+              if (!pairs.find((p) => p.lane === lane)) {
+                pairs.push({ lane, limit });
+                await onSave(pairs);
+                renderRows();
+              }
+            };
+            addBtn.addEventListener("click", doAdd);
+            laneInput.addEventListener("keydown", (e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                doAdd();
+              }
+            });
+            limitInput.addEventListener("keydown", (e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                doAdd();
+              }
+            });
+          };
+          renderRows();
+          return container;
+        }
         syncTheme() {
           if (!this.getActiveBoard() && this.plugin.settings.defaultBoardConfig && this.plugin.settings.theme) {
             this.plugin.settings.defaultBoardConfig.theme = JSON.parse(JSON.stringify(this.plugin.settings.theme));
@@ -3378,39 +3512,63 @@ var require_settings_tab = __commonJS({
             this.addInheritButton(st, key);
             this.addScopeBadge(st, key);
           }
-          const customFieldsSetting = new Setting2(fieldSection).setName(tx("settings.custom_fields.name", "Custom fields")).setDesc(tx("settings.custom_fields.desc", "Extra frontmatter keys to display on cards. Comma-separated.")).addText(
-            (text) => text.setPlaceholder("effort, assignee").setValue(this.getSetting("customFields")).onChange(async (value) => {
-              this.setSetting("customFields", value, { allowInherit: true });
-              await this.plugin.saveSettings();
-              this.plugin.refreshViews();
-            })
-          );
+          const customFieldsSetting = new Setting2(fieldSection).setName(tx("settings.custom_fields.name", "Custom fields")).setDesc(tx("settings.custom_fields.desc", "Extra frontmatter keys to display on cards."));
           this.addInheritButton(customFieldsSetting, "customFields");
           this.addScopeBadge(customFieldsSetting, "customFields");
+          {
+            const raw = this.getSetting("customFields") || "";
+            const items = raw.split(",").map((s) => s.trim()).filter(Boolean);
+            this.renderChipEditor(fieldSection, {
+              key: "customFields",
+              items,
+              placeholder: tx("settings.chip.custom_field_placeholder", "Add field..."),
+              onSave: async (chips) => {
+                this.setSetting("customFields", chips.join(", "), { allowInherit: true });
+                await this.plugin.saveSettings();
+                this.plugin.refreshViews();
+              }
+            });
+          }
           const layoutSection = section(containerEl, t2("settings.section.layout"), t2("settings.section.layout.desc"));
-          const statusOrderSetting = new Setting2(layoutSection).setName(tx("settings.status_order.name", "Status order")).setDesc(tx("settings.status_order.desc", "Comma-separated lane names in display order.")).addTextArea(
-            (text) => text.setValue(this.getSetting("statusOrder")).onChange(async (value) => {
-              this.setSetting("statusOrder", value, { allowInherit: true });
-              await this.plugin.saveSettings();
-              this.plugin.refreshViews();
-            })
-          );
+          const statusOrderSetting = new Setting2(layoutSection).setName(tx("settings.status_order.name", "Status order")).setDesc(tx("settings.status_order.desc", "Lane names in display order. Drag to reorder or use Lane Manager below."));
           this.addInheritButton(statusOrderSetting, "statusOrder");
           this.addScopeBadge(statusOrderSetting, "statusOrder");
+          {
+            const raw = this.getSetting("statusOrder") || "";
+            const items = raw.split(",").map((s) => s.trim()).filter(Boolean);
+            this.renderChipEditor(layoutSection, {
+              key: "statusOrder",
+              items,
+              placeholder: tx("settings.chip.status_placeholder", "Add lane..."),
+              onSave: async (chips) => {
+                this.setSetting("statusOrder", chips.join(", "), { allowInherit: true });
+                await this.plugin.saveSettings();
+                this.plugin.refreshViews();
+              }
+            });
+          }
           new Setting2(layoutSection).setName(tx("settings.status_manager.name", "Lane manager")).setDesc(tx("settings.status_manager.desc", "Discover and reorder lanes from current board data.")).addButton((btn) => {
             btn.setButtonText(tx("settings.status_manager.open", "Manage lanes")).onClick(async () => {
               await this.manageStatusesInteractive();
             });
           });
-          const priorityOrderSetting = new Setting2(layoutSection).setName(tx("settings.priority_order.name", "Priority order")).setDesc(tx("settings.priority_order.desc", "Defines priority ranking for sorting. Comma-separated, highest first.")).addText(
-            (text) => text.setPlaceholder("Urgent,High,Medium,Low").setValue(this.getSetting("priorityOrder")).onChange(async (value) => {
-              this.setSetting("priorityOrder", value, { allowInherit: true });
-              await this.plugin.saveSettings();
-              this.plugin.refreshViews();
-            })
-          );
+          const priorityOrderSetting = new Setting2(layoutSection).setName(tx("settings.priority_order.name", "Priority order")).setDesc(tx("settings.priority_order.desc", "Priority ranking for sorting. Highest first."));
           this.addInheritButton(priorityOrderSetting, "priorityOrder");
           this.addScopeBadge(priorityOrderSetting, "priorityOrder");
+          {
+            const raw = this.getSetting("priorityOrder") || "";
+            const items = raw.split(",").map((s) => s.trim()).filter(Boolean);
+            this.renderChipEditor(layoutSection, {
+              key: "priorityOrder",
+              items,
+              placeholder: tx("settings.chip.priority_placeholder", "Add priority..."),
+              onSave: async (chips) => {
+                this.setSetting("priorityOrder", chips.join(", "), { allowInherit: true });
+                await this.plugin.saveSettings();
+                this.plugin.refreshViews();
+              }
+            });
+          }
           const sortBySetting = new Setting2(layoutSection).setName(tx("settings.sort_by.name", "Sort by")).setDesc(tx("settings.sort_by.desc", "Default card sorting within each lane.")).addDropdown(
             (dropdown) => dropdown.addOption("none", tx("settings.sort_by.none", "Manual (drag to reorder)")).addOption("priority", tx("settings.sort_by.priority", "Priority")).addOption("due", tx("settings.sort_by.due", "Due date")).addOption("title", tx("settings.sort_by.title", "Title")).setValue(this.getSetting("sortBy")).onChange(async (value) => {
               this.setSetting("sortBy", value);
@@ -3439,15 +3597,26 @@ var require_settings_tab = __commonJS({
           );
           this.addInheritButton(dueSoonSetting, "dueSoonDays");
           this.addScopeBadge(dueSoonSetting, "dueSoonDays");
-          const wipLimitsSetting = new Setting2(layoutSection).setName(tx("settings.wip_limits.name", "WIP limits")).setDesc(tx("settings.wip_limits.desc", "Limit cards per lane. Format: Todo:10, In Progress:3")).addTextArea(
-            (text) => text.setValue(this.getSetting("wipLimits")).onChange(async (value) => {
-              this.setSetting("wipLimits", value, { allowInherit: true });
-              await this.plugin.saveSettings();
-              this.plugin.refreshViews();
-            })
-          );
+          const wipLimitsSetting = new Setting2(layoutSection).setName(tx("settings.wip_limits.name", "WIP limits")).setDesc(tx("settings.wip_limits.desc", "Limit cards per lane."));
           this.addInheritButton(wipLimitsSetting, "wipLimits");
           this.addScopeBadge(wipLimitsSetting, "wipLimits");
+          {
+            const raw = this.getSetting("wipLimits") || "";
+            const pairs = raw.split(",").map((s) => s.trim()).filter(Boolean).map((entry) => {
+              const [lane, num] = entry.split(":").map((p) => p.trim());
+              return { lane: lane || "", limit: Number.parseInt(num, 10) || 5 };
+            }).filter((p) => p.lane);
+            this.renderWipEditor(layoutSection, {
+              key: "wipLimits",
+              pairs,
+              onSave: async (wipPairs) => {
+                const str = wipPairs.map((p) => `${p.lane}:${p.limit}`).join(", ");
+                this.setSetting("wipLimits", str, { allowInherit: true });
+                await this.plugin.saveSettings();
+                this.plugin.refreshViews();
+              }
+            });
+          }
           const autoArchiveSetting = new Setting2(layoutSection).setName(tx("settings.auto_archive.name", "Auto-archive done tasks")).setDesc(tx("settings.auto_archive.desc", "Hide completed tasks older than this many days. Set to 0 to disable.")).addText(
             (text) => text.setValue(String(this.getSetting("autoArchiveDays", 0) || 0)).onChange(async (value) => {
               const parsed = Number.parseInt(value, 10);

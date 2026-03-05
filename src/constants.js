@@ -14,102 +14,72 @@ const THEME_PRESETS = {
     fontFamily: "",
     defaultLaneColors: {}
   },
+  warm: {
+    name: "Warm Board",
+    cardBg: "#ffffff", cardText: "#37352f", cardBorder: "#e7e4e1",
+    laneBg: "#f7f6f3", laneHeaderBg: "#ece9e5", laneHeaderText: "#5f5a52", laneBorder: "#e9e6e2",
+    boardBg: "#f5f4f1",
+    tagBg: "#ebe9e6", tagText: "#6f6a64", tagBorder: "#ddd8d2",
+    accentColor: "#2f80ed",
+    priorityUrgent: "#e03e3e", priorityHigh: "#d9730d", priorityMedium: "#dfab01", priorityLow: "#0f7b6c",
+    dueBadgeOverdue: "#e03e3e", dueBadgeSoon: "#d9730d",
+    fontFamily: "",
+    defaultLaneColors: {
+      "Backlog": { bg: "#b08968", text: "#fffaf5" },
+      "Todo": { bg: "#c08b5a", text: "#fffaf5" },
+      "In Progress": { bg: "#ad7fa8", text: "#fff7ff" },
+      "Follow": { bg: "#6f7f8f", text: "#f6fbff" },
+      "Try": { bg: "#5f9bc9", text: "#f5fbff" },
+      "Recurring": { bg: "#8f79bc", text: "#f8f5ff" },
+      "Research": { bg: "#b57a7a", text: "#fff7f7" },
+      "Done": { bg: "#7ca56c", text: "#f7fff5" }
+    }
+  },
+  graphite: {
+    name: "Graphite",
+    cardBg: "#ffffff", cardText: "#2f3437", cardBorder: "#d8dde2",
+    laneBg: "#f2f4f7", laneHeaderBg: "#e4e8ed", laneHeaderText: "#4a525a", laneBorder: "#d6dce3",
+    boardBg: "#eef2f6",
+    tagBg: "#e8edf2", tagText: "#58606a", tagBorder: "#d2d9e0",
+    accentColor: "#4c6ef5",
+    priorityUrgent: "#d94848", priorityHigh: "#e67700", priorityMedium: "#c99700", priorityLow: "#2f9e44",
+    dueBadgeOverdue: "#d94848", dueBadgeSoon: "#e67700",
+    fontFamily: "",
+    defaultLaneColors: {
+      "Backlog": { bg: "#7a8694", text: "#f8fbff" },
+      "Todo": { bg: "#637381", text: "#f8fbff" },
+      "In Progress": { bg: "#556270", text: "#f8fbff" },
+      "Done": { bg: "#3f4a57", text: "#f6f9ff" }
+    }
+  },
   ocean: {
-    name: "Ocean",
-    cardBg: "#e7f5ff", cardText: "#1c3d5a", cardBorder: "#a5d8ff",
-    laneBg: "#d0ebff", laneHeaderBg: "#1971c2", laneHeaderText: "#ffffff", laneBorder: "#74c0fc",
-    boardBg: "#e7f5ff",
-    tagBg: "#a5d8ff", tagText: "#1864ab", tagBorder: "#74c0fc",
-    accentColor: "#1971c2",
-    priorityUrgent: "#c92a2a", priorityHigh: "#d9480f", priorityMedium: "#e8590c", priorityLow: "#2b8a3e",
-    dueBadgeOverdue: "#c92a2a", dueBadgeSoon: "#e8590c",
+    name: "Ocean Mist",
+    cardBg: "#f6fbff", cardText: "#1f3b53", cardBorder: "#d6e8f7",
+    laneBg: "#edf6fd", laneHeaderBg: "#dcecf9", laneHeaderText: "#305672", laneBorder: "#d0e3f4",
+    boardBg: "#eef7ff",
+    tagBg: "#dcecf9", tagText: "#2f5d82", tagBorder: "#c7def1",
+    accentColor: "#0b6e99",
+    priorityUrgent: "#d94848", priorityHigh: "#d97706", priorityMedium: "#ca8a04", priorityLow: "#0f7b6c",
+    dueBadgeOverdue: "#d94848", dueBadgeSoon: "#d97706",
     fontFamily: "",
     defaultLaneColors: {
-      "Backlog": { bg: "#1864ab", text: "#ffffff" },
-      "Todo": { bg: "#1971c2", text: "#ffffff" },
-      "In Progress": { bg: "#1c7ed6", text: "#ffffff" },
-      "Done": { bg: "#228be6", text: "#ffffff" }
-    }
-  },
-  forest: {
-    name: "Forest",
-    cardBg: "#ebfbee", cardText: "#1b4332", cardBorder: "#b2f2bb",
-    laneBg: "#d3f9d8", laneHeaderBg: "#2b8a3e", laneHeaderText: "#ffffff", laneBorder: "#8ce99a",
-    boardBg: "#ebfbee",
-    tagBg: "#b2f2bb", tagText: "#1b4332", tagBorder: "#8ce99a",
-    accentColor: "#2b8a3e",
-    priorityUrgent: "#c92a2a", priorityHigh: "#e8590c", priorityMedium: "#f08c00", priorityLow: "#37b24d",
-    dueBadgeOverdue: "#c92a2a", dueBadgeSoon: "#e8590c",
-    fontFamily: "",
-    defaultLaneColors: {
-      "Backlog": { bg: "#1b4332", text: "#ffffff" },
-      "Todo": { bg: "#2b8a3e", text: "#ffffff" },
-      "In Progress": { bg: "#37b24d", text: "#ffffff" },
-      "Done": { bg: "#40c057", text: "#ffffff" }
-    }
-  },
-  sunset: {
-    name: "Sunset",
-    cardBg: "#fff9db", cardText: "#5c3d0e", cardBorder: "#ffe066",
-    laneBg: "#fff3bf", laneHeaderBg: "#e8590c", laneHeaderText: "#ffffff", laneBorder: "#ffd43b",
-    boardBg: "#fff9db",
-    tagBg: "#ffe066", tagText: "#5c3d0e", tagBorder: "#ffd43b",
-    accentColor: "#e8590c",
-    priorityUrgent: "#c92a2a", priorityHigh: "#d9480f", priorityMedium: "#f08c00", priorityLow: "#5c940d",
-    dueBadgeOverdue: "#c92a2a", dueBadgeSoon: "#e8590c",
-    fontFamily: "",
-    defaultLaneColors: {
-      "Backlog": { bg: "#d9480f", text: "#ffffff" },
-      "Todo": { bg: "#e8590c", text: "#ffffff" },
-      "In Progress": { bg: "#f76707", text: "#ffffff" },
-      "Done": { bg: "#fd7e14", text: "#ffffff" }
+      "Backlog": { bg: "#5f89ad", text: "#f5fbff" },
+      "Todo": { bg: "#4f7ea8", text: "#f5fbff" },
+      "In Progress": { bg: "#3f739f", text: "#f5fbff" },
+      "Done": { bg: "#2f678f", text: "#f5fbff" }
     }
   },
   midnight: {
-    name: "Midnight",
-    cardBg: "#1a1b2e", cardText: "#c1c2d3", cardBorder: "#2d2e4a",
-    laneBg: "#141524", laneHeaderBg: "#3b3d8c", laneHeaderText: "#e0e0ff", laneBorder: "#2d2e4a",
-    boardBg: "#0f1020",
-    tagBg: "#2d2e4a", tagText: "#a5a6ff", tagBorder: "#3b3d8c",
-    accentColor: "#5c5ce0",
-    priorityUrgent: "#ff6b6b", priorityHigh: "#ff922b", priorityMedium: "#ffd43b", priorityLow: "#69db7c",
-    dueBadgeOverdue: "#ff6b6b", dueBadgeSoon: "#ff922b",
-    fontFamily: "",
-    defaultLaneColors: {
-      "Backlog": { bg: "#2b2c5e", text: "#e0e0ff" },
-      "Todo": { bg: "#3b3d8c", text: "#e0e0ff" },
-      "In Progress": { bg: "#4c4fb3", text: "#e0e0ff" },
-      "Done": { bg: "#5c5ce0", text: "#ffffff" }
-    }
-  },
-  minimal: {
-    name: "Minimal",
-    cardBg: "#fafafa", cardText: "#343a40", cardBorder: "#dee2e6",
-    laneBg: "#f1f3f5", laneHeaderBg: "#868e96", laneHeaderText: "#ffffff", laneBorder: "#ced4da",
-    boardBg: "#f8f9fa",
-    tagBg: "#e9ecef", tagText: "#495057", tagBorder: "#ced4da",
-    accentColor: "#495057",
-    priorityUrgent: "#c92a2a", priorityHigh: "#d9480f", priorityMedium: "#e8590c", priorityLow: "#5c940d",
-    dueBadgeOverdue: "#c92a2a", dueBadgeSoon: "#e8590c",
+    name: "Midnight Pro",
+    cardBg: "#1b1d22", cardText: "#e7e9ee", cardBorder: "#343841",
+    laneBg: "#15171b", laneHeaderBg: "#23262d", laneHeaderText: "#f5f7fb", laneBorder: "#30343d",
+    boardBg: "#101216",
+    tagBg: "#2a2d34", tagText: "#d7dce6", tagBorder: "#3c4048",
+    accentColor: "#8aa6ff",
+    priorityUrgent: "#ff7b7b", priorityHigh: "#ffb366", priorityMedium: "#ffd98a", priorityLow: "#7cd9a4",
+    dueBadgeOverdue: "#ff7b7b", dueBadgeSoon: "#ffb366",
     fontFamily: "",
     defaultLaneColors: {}
-  },
-  candy: {
-    name: "Candy",
-    cardBg: "#fff0f6", cardText: "#6b1d3a", cardBorder: "#fcc2d7",
-    laneBg: "#ffe3ec", laneHeaderBg: "#c2255c", laneHeaderText: "#ffffff", laneBorder: "#f783ac",
-    boardBg: "#fff0f6",
-    tagBg: "#fcc2d7", tagText: "#a61e4d", tagBorder: "#f783ac",
-    accentColor: "#c2255c",
-    priorityUrgent: "#e03131", priorityHigh: "#d9480f", priorityMedium: "#f08c00", priorityLow: "#37b24d",
-    dueBadgeOverdue: "#e03131", dueBadgeSoon: "#e8590c",
-    fontFamily: "",
-    defaultLaneColors: {
-      "Backlog": { bg: "#a61e4d", text: "#ffffff" },
-      "Todo": { bg: "#c2255c", text: "#ffffff" },
-      "In Progress": { bg: "#d6336c", text: "#ffffff" },
-      "Done": { bg: "#e64980", text: "#ffffff" }
-    }
   },
 };
 

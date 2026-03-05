@@ -99,6 +99,29 @@
 
 .smart-kanban-search-icon svg { width: 14px; height: 14px; display: block; }
 
+/* ── Sort controls ── */
+.smart-kanban-sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.smart-kanban-sort-select {
+  max-width: 132px;
+  height: 28px;
+  padding: 0 8px;
+  font-size: 0.72rem;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--sk-radius-sm);
+  background: var(--background-primary);
+  color: var(--text-normal);
+}
+
+.smart-kanban-sort-select:focus {
+  outline: none;
+  border-color: var(--interactive-accent);
+}
+
 /* ── Icon buttons ── */
 .smart-kanban-icon-btn {
   background: none;
@@ -534,7 +557,7 @@
   min-width: 0;
   line-height: 1.4;
   word-break: break-word;
-  color: var(--text-normal);
+  color: var(--sk-card-text, var(--text-normal));
 }
 
 
@@ -697,6 +720,36 @@
 
 .theme-dark .smart-kanban-quick-add-label {
   color: color-mix(in srgb, var(--sk-lane-accent-text, #d8d8d8) 86%, #d8d8d8);
+}
+
+/* Force readable controls when a dark preset is used in light app theme */
+.smart-kanban-view.sk-theme-dark-preset .smart-kanban-title,
+.smart-kanban-view.sk-theme-dark-preset .smart-kanban-board-tab,
+.smart-kanban-view.sk-theme-dark-preset .smart-kanban-viewmode-tab,
+.smart-kanban-view.sk-theme-dark-preset .smart-kanban-dropdown-trigger,
+.smart-kanban-view.sk-theme-dark-preset .smart-kanban-filter-clear-btn,
+.smart-kanban-view.sk-theme-dark-preset .smart-kanban-preset-select,
+.smart-kanban-view.sk-theme-dark-preset .smart-kanban-sort-select,
+.smart-kanban-view.sk-theme-dark-preset .smart-kanban-search-input {
+  color: #dce4ee;
+}
+
+.smart-kanban-view.sk-theme-dark-preset .smart-kanban-search-input,
+.smart-kanban-view.sk-theme-dark-preset .smart-kanban-dropdown-trigger,
+.smart-kanban-view.sk-theme-dark-preset .smart-kanban-filter-clear-btn,
+.smart-kanban-view.sk-theme-dark-preset .smart-kanban-preset-select,
+.smart-kanban-view.sk-theme-dark-preset .smart-kanban-sort-select {
+  background: #1b2530;
+  border-color: #3a4654;
+}
+
+.smart-kanban-view.sk-theme-dark-preset .smart-kanban-icon-btn {
+  color: #dce4ee;
+  opacity: 0.72;
+}
+
+.smart-kanban-view.sk-theme-dark-preset .smart-kanban-card {
+  border-color: var(--sk-card-border, #3a4654);
 }
 
 
@@ -1226,4 +1279,131 @@
   background: color-mix(in srgb, var(--interactive-accent) 12%, transparent);
   border-color: color-mix(in srgb, var(--interactive-accent) 35%, var(--background-modifier-border));
   color: var(--interactive-accent);
+}
+
+
+/* ═══════════════════  Chip Editor  ═══════════════════ */
+
+.sk-chip-editor {
+  margin-bottom: 12px;
+}
+
+.sk-chip-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  background: var(--background-primary);
+  min-height: 36px;
+  align-items: center;
+  cursor: text;
+}
+
+.sk-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px 3px 10px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+
+.sk-chip-text {
+  user-select: none;
+}
+
+.sk-chip-remove {
+  cursor: pointer;
+  opacity: 0.4;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0 2px;
+  transition: opacity 120ms;
+}
+
+.sk-chip-remove:hover {
+  opacity: 1;
+  color: var(--color-red);
+}
+
+.sk-chip-input {
+  flex: 1;
+  min-width: 80px;
+  border: none !important;
+  background: transparent !important;
+  outline: none !important;
+  box-shadow: none !important;
+  font-size: 0.78rem;
+  padding: 2px 4px !important;
+  line-height: 1.4;
+}
+
+.sk-chip-input::placeholder {
+  color: var(--text-faint);
+  opacity: 0.6;
+}
+
+
+/* ═══════════════════  WIP Pair Editor  ═══════════════════ */
+
+.sk-wip-editor {
+  margin-bottom: 12px;
+}
+
+.sk-wip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px;
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  margin-bottom: 4px;
+}
+
+.sk-wip-lane-name {
+  flex: 1;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.sk-wip-num-input {
+  width: 60px !important;
+  text-align: center;
+  font-size: 0.8rem;
+  padding: 3px 6px !important;
+  border: 1px solid var(--background-modifier-border) !important;
+  border-radius: 6px;
+  background: var(--background-primary) !important;
+}
+
+.sk-wip-add-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.sk-wip-add-lane {
+  flex: 1;
+  font-size: 0.8rem;
+  padding: 5px 10px;
+}
+
+.sk-wip-add-limit {
+  width: 70px;
+  font-size: 0.8rem;
+  padding: 5px 8px;
+  text-align: center;
+}
+
+.sk-wip-add-btn {
+  font-size: 0.8rem;
+  padding: 5px 14px;
 }
