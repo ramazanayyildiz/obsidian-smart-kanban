@@ -14,7 +14,7 @@ initUtils({ uniqueStrings });
 const ensureFile = createEnsureFile(TFile);
 const {
   BoardManagerModal, DragReorderListModal, SimpleFormModal, SimpleConfirmModal,
-} = require("./modals")({ Modal, Notice });
+} = require("./modals")({ Modal, Notice, t });
 const { SmartKanbanView } = require("./view")({
   ItemView, TFile, Notice, setIcon, VIEW_TYPE_SMART_KANBAN, normalizeDateInput, splitCsv, t,
 });
@@ -53,7 +53,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
       name: "Smart Kanban: Self-check",
       callback: async () => {
         const cards = await this.collectCards();
-        new Notice(`Smart Kanban self-check OK. Cards loaded: ${cards.length}`);
+        new Notice(t("main.self_check_ok", { count: cards.length }));
       },
     });
 
@@ -63,21 +63,21 @@ module.exports = class SmartKanbanPlugin extends Plugin {
       callback: async () => {
         const boards = this.settings.boards || [];
         if (boards.length === 0) {
-          new Notice("No custom boards. Use default board.");
+          new Notice(t("main.no_custom_boards"));
           await this.activateView();
           return;
         }
         const values = await this.openFormModal({
-          title: "Select Board",
-          submitText: "Open",
+          title: t("main.select_board.title"),
+          submitText: t("main.select_board.submit"),
           fields: [
             {
               key: "board",
-              label: "Board",
+              label: t("main.select_board.label"),
               value: "",
               type: "select",
               options: ["", ...boards.map((b) => b.id)],
-              optionLabels: { "": "Default Board", ...Object.fromEntries(boards.map((b) => [b.id, b.name])) },
+              optionLabels: { "": t("view.board.default"), ...Object.fromEntries(boards.map((b) => [b.id, b.name])) },
             },
           ],
         });
@@ -100,19 +100,19 @@ module.exports = class SmartKanbanPlugin extends Plugin {
       this.app.workspace.on("file-menu", (menu, file) => {
         if (file instanceof TFolder) {
           menu.addItem((item) => {
-            item.setTitle("Open as Kanban Board")
+            item.setTitle(t("main.file_menu.open_as_board"))
               .setIcon("kanban-square")
               .onClick(async () => {
                 this.settings.sourceFolder = file.path;
                 await this.saveSettings();
                 await this.activateView();
-                new Notice(`Kanban: source folder → ${file.path}`);
+                new Notice(t("main.source_folder_set", { path: file.path }));
               });
           });
         }
         if (file instanceof TFile && file.extension === "md") {
           menu.addItem((item) => {
-            item.setTitle("Show in Kanban")
+            item.setTitle(t("main.file_menu.show_in_kanban"))
               .setIcon("kanban-square")
               .onClick(async () => {
                 const folder = file.parent ? file.parent.path : "";
@@ -260,7 +260,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     if (!board) return { ...this.settings };
     if (board.type === "filtered-view" && board.parentBoardId) {
       if (visited.has(board.id)) {
-        new Notice(`Detected board parent cycle at "${board.name || board.id}". Using global settings fallback.`);
+        new Notice(t("main.board_parent_cycle", { name: board.name || board.id }));
         return { ...this.settings };
       }
       const nextVisited = new Set(visited);
@@ -378,14 +378,14 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     const file = await this.createTaskNote(title, fields, eff);
     if (file) {
       await this.app.workspace.getLeaf(true).openFile(file);
-      new Notice(`Created task note: ${file.basename}`);
+      new Notice(t("main.task_note_created", { name: file.basename }));
     }
   }
 
   async createTaskNote(title, fields, eff = this.settings) {
     const folderPath = String(eff.sourceFolder || "").trim();
     if (!folderPath) {
-      new Notice("Source folder is empty.");
+      new Notice(t("main.source_folder_empty"));
       return null;
     }
 
@@ -402,7 +402,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
 
     const templateFile = this.app.vault.getAbstractFileByPath(templatePath);
     if (!(templateFile instanceof TFile)) {
-      new Notice(`Template file not found: ${templatePath}. Using default note layout.`);
+      new Notice(t("main.template_missing", { path: templatePath }));
       const frontmatter = buildFrontmatterBlock(preparedFields);
       return await this.app.vault.create(filePath, `${frontmatter}\n# ${title}\n`);
     }
@@ -415,7 +415,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
   async createTaskLine(title, fields, eff = this.settings) {
     const inboxFile = String(eff.taskInboxFile || "").trim();
     if (!inboxFile) {
-      new Notice("Task inbox file is empty.");
+      new Notice(t("main.task_inbox_empty"));
       return;
     }
 
@@ -436,7 +436,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     await this.app.vault.modify(file, `${current}${prefix}${line}\n`);
 
     await this.app.workspace.getLeaf(true).openFile(file);
-    new Notice("Created task line.");
+    new Notice(t("main.task_line_created"));
   }
 
   prepareFieldsForWrite(fields, eff = this.settings) {
@@ -686,14 +686,14 @@ module.exports = class SmartKanbanPlugin extends Plugin {
   async deleteTaskLine(card) {
     const file = this.app.vault.getAbstractFileByPath(card.path);
     if (!(file instanceof TFile)) {
-      new Notice(`File not found: ${card.path}`);
+      new Notice(t("main.file_not_found", { path: card.path }));
       return;
     }
     const content = await this.app.vault.read(file);
     const lines = content.split(/\r?\n/);
     const index = Number(card.lineNumber) - 1;
     if (index < 0 || index >= lines.length) {
-      new Notice(`Task line not found: ${card.path}:${card.lineNumber}`);
+      new Notice(t("main.task_line_not_found", { path: card.path, line: card.lineNumber }));
       return;
     }
     lines.splice(index, 1);
@@ -703,7 +703,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
   async deleteNoteCard(card) {
     const file = this.app.vault.getAbstractFileByPath(card.path);
     if (!(file instanceof TFile)) {
-      new Notice(`File not found: ${card.path}`);
+      new Notice(t("main.file_not_found", { path: card.path }));
       return;
     }
     await this.app.vault.trash(file, true);
@@ -721,7 +721,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
   async renameNoteCard(card, newTitle) {
     const file = this.app.vault.getAbstractFileByPath(card.path);
     if (!(file instanceof TFile)) {
-      new Notice(`File not found: ${card.path}`);
+      new Notice(t("main.file_not_found", { path: card.path }));
       return;
     }
     const folder = file.parent ? file.parent.path : "";
@@ -730,21 +730,21 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     try {
       await this.app.fileManager.renameFile(file, newPath);
     } catch (err) {
-      new Notice(`Rename failed: ${err.message || err}`);
+      new Notice(t("main.rename_failed", { error: err.message || err }));
     }
   }
 
   async updateTaskCardTitle(card, newTitle) {
     const file = this.app.vault.getAbstractFileByPath(card.path);
     if (!(file instanceof TFile)) {
-      new Notice(`File not found: ${card.path}`);
+      new Notice(t("main.file_not_found", { path: card.path }));
       return;
     }
     const content = await this.app.vault.read(file);
     const lines = content.split(/\r?\n/);
     const index = Number(card.lineNumber) - 1;
     if (index < 0 || index >= lines.length) {
-      new Notice(`Task line not found: ${card.path}:${card.lineNumber}`);
+      new Notice(t("main.task_line_not_found", { path: card.path, line: card.lineNumber }));
       return;
     }
     const line = lines[index];
@@ -770,7 +770,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
   async updateNoteCardFields(card, updates, _eff = this.settings) {
     const file = this.app.vault.getAbstractFileByPath(card.path);
     if (!(file instanceof TFile)) {
-      new Notice(`File not found: ${card.path}`);
+      new Notice(t("main.file_not_found", { path: card.path }));
       return;
     }
 
@@ -792,7 +792,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
   async updateTaskCardFields(card, updates, _eff = this.settings) {
     const file = this.app.vault.getAbstractFileByPath(card.path);
     if (!(file instanceof TFile)) {
-      new Notice(`File not found: ${card.path}`);
+      new Notice(t("main.file_not_found", { path: card.path }));
       return;
     }
 
@@ -800,7 +800,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     const lines = content.split(/\r?\n/);
     const index = Number(card.lineNumber) - 1;
     if (index < 0 || index >= lines.length) {
-      new Notice(`Task line not found: ${card.path}:${card.lineNumber}`);
+      new Notice(t("main.task_line_not_found", { path: card.path, line: card.lineNumber }));
       return;
     }
 

@@ -217,10 +217,498 @@ var require_constants = __commonJS({
       boards: [],
       activeBoardId: "",
       autoArchiveDays: 0,
+      noteTemplate: "",
+      tagColors: {},
+      categoryColors: {},
+      dateFormat: "YYYY-MM-DD",
+      dateDisplayFormat: "",
+      showRelativeDate: true,
+      language: "en",
       theme: { preset: "default", overrides: {}, laneColors: {} },
       cardOrder: {}
     };
     module2.exports = { VIEW_TYPE_SMART_KANBAN: VIEW_TYPE_SMART_KANBAN2, THEME_PRESETS: THEME_PRESETS2, DEFAULT_SETTINGS: DEFAULT_SETTINGS2 };
+  }
+});
+
+// src/i18n.js
+var require_i18n = __commonJS({
+  "src/i18n.js"(exports2, module2) {
+    var LOCALES2 = {
+      en: {
+        "common.add": "Add",
+        "common.cancel": "Cancel",
+        "common.clear": "Clear",
+        "common.close": "Close",
+        "common.create": "Create",
+        "common.delete": "Delete",
+        "common.edit": "Edit",
+        "common.ellipsis": "...",
+        "common.confirm": "Confirm",
+        "common.none": "None",
+        "common.reset": "Reset",
+        "common.save": "Save",
+        "settings.section.dataSource": "Data Source",
+        "settings.section.dataSource.desc": "Where your tasks come from.",
+        "settings.section.fieldMapping": "Field Mapping",
+        "settings.section.fieldMapping.desc": "Map your frontmatter or inline fields to Kanban properties.",
+        "settings.section.layout": "Board Layout",
+        "settings.section.layout.desc": "Control lane order, sorting, and work-in-progress limits.",
+        "settings.section.appearance": "Appearance",
+        "settings.section.appearance.desc": "Customize colors, fonts, and visual theme.",
+        "settings.section.advanced": "Advanced",
+        "settings.section.advanced.desc": "Performance and behavior tuning.",
+        "settings.section.dateDisplay": "Date Display",
+        "settings.section.dateDisplay.desc": "Control saved date format and due badge rendering.",
+        "settings.language.name": "Language",
+        "settings.language.desc": "UI language for Smart Kanban.",
+        "settings.source_mode.name": "Source mode",
+        "settings.source_mode.desc": "Note cards create one file per task. Task lines use checklist syntax in a single file.",
+        "settings.source_mode.notes": "Note cards",
+        "settings.source_mode.tasks": "Task lines",
+        "settings.source_folder.name": "Source folder",
+        "settings.source_folder.desc": "Folder containing your task notes or files.",
+        "settings.include_subfolders.name": "Include subfolders",
+        "settings.include_subfolders.desc": "Also scan nested folders inside the source folder.",
+        "settings.task_inbox.name": "Task inbox file",
+        "settings.task_inbox.desc": "File used when adding new tasks in Task Lines mode.",
+        "settings.note_template.name": "Note template",
+        "settings.note_template.desc": "Optional template file path used when creating note-mode tasks.",
+        "settings.field.status.name": "Status field",
+        "settings.field.status.desc": "Determines which lane a card appears in.",
+        "settings.field.category.name": "Category field",
+        "settings.field.category.desc": "Optional grouping label shown as a badge.",
+        "settings.field.priority.name": "Priority field",
+        "settings.field.priority.desc": "Sets priority level (Urgent, High, Medium, Low).",
+        "settings.field.tags.name": "Tags field",
+        "settings.field.tags.desc": "Comma-separated tags displayed on the card.",
+        "settings.field.due.name": "Due date field",
+        "settings.field.due.desc": "Date in YYYY-MM-DD format for due tracking.",
+        "settings.custom_fields.name": "Custom fields",
+        "settings.custom_fields.desc": "Extra frontmatter keys to display on cards. Comma-separated.",
+        "settings.status_order.name": "Status order",
+        "settings.status_order.desc": "Comma-separated lane names in display order.",
+        "settings.priority_order.name": "Priority order",
+        "settings.priority_order.desc": "Defines priority ranking for sorting. Comma-separated, highest first.",
+        "settings.sort_by.name": "Sort by",
+        "settings.sort_by.desc": "Default card sorting within each lane.",
+        "settings.sort_by.none": "Manual (drag to reorder)",
+        "settings.sort_by.priority": "Priority",
+        "settings.sort_by.due": "Due date",
+        "settings.sort_by.title": "Title",
+        "settings.sort_direction.name": "Sort direction",
+        "settings.sort_direction.asc": "Ascending",
+        "settings.sort_direction.desc": "Descending",
+        "settings.due_soon.name": "Due soon threshold",
+        "settings.due_soon.desc": "Cards due within this many days are highlighted.",
+        "settings.wip_limits.name": "WIP limits",
+        "settings.wip_limits.desc": "Limit cards per lane. Format: Todo:10, In Progress:3",
+        "settings.auto_archive.name": "Auto-archive done tasks",
+        "settings.auto_archive.desc": "Hide completed tasks older than this many days. Set to 0 to disable.",
+        "settings.date_format.name": "Date format",
+        "settings.date_format.desc": "Storage format for new due dates. Uses Moment.js patterns.",
+        "settings.date_display_format.name": "Date display format",
+        "settings.date_display_format.desc": "Optional display format. Leave empty to use Date format.",
+        "settings.relative_due.name": "Show relative due labels",
+        "settings.relative_due.desc": 'Show labels like "Due in 3d" instead of absolute dates.',
+        "settings.theme_preset.name": "Theme preset",
+        "settings.theme_preset.desc": "Choose a color scheme as a starting point. You can override individual colors below.",
+        "settings.font_family.name": "Font family",
+        "settings.font_family.desc": "Custom font stack for the board. Leave empty for default.",
+        "settings.tag_colors.name": "Tag colors",
+        "settings.tag_colors.desc": "Define per-tag badge colors.",
+        "settings.tag_colors.add": "Add tag color",
+        "settings.tag_colors.key_placeholder": "tag name",
+        "settings.tag_colors.invalid_json": "Invalid tag colors JSON.",
+        "settings.category_colors.name": "Category colors",
+        "settings.category_colors.desc": "Define per-category badge colors.",
+        "settings.category_colors.add": "Add category color",
+        "settings.category_colors.key_placeholder": "category name",
+        "settings.category_colors.invalid_json": "Invalid category colors JSON.",
+        "settings.lane_tint.name": "Lane body tint strength",
+        "settings.lane_tint.desc": "How much lane accent color appears in lane background. 0-40.",
+        "settings.lane_header_tint.name": "Lane header tint strength",
+        "settings.lane_header_tint.desc": "How much lane accent color appears in lane header chip. 0-60.",
+        "settings.per_lane_accent": "Per-Lane Accent Colors",
+        "settings.per_lane_accent.desc": "Accent and header text color for this lane.",
+        "settings.theme.group.card": "Card Colors",
+        "settings.theme.group.lane": "Lane Colors",
+        "settings.theme.group.priority": "Priority",
+        "settings.theme.group.tags": "Tags & Accent",
+        "settings.theme.group.due": "Due Dates",
+        "settings.theme.group.board": "Board",
+        "settings.theme.cardBg": "Background",
+        "settings.theme.cardText": "Text",
+        "settings.theme.cardBorder": "Border",
+        "settings.theme.laneBg": "Base lane tint",
+        "settings.theme.laneHeaderBg": "Base header tint",
+        "settings.theme.laneHeaderText": "Header text",
+        "settings.theme.laneBorder": "Lane border",
+        "settings.theme.priorityUrgent": "Urgent",
+        "settings.theme.priorityHigh": "High",
+        "settings.theme.priorityMedium": "Medium",
+        "settings.theme.priorityLow": "Low",
+        "settings.theme.tagBg": "Tag background",
+        "settings.theme.tagText": "Tag text",
+        "settings.theme.tagBorder": "Tag border",
+        "settings.theme.accentColor": "Accent",
+        "settings.theme.dueBadgeOverdue": "Overdue",
+        "settings.theme.dueBadgeSoon": "Due soon",
+        "settings.theme.boardBg": "Board background",
+        "settings.refresh_debounce.name": "Refresh debounce",
+        "settings.refresh_debounce.desc": "Milliseconds to wait after a file change before refreshing the board.",
+        "settings.language.en": "English",
+        "settings.language.tr": "Turkish",
+        "view.board.default": "Default Board",
+        "view.board.view_suffix": "(view)",
+        "view.board.fallback_title": "Todo",
+        "view.search.placeholder": "Search...",
+        "view.toolbar.toggle_filters": "Toggle Filters",
+        "view.toolbar.new_task": "New Task",
+        "view.toolbar.refresh": "Refresh",
+        "view.toolbar.plugin_settings": "Plugin Settings",
+        "view.toolbar.configure_board": "Configure Board",
+        "view.mode.board": "Board",
+        "view.mode.table": "Table",
+        "view.mode.feed": "Feed",
+        "view.mode.list": "List",
+        "view.configure.title": "Configure Board",
+        "view.configure.lanes": "Lanes / Statuses",
+        "view.configure.custom_fields": "Custom Fields",
+        "view.configure.updated_notice": "Board configuration updated.",
+        "view.task.new.title": "New Task",
+        "view.task.edit.title": "Edit Task",
+        "view.task.title_required": "Task title is required.",
+        "view.task.invalid_due_date": "Invalid due date. Use YYYY-MM-DD.",
+        "view.preset.placeholder": "Views...",
+        "view.preset.delete_title": "Delete view",
+        "view.preset.save_title": "Save current filters as view",
+        "view.preset.save_dialog_title": "Save View Preset",
+        "view.preset.delete_dialog_title": "Delete Preset",
+        "view.preset.name_label": "Preset name",
+        "view.preset.not_found": "Preset not found: {name}",
+        "view.preset.saved_notice": "Saved view: {name}",
+        "view.preset.delete_confirm": 'Delete preset "{name}"?',
+        "view.preset.deleted_notice": "Deleted view: {name}",
+        "view.empty.no_tasks_title": "No tasks found",
+        "view.empty.no_tasks_desc": "Create your first task to get started, or check that your source folder is configured correctly.",
+        "view.empty.create_first_task": "Create First Task",
+        "view.empty.no_filter_match": "No tasks match current filters.",
+        "view.empty.clear_filters": "Clear Filters",
+        "view.empty.no_tasks": "No tasks found.",
+        "view.quick_add.new_page": "+ New page",
+        "view.quick_add.placeholder": "Untitled",
+        "view.menu.edit": "Edit",
+        "view.menu.open_note": "Open Note",
+        "view.menu.mark_done": "Mark Done",
+        "view.menu.move_to": "Move to",
+        "view.menu.completed_notice": "Completed: {title}",
+        "view.delete.title": "Delete Task",
+        "view.delete.message": 'Delete "{title}"? This cannot be undone.',
+        "view.delete.deleted_notice": "Deleted: {title}",
+        "main.no_custom_boards": "No custom boards. Use default board.",
+        "main.select_board.title": "Select Board",
+        "main.select_board.submit": "Open",
+        "main.select_board.label": "Board",
+        "main.self_check_ok": "Smart Kanban self-check OK. Cards loaded: {count}",
+        "main.file_menu.open_as_board": "Open as Kanban Board",
+        "main.file_menu.show_in_kanban": "Show in Kanban",
+        "main.source_folder_set": "Kanban: source folder -> {path}",
+        "main.board_parent_cycle": 'Detected board parent cycle at "{name}". Using global settings fallback.',
+        "main.file_not_found": "File not found: {path}",
+        "main.task_line_not_found": "Task line not found: {path}:{line}",
+        "main.rename_failed": "Rename failed: {error}",
+        "main.task_note_created": "Created task note: {name}",
+        "main.source_folder_empty": "Source folder is empty.",
+        "main.template_missing": "Template file not found: {path}. Using default note layout.",
+        "main.task_inbox_empty": "Task inbox file is empty.",
+        "main.task_line_created": "Created task line.",
+        "modal.board_manager.title": "Board Manager",
+        "modal.board_manager.no_boards": "No custom boards yet.",
+        "modal.board_manager.create_new": "Create New Board",
+        "modal.board_create.title": "Create Board",
+        "modal.board_create.name_required": "Board name is required.",
+        "modal.board_create.created_notice": "Board created: {name}",
+        "modal.board_edit.updated_notice": "Board updated: {name}",
+        "modal.board.field.name": "Board name",
+        "modal.board.field.type": "Type",
+        "modal.board.field.source_folder": "Source folder (blank = inherit)",
+        "modal.board.field.status_order": "Status order (comma-sep, blank = inherit)",
+        "modal.board.field.visible_statuses": "Visible statuses (filtered-view, comma-sep)",
+        "modal.board.field.visible_statuses_short": "Visible statuses (filtered-view)",
+        "modal.board_edit.title": "Edit Board: {name}",
+        "modal.board.field.note_template": "Note template (blank = inherit)",
+        "modal.board.field.sort_by": "Sort by (blank = inherit)",
+        "modal.board.field.due_soon_days": "Due soon days (blank = inherit)",
+        "modal.board.field.wip_limits": "WIP limits (blank = inherit)",
+        "modal.board.field.date_format": "Date format (blank = inherit)",
+        "modal.board.field.date_display_format": "Display format (blank = inherit)",
+        "modal.board.field.show_relative_date": "Relative dates",
+        "modal.board.field.show_relative_date.inherit": "Inherit",
+        "modal.board.field.show_relative_date.yes": "Yes",
+        "modal.board.field.show_relative_date.no": "No",
+        "modal.board.field.tag_colors": "Tag colors JSON (blank = inherit)",
+        "modal.board.field.category_colors": "Category colors JSON (blank = inherit)",
+        "modal.configure.title": "Configure",
+        "modal.drag.add_placeholder": "Add {section}...",
+        "modal.form.title": "Form",
+        "modal.form.field": "Field",
+        "modal.confirm.title": "Confirm",
+        "modal.confirm.message": "Are you sure?",
+        "due.today": "Due today",
+        "due.tomorrow": "Due tomorrow",
+        "due.in_days": "Due in {days}d",
+        "due.overdue_days": "Overdue by {days}d"
+      },
+      tr: {
+        "common.add": "Ekle",
+        "common.cancel": "Iptal",
+        "common.clear": "Temizle",
+        "common.close": "Kapat",
+        "common.create": "Olustur",
+        "common.delete": "Sil",
+        "common.edit": "Duzenle",
+        "common.ellipsis": "...",
+        "common.confirm": "Onayla",
+        "common.none": "Yok",
+        "common.reset": "Sifirla",
+        "common.save": "Kaydet",
+        "settings.section.dataSource": "Veri Kaynagi",
+        "settings.section.dataSource.desc": "Gorevlerin nereden geldigi.",
+        "settings.section.fieldMapping": "Alan Eslestirme",
+        "settings.section.fieldMapping.desc": "Frontmatter veya inline alanlarini Kanban ozelliklerine eslestirin.",
+        "settings.section.layout": "Pano Duzeni",
+        "settings.section.layout.desc": "Lane sirasi, siralama ve WIP limitlerini yonetin.",
+        "settings.section.appearance": "Gorunum",
+        "settings.section.appearance.desc": "Renkleri, fontlari ve tema ayarlarini ozellestirin.",
+        "settings.section.advanced": "Gelismis",
+        "settings.section.advanced.desc": "Performans ve davranis ayarlari.",
+        "settings.section.dateDisplay": "Tarih Gorunumu",
+        "settings.section.dateDisplay.desc": "Kaydedilen tarih formatini ve teslim etiketi gorunumunu yonetin.",
+        "settings.language.name": "Dil",
+        "settings.language.desc": "Smart Kanban arayuz dili.",
+        "settings.source_mode.name": "Kaynak modu",
+        "settings.source_mode.desc": "Not kartlari her gorev icin bir dosya olusturur. Gorev satirlari tek dosyada checklist soz dizimi kullanir.",
+        "settings.source_mode.notes": "Not kartlari",
+        "settings.source_mode.tasks": "Gorev satirlari",
+        "settings.source_folder.name": "Kaynak klasor",
+        "settings.source_folder.desc": "Gorev notlarinin/dosyalarinin bulundugu klasor.",
+        "settings.include_subfolders.name": "Alt klasorleri dahil et",
+        "settings.include_subfolders.desc": "Kaynak klasor altindaki klasorleri de tara.",
+        "settings.task_inbox.name": "Gorev inbox dosyasi",
+        "settings.task_inbox.desc": "Gorev satiri modunda yeni gorevlerin eklendigi dosya.",
+        "settings.note_template.name": "Not sablonu",
+        "settings.note_template.desc": "Not modunda gorev olustururken kullanilan opsiyonel sablon dosya yolu.",
+        "settings.field.status.name": "Durum alani",
+        "settings.field.status.desc": "Kartin hangi lane'de gorunecegini belirler.",
+        "settings.field.category.name": "Kategori alani",
+        "settings.field.category.desc": "Rozet olarak gosterilen opsiyonel grup etiketi.",
+        "settings.field.priority.name": "Oncelik alani",
+        "settings.field.priority.desc": "Oncelik seviyesini belirler (Urgent, High, Medium, Low).",
+        "settings.field.tags.name": "Etiket alani",
+        "settings.field.tags.desc": "Kartta gosterilen virgul ayracli etiketler.",
+        "settings.field.due.name": "Teslim tarihi alani",
+        "settings.field.due.desc": "Teslim takibi icin YYYY-MM-DD formatinda tarih.",
+        "settings.custom_fields.name": "Ozel alanlar",
+        "settings.custom_fields.desc": "Kartta gosterilecek ek frontmatter anahtarlari. Virgul ayracli.",
+        "settings.status_order.name": "Durum sirasi",
+        "settings.status_order.desc": "Gosterim sirasi icin virgul ayracli lane adlari.",
+        "settings.priority_order.name": "Oncelik sirasi",
+        "settings.priority_order.desc": "Siralama icin oncelik sirasi. Virgul ayracli, yuksekten dusuge.",
+        "settings.sort_by.name": "Siralama alani",
+        "settings.sort_by.desc": "Her lane icin varsayilan kart siralamasi.",
+        "settings.sort_by.none": "Manuel (surukle-birak)",
+        "settings.sort_by.priority": "Oncelik",
+        "settings.sort_by.due": "Teslim tarihi",
+        "settings.sort_by.title": "Baslik",
+        "settings.sort_direction.name": "Siralama yonu",
+        "settings.sort_direction.asc": "Artan",
+        "settings.sort_direction.desc": "Azalan",
+        "settings.due_soon.name": "Yaklasan teslim esigi",
+        "settings.due_soon.desc": "Bu gun sayisi icindeki kartlar vurgulanir.",
+        "settings.wip_limits.name": "WIP limitleri",
+        "settings.wip_limits.desc": "Lane basina kart limiti. Format: Todo:10, In Progress:3",
+        "settings.auto_archive.name": "Tamamlanan gorevleri oto-arsivle",
+        "settings.auto_archive.desc": "Bu gunden daha eski tamamlananlari gizle. Devre disi icin 0.",
+        "settings.date_format.name": "Tarih formati",
+        "settings.date_format.desc": "Yeni teslim tarihleri icin kayit formati. Moment.js deseni kullanir.",
+        "settings.date_display_format.name": "Tarih gosterim formati",
+        "settings.date_display_format.desc": "Opsiyonel gosterim formati. Bossa Tarih formatini kullanir.",
+        "settings.relative_due.name": "Goreli teslim etiketleri goster",
+        "settings.relative_due.desc": '"3g sonra" gibi etiketler gosterir, mutlak tarih yerine.',
+        "settings.theme_preset.name": "Tema preset",
+        "settings.theme_preset.desc": "Baslangic icin renk semasi secin. Asagidan tek tek override edebilirsiniz.",
+        "settings.font_family.name": "Yazi tipi ailesi",
+        "settings.font_family.desc": "Pano icin ozel font stack. Bos birakirsan varsayilan.",
+        "settings.tag_colors.name": "Etiket renkleri",
+        "settings.tag_colors.desc": "Etiket rozet renklerini tanimla.",
+        "settings.tag_colors.add": "Etiket rengi ekle",
+        "settings.tag_colors.key_placeholder": "etiket adi",
+        "settings.tag_colors.invalid_json": "Gecersiz etiket renk JSON'u.",
+        "settings.category_colors.name": "Kategori renkleri",
+        "settings.category_colors.desc": "Kategori rozet renklerini tanimla.",
+        "settings.category_colors.add": "Kategori rengi ekle",
+        "settings.category_colors.key_placeholder": "kategori adi",
+        "settings.category_colors.invalid_json": "Gecersiz kategori renk JSON'u.",
+        "settings.lane_tint.name": "Lane govde tint gucu",
+        "settings.lane_tint.desc": "Lane arka planda vurgu renginin gorunme miktari. 0-40.",
+        "settings.lane_header_tint.name": "Lane baslik tint gucu",
+        "settings.lane_header_tint.desc": "Lane basliginda vurgu renginin gorunme miktari. 0-60.",
+        "settings.per_lane_accent": "Lane Bazli Vurgu Renkleri",
+        "settings.per_lane_accent.desc": "Bu lane icin vurgu ve baslik metin rengi.",
+        "settings.theme.group.card": "Kart Renkleri",
+        "settings.theme.group.lane": "Lane Renkleri",
+        "settings.theme.group.priority": "Oncelik",
+        "settings.theme.group.tags": "Etiket ve Vurgu",
+        "settings.theme.group.due": "Teslim Tarihleri",
+        "settings.theme.group.board": "Pano",
+        "settings.theme.cardBg": "Arka plan",
+        "settings.theme.cardText": "Metin",
+        "settings.theme.cardBorder": "Kenarlik",
+        "settings.theme.laneBg": "Temel lane tint",
+        "settings.theme.laneHeaderBg": "Temel baslik tint",
+        "settings.theme.laneHeaderText": "Baslik metni",
+        "settings.theme.laneBorder": "Lane kenarligi",
+        "settings.theme.priorityUrgent": "Acil",
+        "settings.theme.priorityHigh": "Yuksek",
+        "settings.theme.priorityMedium": "Orta",
+        "settings.theme.priorityLow": "Dusuk",
+        "settings.theme.tagBg": "Etiket arka plan",
+        "settings.theme.tagText": "Etiket metni",
+        "settings.theme.tagBorder": "Etiket kenarligi",
+        "settings.theme.accentColor": "Vurgu",
+        "settings.theme.dueBadgeOverdue": "Gecikmis",
+        "settings.theme.dueBadgeSoon": "Yaklasan teslim",
+        "settings.theme.boardBg": "Pano arka plan",
+        "settings.refresh_debounce.name": "Yenileme debounce",
+        "settings.refresh_debounce.desc": "Dosya degisimi sonrasi pano yenileme bekleme suresi (ms).",
+        "settings.language.en": "Ingilizce",
+        "settings.language.tr": "Turkce",
+        "view.board.default": "Varsayilan Pano",
+        "view.board.view_suffix": "(gorunum)",
+        "view.board.fallback_title": "Yapilacaklar",
+        "view.search.placeholder": "Ara...",
+        "view.toolbar.toggle_filters": "Filtreleri Ac/Kapat",
+        "view.toolbar.new_task": "Yeni Gorev",
+        "view.toolbar.refresh": "Yenile",
+        "view.toolbar.plugin_settings": "Eklenti Ayarlari",
+        "view.toolbar.configure_board": "Panoyu Yapilandir",
+        "view.mode.board": "Pano",
+        "view.mode.table": "Tablo",
+        "view.mode.feed": "Akis",
+        "view.mode.list": "Liste",
+        "view.configure.title": "Panoyu Yapilandir",
+        "view.configure.lanes": "Lane / Durumlar",
+        "view.configure.custom_fields": "Ozel Alanlar",
+        "view.configure.updated_notice": "Pano yapilandirmasi guncellendi.",
+        "view.task.new.title": "Yeni Gorev",
+        "view.task.edit.title": "Gorevi Duzenle",
+        "view.task.title_required": "Gorev basligi zorunludur.",
+        "view.task.invalid_due_date": "Gecersiz tarih. YYYY-MM-DD kullanin.",
+        "view.preset.placeholder": "Gorunumler...",
+        "view.preset.delete_title": "Gorunumu sil",
+        "view.preset.save_title": "Mevcut filtreleri gorunum olarak kaydet",
+        "view.preset.save_dialog_title": "Gorunumu Kaydet",
+        "view.preset.delete_dialog_title": "Gorunumu Sil",
+        "view.preset.name_label": "Gorunum adi",
+        "view.preset.not_found": "Gorunum bulunamadi: {name}",
+        "view.preset.saved_notice": "Gorunum kaydedildi: {name}",
+        "view.preset.delete_confirm": '"{name}" gorunumu silinsin mi?',
+        "view.preset.deleted_notice": "Gorunum silindi: {name}",
+        "view.empty.no_tasks_title": "Gorev bulunamadi",
+        "view.empty.no_tasks_desc": "Baslamak icin ilk gorevi olusturun veya kaynak klasor ayarini kontrol edin.",
+        "view.empty.create_first_task": "Ilk Gorevi Olustur",
+        "view.empty.no_filter_match": "Filtrelerle eslesen gorev yok.",
+        "view.empty.clear_filters": "Filtreleri Temizle",
+        "view.empty.no_tasks": "Gorev bulunamadi.",
+        "view.quick_add.new_page": "+ Yeni sayfa",
+        "view.quick_add.placeholder": "Basliksiz",
+        "view.menu.edit": "Duzenle",
+        "view.menu.open_note": "Notu Ac",
+        "view.menu.mark_done": "Tamamlandi Isaretle",
+        "view.menu.move_to": "Tasi",
+        "view.menu.completed_notice": "Tamamlandi: {title}",
+        "view.delete.title": "Gorevi Sil",
+        "view.delete.message": '"{title}" silinsin mi? Bu islem geri alinamaz.',
+        "view.delete.deleted_notice": "Silindi: {title}",
+        "main.no_custom_boards": "Ozel pano yok. Varsayilan pano kullaniliyor.",
+        "main.select_board.title": "Pano Sec",
+        "main.select_board.submit": "Ac",
+        "main.select_board.label": "Pano",
+        "main.self_check_ok": "Smart Kanban self-check OK. Yuklenen kart: {count}",
+        "main.file_menu.open_as_board": "Kanban Pano Olarak Ac",
+        "main.file_menu.show_in_kanban": "Kanban'da Goster",
+        "main.source_folder_set": "Kanban: kaynak klasor -> {path}",
+        "main.board_parent_cycle": '"{name}" panosunda parent dongusu tespit edildi. Global ayarlara donuluyor.',
+        "main.file_not_found": "Dosya bulunamadi: {path}",
+        "main.task_line_not_found": "Gorev satiri bulunamadi: {path}:{line}",
+        "main.rename_failed": "Yeniden adlandirma basarisiz: {error}",
+        "main.task_note_created": "Gorev notu olusturuldu: {name}",
+        "main.source_folder_empty": "Kaynak klasor bos.",
+        "main.template_missing": "Sablon dosyasi bulunamadi: {path}. Varsayilan not duzeni kullaniliyor.",
+        "main.task_inbox_empty": "Gorev inbox dosyasi bos.",
+        "main.task_line_created": "Gorev satiri olusturuldu.",
+        "modal.board_manager.title": "Pano Yoneticisi",
+        "modal.board_manager.no_boards": "Henuz ozel pano yok.",
+        "modal.board_manager.create_new": "Yeni Pano Olustur",
+        "modal.board_create.title": "Pano Olustur",
+        "modal.board_create.name_required": "Pano adi zorunludur.",
+        "modal.board_create.created_notice": "Pano olusturuldu: {name}",
+        "modal.board_edit.updated_notice": "Pano guncellendi: {name}",
+        "modal.board.field.name": "Pano adi",
+        "modal.board.field.type": "Tur",
+        "modal.board.field.source_folder": "Kaynak klasor (bos = miras al)",
+        "modal.board.field.status_order": "Durum sirasi (virgul ayracli, bos = miras al)",
+        "modal.board.field.visible_statuses": "Gorunen durumlar (filtered-view, virgul ayracli)",
+        "modal.board.field.visible_statuses_short": "Gorunen durumlar (filtered-view)",
+        "modal.board_edit.title": "Panoyu Duzenle: {name}",
+        "modal.board.field.note_template": "Not sablonu (bos = miras al)",
+        "modal.board.field.sort_by": "Siralama (bos = miras al)",
+        "modal.board.field.due_soon_days": "Yaklasan teslim gunu (bos = miras al)",
+        "modal.board.field.wip_limits": "WIP limitleri (bos = miras al)",
+        "modal.board.field.date_format": "Tarih formati (bos = miras al)",
+        "modal.board.field.date_display_format": "Gosterim formati (bos = miras al)",
+        "modal.board.field.show_relative_date": "Goreli tarihler",
+        "modal.board.field.show_relative_date.inherit": "Miras al",
+        "modal.board.field.show_relative_date.yes": "Evet",
+        "modal.board.field.show_relative_date.no": "Hayir",
+        "modal.board.field.tag_colors": "Etiket renkleri JSON (bos = miras al)",
+        "modal.board.field.category_colors": "Kategori renkleri JSON (bos = miras al)",
+        "modal.configure.title": "Yapilandir",
+        "modal.drag.add_placeholder": "{section} ekle...",
+        "modal.form.title": "Form",
+        "modal.form.field": "Alan",
+        "modal.confirm.title": "Onay",
+        "modal.confirm.message": "Emin misiniz?",
+        "due.today": "Bugun teslim",
+        "due.tomorrow": "Yarin teslim",
+        "due.in_days": "{days}g sonra",
+        "due.overdue_days": "{days}g gecikti"
+      }
+    };
+    var currentLocale = "en";
+    function getLocale() {
+      return currentLocale;
+    }
+    function setLocale2(locale) {
+      if (LOCALES2[locale]) currentLocale = locale;
+      else currentLocale = "en";
+    }
+    function interpolate(template, params) {
+      if (!params || typeof params !== "object") return template;
+      return String(template).replace(/\{(\w+)\}/g, (_, key) => {
+        if (Object.prototype.hasOwnProperty.call(params, key)) return String(params[key]);
+        return `{${key}}`;
+      });
+    }
+    function t2(key, params) {
+      var _a, _b;
+      const localePack = LOCALES2[currentLocale] || LOCALES2.en;
+      const fallbackPack = LOCALES2.en;
+      const raw = (_b = (_a = localePack[key]) != null ? _a : fallbackPack[key]) != null ? _b : key;
+      return interpolate(raw, params);
+    }
+    module2.exports = { LOCALES: LOCALES2, t: t2, setLocale: setLocale2, getLocale };
   }
 });
 
@@ -240,7 +728,7 @@ var require_core = __commonJS({
       if (Number.isNaN(parsed.getTime())) return "";
       return formatDateLocal(parsed);
     }
-    function getDueInfo2(dueDate, dueSoonDays, nowDate) {
+    function getDueInfo2(dueDate, dueSoonDays, nowDate, options) {
       if (!dueDate) return null;
       const date = /* @__PURE__ */ new Date(`${dueDate}T00:00:00`);
       if (Number.isNaN(date.getTime())) return null;
@@ -248,29 +736,61 @@ var require_core = __commonJS({
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const dueStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
       const diffDays = Math.round((dueStart.getTime() - todayStart.getTime()) / 864e5);
+      const opts = options && typeof options === "object" ? options : {};
+      const showRelativeDate = opts.showRelativeDate !== false;
+      const translate = typeof opts.t === "function" ? opts.t : null;
+      const displayFormat = String(opts.dateDisplayFormat || opts.dateFormat || "").trim();
+      const labelFor = (key, fallback, params) => {
+        if (!translate) return fallback;
+        return translate(key, params);
+      };
+      const absoluteLabel = () => {
+        if (!displayFormat) return dueDate;
+        const momentRef = typeof window !== "undefined" && window.moment || typeof globalThis !== "undefined" && globalThis.moment;
+        if (typeof momentRef === "function") {
+          const m = momentRef(dueDate, ["YYYY-MM-DD", momentRef.ISO_8601], true);
+          if (m && typeof m.isValid === "function" && m.isValid()) return m.format(displayFormat);
+        }
+        return dueDate;
+      };
+      if (!showRelativeDate) {
+        const cls = diffDays < 0 ? "is-overdue" : diffDays <= Math.max(0, Number(dueSoonDays) || 0) ? "is-due-soon" : "";
+        return {
+          label: absoluteLabel(),
+          cls,
+          sortValue: dueStart.getTime()
+        };
+      }
       if (diffDays < 0) {
         return {
-          label: `Overdue ${Math.abs(diffDays)}d`,
+          label: labelFor("due.overdue_days", `Overdue ${Math.abs(diffDays)}d`, { days: Math.abs(diffDays) }),
           cls: "is-overdue",
           sortValue: dueStart.getTime()
         };
       }
       if (diffDays === 0) {
         return {
-          label: "Due today",
+          label: labelFor("due.today", "Due today"),
+          cls: "is-due-soon",
+          sortValue: dueStart.getTime()
+        };
+      }
+      if (diffDays === 1) {
+        return {
+          label: labelFor("due.tomorrow", "Due tomorrow"),
           cls: "is-due-soon",
           sortValue: dueStart.getTime()
         };
       }
       if (diffDays <= Math.max(0, Number(dueSoonDays) || 0)) {
         return {
-          label: `Due in ${diffDays}d`,
+          label: labelFor("due.in_days", `Due in ${diffDays}d`, { days: diffDays }),
           cls: "is-due-soon",
           sortValue: dueStart.getTime()
         };
       }
       return {
-        label: `Due in ${diffDays}d`,
+        label: labelFor("due.in_days", `Due in ${diffDays}d`, { days: diffDays }),
         cls: "",
         sortValue: dueStart.getTime()
       };
@@ -391,7 +911,7 @@ var require_core = __commonJS({
     }
     function inferStatusFromTags(tags, statuses) {
       const available = Array.isArray(statuses) ? statuses : [];
-      const normalizedTags = (tags || []).map((t) => slugify(t));
+      const normalizedTags = (tags || []).map((t2) => slugify(t2));
       for (const status of available) {
         const target = slugify(status);
         if (normalizedTags.includes(target)) {
@@ -494,7 +1014,7 @@ var require_core_fallback = __commonJS({
       if (Number.isNaN(parsed.getTime())) return "";
       return localFormatDateLocal(parsed);
     }
-    function localGetDueInfo(dueDate, dueSoonDays, nowDate) {
+    function localGetDueInfo(dueDate, dueSoonDays, nowDate, options) {
       if (!dueDate) return null;
       const date = /* @__PURE__ */ new Date(`${dueDate}T00:00:00`);
       if (Number.isNaN(date.getTime())) return null;
@@ -502,29 +1022,61 @@ var require_core_fallback = __commonJS({
       const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const dueStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
       const diffDays = Math.round((dueStart.getTime() - todayStart.getTime()) / 864e5);
+      const opts = options && typeof options === "object" ? options : {};
+      const showRelativeDate = opts.showRelativeDate !== false;
+      const translate = typeof opts.t === "function" ? opts.t : null;
+      const displayFormat = String(opts.dateDisplayFormat || opts.dateFormat || "").trim();
+      const labelFor = (key, fallback, params) => {
+        if (!translate) return fallback;
+        return translate(key, params);
+      };
+      const absoluteLabel = () => {
+        if (!displayFormat) return dueDate;
+        const momentRef = typeof window !== "undefined" && window.moment || typeof globalThis !== "undefined" && globalThis.moment;
+        if (typeof momentRef === "function") {
+          const m = momentRef(dueDate, ["YYYY-MM-DD", momentRef.ISO_8601], true);
+          if (m && typeof m.isValid === "function" && m.isValid()) return m.format(displayFormat);
+        }
+        return dueDate;
+      };
+      if (!showRelativeDate) {
+        const cls = diffDays < 0 ? "is-overdue" : diffDays <= Math.max(0, Number(dueSoonDays) || 0) ? "is-due-soon" : "";
+        return {
+          label: absoluteLabel(),
+          cls,
+          sortValue: dueStart.getTime()
+        };
+      }
       if (diffDays < 0) {
         return {
-          label: `Overdue ${Math.abs(diffDays)}d`,
+          label: labelFor("due.overdue_days", `Overdue ${Math.abs(diffDays)}d`, { days: Math.abs(diffDays) }),
           cls: "is-overdue",
           sortValue: dueStart.getTime()
         };
       }
       if (diffDays === 0) {
         return {
-          label: "Due today",
+          label: labelFor("due.today", "Due today"),
+          cls: "is-due-soon",
+          sortValue: dueStart.getTime()
+        };
+      }
+      if (diffDays === 1) {
+        return {
+          label: labelFor("due.tomorrow", "Due tomorrow"),
           cls: "is-due-soon",
           sortValue: dueStart.getTime()
         };
       }
       if (diffDays <= Math.max(0, Number(dueSoonDays) || 0)) {
         return {
-          label: `Due in ${diffDays}d`,
+          label: labelFor("due.in_days", `Due in ${diffDays}d`, { days: diffDays }),
           cls: "is-due-soon",
           sortValue: dueStart.getTime()
         };
       }
       return {
-        label: `Due in ${diffDays}d`,
+        label: labelFor("due.in_days", `Due in ${diffDays}d`, { days: diffDays }),
         cls: "",
         sortValue: dueStart.getTime()
       };
@@ -653,7 +1205,7 @@ var require_core_fallback = __commonJS({
     }
     function localInferStatusFromTags(tags, statuses) {
       const available = Array.isArray(statuses) ? statuses : [];
-      const normalizedTags = (tags || []).map((t) => localSlugify(t));
+      const normalizedTags = (tags || []).map((t2) => localSlugify(t2));
       for (const status of available) {
         if (normalizedTags.includes(localSlugify(status))) return status;
       }
@@ -839,7 +1391,11 @@ var require_utils = __commonJS({
 // src/modals.js
 var require_modals = __commonJS({
   "src/modals.js"(exports2, module2) {
-    module2.exports = function createModals({ Modal: Modal2, Notice: Notice2 }) {
+    module2.exports = function createModals({ Modal: Modal2, Notice: Notice2, t: t2 = (k) => k }) {
+      function tx(key, fallback, params) {
+        const value = t2(key, params);
+        return value === key ? fallback : value;
+      }
       class BoardManagerModal2 extends Modal2 {
         constructor(app, plugin, options) {
           super(app);
@@ -848,7 +1404,7 @@ var require_modals = __commonJS({
         }
         onOpen() {
           const { contentEl, titleEl } = this;
-          titleEl.setText("Board Manager");
+          titleEl.setText(t2("modal.board_manager.title"));
           this.renderContent();
         }
         renderContent() {
@@ -856,16 +1412,16 @@ var require_modals = __commonJS({
           contentEl.empty();
           const boards = this.plugin.settings.boards || [];
           if (boards.length === 0) {
-            contentEl.createEl("p", { text: "No custom boards yet." });
+            contentEl.createEl("p", { text: t2("modal.board_manager.no_boards") });
           }
           for (const board of boards) {
             const row = contentEl.createDiv({ cls: "smart-kanban-board-manager-row" });
             row.createSpan({ text: `${board.name} (${board.type})`, cls: "smart-kanban-board-manager-name" });
-            const editBtn = row.createEl("button", { text: "Edit" });
+            const editBtn = row.createEl("button", { text: t2("common.edit") });
             editBtn.addEventListener("click", async () => {
               await this.editBoard(board);
             });
-            const deleteBtn = row.createEl("button", { text: "Delete", cls: "mod-warning" });
+            const deleteBtn = row.createEl("button", { text: t2("common.delete"), cls: "mod-warning" });
             deleteBtn.addEventListener("click", async () => {
               this.plugin.settings.boards = this.plugin.settings.boards.filter((b) => b.id !== board.id);
               await this.plugin.saveSettings();
@@ -873,11 +1429,11 @@ var require_modals = __commonJS({
             });
           }
           const actions = contentEl.createDiv({ cls: "smart-kanban-modal-actions" });
-          const createBtn = actions.createEl("button", { text: "Create New Board", cls: "mod-cta" });
+          const createBtn = actions.createEl("button", { text: t2("modal.board_manager.create_new"), cls: "mod-cta" });
           createBtn.addEventListener("click", async () => {
             await this.createBoard();
           });
-          const closeBtn = actions.createEl("button", { text: "Close" });
+          const closeBtn = actions.createEl("button", { text: t2("common.close") });
           closeBtn.addEventListener("click", () => {
             if (typeof this.options.onClose === "function") this.options.onClose();
             this.close();
@@ -885,20 +1441,20 @@ var require_modals = __commonJS({
         }
         async createBoard() {
           const values = await this.plugin.openFormModal({
-            title: "Create Board",
-            submitText: "Create",
+            title: tx("modal.board_create.title", "Create Board"),
+            submitText: t2("common.create"),
             fields: [
-              { key: "name", label: "Board name", value: "" },
-              { key: "type", label: "Type", value: "independent", type: "select", options: ["independent", "filtered-view"] },
-              { key: "sourceFolder", label: "Source folder (blank = inherit)", value: "" },
-              { key: "statusOrder", label: "Status order (comma-sep, blank = inherit)", value: "" },
-              { key: "visibleStatuses", label: "Visible statuses (filtered-view, comma-sep)", value: "" }
+              { key: "name", label: tx("modal.board.field.name", "Board name"), value: "" },
+              { key: "type", label: tx("modal.board.field.type", "Type"), value: "independent", type: "select", options: ["independent", "filtered-view"] },
+              { key: "sourceFolder", label: tx("modal.board.field.source_folder", "Source folder (blank = inherit)"), value: "" },
+              { key: "statusOrder", label: tx("modal.board.field.status_order", "Status order (comma-sep, blank = inherit)"), value: "" },
+              { key: "visibleStatuses", label: tx("modal.board.field.visible_statuses", "Visible statuses (filtered-view, comma-sep)"), value: "" }
             ]
           });
           if (!values) return;
           const name = String(values.name || "").trim();
           if (!name) {
-            new Notice2("Board name is required.");
+            new Notice2(t2("modal.board_create.name_required"));
             return;
           }
           const id = `board-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -926,22 +1482,38 @@ var require_modals = __commonJS({
             sortDirection: null,
             dueSoonDays: null,
             wipLimits: null,
-            filterPresets: null
+            filterPresets: null,
+            noteTemplate: null,
+            dateFormat: null,
+            dateDisplayFormat: null,
+            showRelativeDate: null,
+            tagColors: null,
+            categoryColors: null
           });
           await this.plugin.saveSettings();
           this.renderContent();
-          new Notice2(`Board created: ${name}`);
+          new Notice2(t2("modal.board_create.created_notice", { name }));
         }
         async editBoard(board) {
+          const relDateValue = board.showRelativeDate === true ? "yes" : board.showRelativeDate === false ? "no" : "";
           const values = await this.plugin.openFormModal({
-            title: `Edit Board: ${board.name}`,
-            submitText: "Save",
+            title: tx("modal.board_edit.title", "Edit Board: {name}", { name: board.name }),
+            submitText: t2("common.save"),
             fields: [
-              { key: "name", label: "Board name", value: board.name || "" },
-              { key: "type", label: "Type", value: board.type || "independent", type: "select", options: ["independent", "filtered-view"] },
-              { key: "sourceFolder", label: "Source folder (blank = inherit)", value: board.sourceFolder || "" },
-              { key: "statusOrder", label: "Status order (comma-sep, blank = inherit)", value: board.statusOrder || "" },
-              { key: "visibleStatuses", label: "Visible statuses (filtered-view)", value: board.visibleStatuses || "" }
+              { key: "name", label: tx("modal.board.field.name", "Board name"), value: board.name || "" },
+              { key: "type", label: tx("modal.board.field.type", "Type"), value: board.type || "independent", type: "select", options: ["independent", "filtered-view"] },
+              { key: "sourceFolder", label: tx("modal.board.field.source_folder", "Source folder (blank = inherit)"), value: board.sourceFolder || "" },
+              { key: "statusOrder", label: tx("modal.board.field.status_order", "Status order (comma-sep, blank = inherit)"), value: board.statusOrder || "" },
+              { key: "visibleStatuses", label: tx("modal.board.field.visible_statuses_short", "Visible statuses (filtered-view)"), value: board.visibleStatuses || "" },
+              { key: "noteTemplate", label: tx("modal.board.field.note_template", "Note template (blank = inherit)"), value: board.noteTemplate || "" },
+              { key: "sortBy", label: tx("modal.board.field.sort_by", "Sort by (blank = inherit)"), value: board.sortBy || "", type: "select", options: ["", "none", "priority", "due", "title"], optionLabels: { "": t2("common.none") } },
+              { key: "dueSoonDays", label: tx("modal.board.field.due_soon_days", "Due soon days (blank = inherit)"), value: board.dueSoonDays != null ? String(board.dueSoonDays) : "" },
+              { key: "wipLimits", label: tx("modal.board.field.wip_limits", "WIP limits (blank = inherit)"), value: board.wipLimits || "" },
+              { key: "dateFormat", label: tx("modal.board.field.date_format", "Date format (blank = inherit)"), value: board.dateFormat || "" },
+              { key: "dateDisplayFormat", label: tx("modal.board.field.date_display_format", "Display format (blank = inherit)"), value: board.dateDisplayFormat || "" },
+              { key: "showRelativeDate", label: tx("modal.board.field.show_relative_date", "Relative dates"), value: relDateValue, type: "select", options: ["", "yes", "no"], optionLabels: { "": tx("modal.board.field.show_relative_date.inherit", "Inherit"), "yes": tx("modal.board.field.show_relative_date.yes", "Yes"), "no": tx("modal.board.field.show_relative_date.no", "No") } },
+              { key: "tagColors", label: tx("modal.board.field.tag_colors", "Tag colors JSON (blank = inherit)"), value: board.tagColors ? JSON.stringify(board.tagColors) : "" },
+              { key: "categoryColors", label: tx("modal.board.field.category_colors", "Category colors JSON (blank = inherit)"), value: board.categoryColors ? JSON.stringify(board.categoryColors) : "" }
             ]
           });
           if (!values) return;
@@ -950,9 +1522,32 @@ var require_modals = __commonJS({
           board.sourceFolder = values.sourceFolder || null;
           board.statusOrder = values.statusOrder || null;
           board.visibleStatuses = values.visibleStatuses || null;
+          board.noteTemplate = values.noteTemplate || null;
+          board.sortBy = values.sortBy || null;
+          const dueSoon = String(values.dueSoonDays || "").trim();
+          board.dueSoonDays = dueSoon !== "" ? Number.parseInt(dueSoon, 10) : null;
+          if (board.dueSoonDays != null && !Number.isFinite(board.dueSoonDays)) board.dueSoonDays = null;
+          board.wipLimits = values.wipLimits || null;
+          board.dateFormat = values.dateFormat || null;
+          board.dateDisplayFormat = values.dateDisplayFormat || null;
+          const relDate = String(values.showRelativeDate || "").trim();
+          board.showRelativeDate = relDate === "yes" ? true : relDate === "no" ? false : null;
+          try {
+            const tc = String(values.tagColors || "").trim();
+            board.tagColors = tc ? JSON.parse(tc) : null;
+          } catch (_e) {
+            new Notice2(t2("settings.tag_colors.invalid_json"));
+          }
+          try {
+            const cc = String(values.categoryColors || "").trim();
+            board.categoryColors = cc ? JSON.parse(cc) : null;
+          } catch (_e) {
+            new Notice2(t2("settings.category_colors.invalid_json"));
+          }
           await this.plugin.saveSettings();
+          this.plugin.refreshViews();
           this.renderContent();
-          new Notice2(`Board updated: ${board.name}`);
+          new Notice2(t2("modal.board_edit.updated_notice", { name: board.name }));
         }
       }
       class DragReorderListModal2 extends Modal2 {
@@ -966,19 +1561,19 @@ var require_modals = __commonJS({
         }
         onOpen() {
           const { contentEl, titleEl } = this;
-          titleEl.setText(this.options.title || "Configure");
+          titleEl.setText(this.options.title || tx("modal.configure.title", "Configure"));
           contentEl.empty();
           contentEl.addClass("smart-kanban-drag-modal");
           for (const section of this.options.sections || []) {
             this.renderSection(contentEl, section);
           }
           const actions = contentEl.createDiv({ cls: "smart-kanban-modal-actions" });
-          const cancelBtn = actions.createEl("button", { text: "Cancel" });
+          const cancelBtn = actions.createEl("button", { text: t2("common.cancel") });
           cancelBtn.addEventListener("click", () => {
             if (typeof this.options.onCancel === "function") this.options.onCancel();
             this.close();
           });
-          const saveBtn = actions.createEl("button", { text: "Save", cls: "mod-cta" });
+          const saveBtn = actions.createEl("button", { text: t2("common.save"), cls: "mod-cta" });
           saveBtn.addEventListener("click", () => {
             if (typeof this.options.onSubmit === "function") this.options.onSubmit({ ...this.sectionData });
             this.close();
@@ -1031,8 +1626,8 @@ var require_modals = __commonJS({
           };
           renderList();
           const addRow = wrap.createDiv({ cls: "smart-kanban-drag-add" });
-          const addInput = addRow.createEl("input", { type: "text", placeholder: `Add ${section.label.toLowerCase()}...` });
-          const addBtn = addRow.createEl("button", { text: "Add" });
+          const addInput = addRow.createEl("input", { type: "text", placeholder: tx("modal.drag.add_placeholder", `Add ${section.label.toLowerCase()}...`, { section: section.label.toLowerCase() }) });
+          const addBtn = addRow.createEl("button", { text: t2("common.add") });
           const doAdd = () => {
             const val = addInput.value.trim();
             if (!val) return;
@@ -1057,12 +1652,12 @@ var require_modals = __commonJS({
         }
         onOpen() {
           const { contentEl, titleEl } = this;
-          titleEl.setText(this.options.title || "Form");
+          titleEl.setText(this.options.title || t2("modal.form.title"));
           contentEl.empty();
           const fields = Array.isArray(this.options.fields) ? this.options.fields : [];
           for (const field of fields) {
             const row = contentEl.createDiv({ cls: "smart-kanban-modal-row" });
-            row.createEl("label", { text: field.label || field.key || "Field" });
+            row.createEl("label", { text: field.label || field.key || t2("modal.form.field") });
             let input;
             if (field.type === "select") {
               input = row.createEl("select");
@@ -1070,7 +1665,7 @@ var require_modals = __commonJS({
               const optionLabels = field.optionLabels || {};
               for (const optionValue of options) {
                 const value = String(optionValue != null ? optionValue : "");
-                const optionText = Object.prototype.hasOwnProperty.call(optionLabels, value) ? optionLabels[value] : value === "" ? field.optionLabelEmpty || "None" : value;
+                const optionText = Object.prototype.hasOwnProperty.call(optionLabels, value) ? optionLabels[value] : value === "" ? field.optionLabelEmpty || t2("common.none") : value;
                 input.createEl("option", { text: optionText, value });
               }
               input.value = String(field.value || "");
@@ -1084,13 +1679,13 @@ var require_modals = __commonJS({
             this.inputs[field.key] = input;
           }
           const actions = contentEl.createDiv({ cls: "smart-kanban-modal-actions" });
-          const cancelBtn = actions.createEl("button", { text: "Cancel" });
+          const cancelBtn = actions.createEl("button", { text: t2("common.cancel") });
           cancelBtn.addEventListener("click", () => {
             if (typeof this.options.onCancel === "function") this.options.onCancel();
             this.close();
           });
           const submitBtn = actions.createEl("button", {
-            text: this.options.submitText || "Save",
+            text: this.options.submitText || t2("common.save"),
             cls: "mod-cta"
           });
           submitBtn.addEventListener("click", () => {
@@ -1110,17 +1705,17 @@ var require_modals = __commonJS({
         }
         onOpen() {
           const { contentEl, titleEl } = this;
-          titleEl.setText(this.options.title || "Confirm");
+          titleEl.setText(this.options.title || t2("modal.confirm.title"));
           contentEl.empty();
-          contentEl.createEl("p", { text: this.options.message || "Are you sure?" });
+          contentEl.createEl("p", { text: this.options.message || t2("modal.confirm.message") });
           const actions = contentEl.createDiv({ cls: "smart-kanban-modal-actions" });
-          const cancelBtn = actions.createEl("button", { text: "Cancel" });
+          const cancelBtn = actions.createEl("button", { text: t2("common.cancel") });
           cancelBtn.addEventListener("click", () => {
             if (typeof this.options.onCancel === "function") this.options.onCancel();
             this.close();
           });
           const confirmBtn = actions.createEl("button", {
-            text: this.options.confirmText || "Confirm",
+            text: this.options.confirmText || t2("common.confirm"),
             cls: "mod-warning"
           });
           confirmBtn.addEventListener("click", () => {
@@ -1142,7 +1737,7 @@ var require_modals = __commonJS({
 // src/view.js
 var require_view = __commonJS({
   "src/view.js"(exports2, module2) {
-    module2.exports = function createView({ ItemView: ItemView2, TFile: TFile2, Notice: Notice2, setIcon: setIcon2, VIEW_TYPE_SMART_KANBAN: VIEW_TYPE_SMART_KANBAN2, normalizeDateInput: normalizeDateInput2, splitCsv: splitCsv2 }) {
+    module2.exports = function createView({ ItemView: ItemView2, TFile: TFile2, Notice: Notice2, setIcon: setIcon2, VIEW_TYPE_SMART_KANBAN: VIEW_TYPE_SMART_KANBAN2, normalizeDateInput: normalizeDateInput2, splitCsv: splitCsv2, t: t2 = (k) => k }) {
       class SmartKanbanView2 extends ItemView2 {
         constructor(leaf, plugin) {
           super(leaf);
@@ -1244,6 +1839,14 @@ var require_view = __commonJS({
             "--sk-due-soon": theme.dueBadgeSoon,
             "--sk-font-family": theme.fontFamily
           };
+          const laneTint = Number(theme.laneTintStrength);
+          const laneHeaderTint = Number(theme.laneHeaderTintStrength);
+          if (Number.isFinite(laneTint)) {
+            props["--sk-lane-tint-strength"] = `${Math.max(0, Math.min(40, laneTint))}%`;
+          }
+          if (Number.isFinite(laneHeaderTint)) {
+            props["--sk-lane-header-tint-strength"] = `${Math.max(0, Math.min(60, laneHeaderTint))}%`;
+          }
           for (const [prop, value] of Object.entries(props)) {
             if (value) el.style.setProperty(prop, value);
             else el.style.removeProperty(prop);
@@ -1258,12 +1861,12 @@ var require_view = __commonJS({
           }
           this.boardTabsEl.style.display = "";
           const defaultTab = this.boardTabsEl.createEl("button", {
-            text: "Default Board",
+            text: t2("view.board.default"),
             cls: `smart-kanban-board-tab ${!this.boardId ? "is-active" : ""}`
           });
           defaultTab.addEventListener("click", () => this.switchBoard(""));
           for (const board of boards) {
-            const label = board.name + (board.type === "filtered-view" ? " (view)" : "");
+            const label = board.name + (board.type === "filtered-view" ? ` ${t2("view.board.view_suffix")}` : "");
             const tab = this.boardTabsEl.createEl("button", {
               text: label,
               cls: `smart-kanban-board-tab ${this.boardId === board.id ? "is-active" : ""}`
@@ -1284,6 +1887,7 @@ var require_view = __commonJS({
           this.boardId = boardId;
           this.plugin.settings.activeBoardId = boardId;
           await this.plugin.saveSettings();
+          this.collapsedLanes.clear();
           this.clearFilters();
           this.renderBoardTabs();
           this.buildHeader();
@@ -1322,13 +1926,13 @@ var require_view = __commonJS({
           this.headerEl.empty();
           const left = this.headerEl.createDiv({ cls: "smart-kanban-header-left" });
           const board = this.boardId ? this.plugin.getBoard(this.boardId) : null;
-          left.createEl("h2", { text: (board == null ? void 0 : board.name) || "Todo", cls: "smart-kanban-title" });
+          left.createEl("h2", { text: (board == null ? void 0 : board.name) || t2("view.board.fallback_title"), cls: "smart-kanban-title" });
           this.buildViewModeTabs(left);
           const toolbar = this.headerEl.createDiv({ cls: "smart-kanban-toolbar" });
           const searchWrap = toolbar.createDiv({ cls: "smart-kanban-search-wrap" });
           const searchInput = searchWrap.createEl("input", {
             type: "text",
-            placeholder: "Search...",
+            placeholder: t2("view.search.placeholder"),
             cls: "smart-kanban-search-input"
           });
           searchInput.value = this.filters.text;
@@ -1339,21 +1943,22 @@ var require_view = __commonJS({
           });
           const searchIcon = searchWrap.createSpan({ cls: "smart-kanban-search-icon" });
           setIcon2(searchIcon, "search");
-          this.createIconBtn(toolbar, "filter", "Toggle Filters", () => {
+          this.createIconBtn(toolbar, "filter", t2("view.toolbar.toggle_filters"), () => {
             this.filtersCollapsed = !this.filtersCollapsed;
             this.filtersEl.style.display = this.filtersCollapsed ? "none" : "";
           });
-          this.createIconBtn(toolbar, "plus", "New Task", () => this.createTaskInteractive());
-          this.createIconBtn(toolbar, "refresh-cw", "Refresh", () => this.reload());
-          this.createIconBtn(toolbar, "settings", "Configure Board", () => this.configureBoardInteractive());
+          this.createIconBtn(toolbar, "plus", t2("view.toolbar.new_task"), () => this.createTaskInteractive());
+          this.createIconBtn(toolbar, "refresh-cw", t2("view.toolbar.refresh"), () => this.reload());
+          this.createIconBtn(toolbar, "sliders-horizontal", t2("view.toolbar.plugin_settings"), () => this.openPluginSettings());
+          this.createIconBtn(toolbar, "settings", t2("view.toolbar.configure_board"), () => this.configureBoardInteractive());
         }
         buildViewModeTabs(parent) {
           const wrap = parent.createDiv({ cls: "smart-kanban-viewmode-tabs" });
           const modes = [
-            { key: "board", icon: "kanban-square", label: "Board" },
-            { key: "table", icon: "table", label: "Table" },
-            { key: "feed", icon: "activity", label: "Feed" },
-            { key: "list", icon: "list", label: "List" }
+            { key: "board", icon: "kanban-square", label: t2("view.mode.board") },
+            { key: "table", icon: "table", label: t2("view.mode.table") },
+            { key: "feed", icon: "activity", label: t2("view.mode.feed") },
+            { key: "list", icon: "list", label: t2("view.mode.list") }
           ];
           for (const mode of modes) {
             const item = wrap.createEl("button", {
@@ -1379,18 +1984,56 @@ var require_view = __commonJS({
           });
           return btn;
         }
+        getActiveSettings() {
+          return this.plugin.getEffectiveSettings(this.boardId);
+        }
+        resolveColorEntry(mapObj, value) {
+          if (!mapObj || typeof mapObj !== "object") return null;
+          const key = String(value || "").trim();
+          if (!key) return null;
+          if (mapObj[key] && typeof mapObj[key] === "object") return mapObj[key];
+          const lower = key.toLowerCase();
+          for (const [entryKey, entryValue] of Object.entries(mapObj)) {
+            if (String(entryKey).toLowerCase() === lower && entryValue && typeof entryValue === "object") return entryValue;
+          }
+          return null;
+        }
+        applyBadgeColor(el, mapObj, value) {
+          const entry = this.resolveColorEntry(mapObj, value);
+          if (!entry) return;
+          if (entry.bg) el.style.backgroundColor = String(entry.bg);
+          if (entry.text) el.style.color = String(entry.text);
+        }
+        bindFilterBadge(el, key, value) {
+          const text = String(value || "").trim();
+          if (!text) return;
+          el.addClass("smart-kanban-filterable-badge");
+          el.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            this.toggleFilterValue(key, text);
+          });
+        }
+        async openPluginSettings() {
+          if (this.app.setting && typeof this.app.setting.open === "function") {
+            await Promise.resolve(this.app.setting.open());
+          }
+          if (this.app.setting && typeof this.app.setting.openTabById === "function") {
+            await Promise.resolve(this.app.setting.openTabById(this.plugin.manifest.id));
+          }
+        }
         async configureBoardInteractive() {
           const result = await this.plugin.openDragReorderModal({
-            title: "Configure Board",
+            title: t2("view.configure.title"),
             sections: [
               {
                 key: "statuses",
-                label: "Lanes / Statuses",
+                label: t2("view.configure.lanes"),
                 items: [...this.plugin.getStatusOrder()]
               },
               {
                 key: "customFields",
-                label: "Custom Fields",
+                label: t2("view.configure.custom_fields"),
                 items: [...this.plugin.getCustomFieldKeys()]
               }
             ]
@@ -1400,7 +2043,7 @@ var require_view = __commonJS({
           this.plugin.settings.customFields = (result.customFields || []).join(", ");
           await this.plugin.saveSettings();
           await this.reload();
-          new Notice2("Board configuration updated.");
+          new Notice2(t2("view.configure.updated_notice"));
         }
         async createTaskInteractive() {
           const statuses = this.plugin.collectStatusesFromCards(this.cards);
@@ -1408,8 +2051,8 @@ var require_view = __commonJS({
           const categories = this.uniqueValues("category");
           const priorities = this.uniqueValues("priority");
           const values = await this.plugin.openFormModal({
-            title: "New Task",
-            submitText: "Create",
+            title: t2("view.task.new.title"),
+            submitText: t2("common.create"),
             fields: [
               { key: "title", label: "Task title", value: "", type: "text" },
               { key: "status", label: "Status", value: defaultStatus, type: "select", options: statuses },
@@ -1436,7 +2079,7 @@ var require_view = __commonJS({
           if (!values) return;
           const title = String(values.title || "").trim();
           if (!title) {
-            new Notice2("Task title is required.");
+            new Notice2(t2("view.task.title_required"));
             return;
           }
           const status = String(values.status || "").trim() || defaultStatus;
@@ -1446,7 +2089,7 @@ var require_view = __commonJS({
           const tagsInput = String(values.tags || "");
           const dueDate = normalizeDateInput2(dueInput);
           if (dueInput.trim() && !dueDate) {
-            new Notice2("Invalid due date. Use YYYY-MM-DD.");
+            new Notice2(t2("view.task.invalid_due_date"));
             return;
           }
           const tags = splitCsv2(tagsInput);
@@ -1478,7 +2121,7 @@ var require_view = __commonJS({
           this.renderDropdownFilter(row, "Tag", tags, "tags");
           const hasFilters = this.filters.categories.length || this.filters.priorities.length || this.filters.tags.length || this.filters.text;
           if (hasFilters) {
-            const clearBtn = row.createEl("button", { text: "Clear", cls: "smart-kanban-filter-clear-btn" });
+            const clearBtn = row.createEl("button", { text: t2("common.clear"), cls: "smart-kanban-filter-clear-btn" });
             clearBtn.addEventListener("click", () => {
               this.clearFilters();
               this.renderFilters();
@@ -1495,7 +2138,7 @@ var require_view = __commonJS({
           const wrap = row.createDiv({ cls: "smart-kanban-preset-wrap" });
           if (names.length > 0) {
             const select = wrap.createEl("select", { cls: "smart-kanban-preset-select" });
-            select.createEl("option", { text: "Views...", value: "" });
+            select.createEl("option", { text: t2("view.preset.placeholder"), value: "" });
             for (const name of names.sort((a, b) => a.localeCompare(b))) {
               const opt = select.createEl("option", { value: name });
               opt.textContent = name;
@@ -1509,12 +2152,12 @@ var require_view = __commonJS({
               this.applyPreset(select.value);
             });
             if (this.currentPreset) {
-              const deleteBtn = wrap.createEl("button", { cls: "smart-kanban-icon-btn-sm", attr: { title: "Delete view" } });
+              const deleteBtn = wrap.createEl("button", { cls: "smart-kanban-icon-btn-sm", attr: { title: t2("view.preset.delete_title") } });
               setIcon2(deleteBtn, "trash-2");
               deleteBtn.addEventListener("click", () => this.deleteCurrentPresetInteractive());
             }
           }
-          const saveBtn = wrap.createEl("button", { cls: "smart-kanban-icon-btn-sm", attr: { title: "Save current filters as view" } });
+          const saveBtn = wrap.createEl("button", { cls: "smart-kanban-icon-btn-sm", attr: { title: t2("view.preset.save_title") } });
           setIcon2(saveBtn, "bookmark-plus");
           saveBtn.addEventListener("click", () => this.savePresetInteractive());
         }
@@ -1581,7 +2224,7 @@ var require_view = __commonJS({
             });
           }
           if (selected.length > 0) {
-            const clearAll = panel.createEl("button", { text: "Clear", cls: "smart-kanban-dropdown-clear" });
+            const clearAll = panel.createEl("button", { text: t2("common.clear"), cls: "smart-kanban-dropdown-clear" });
             clearAll.addEventListener("click", () => {
               this.filters[key] = [];
               this.currentPreset = "";
@@ -1602,7 +2245,7 @@ var require_view = __commonJS({
         applyPreset(name) {
           const preset = this.plugin.getFilterPreset(name);
           if (!preset) {
-            new Notice2(`Preset not found: ${name}`);
+            new Notice2(t2("view.preset.not_found", { name }));
             this.currentPreset = "";
             this.renderFilters();
             return;
@@ -1614,12 +2257,12 @@ var require_view = __commonJS({
         }
         async savePresetInteractive() {
           const values = await this.plugin.openFormModal({
-            title: "Save View Preset",
-            submitText: "Save",
+            title: t2("view.preset.save_dialog_title"),
+            submitText: t2("common.save"),
             fields: [
               {
                 key: "name",
-                label: "Preset name",
+                label: t2("view.preset.name_label"),
                 value: this.currentPreset || ""
               }
             ]
@@ -1630,21 +2273,21 @@ var require_view = __commonJS({
           await this.plugin.saveFilterPreset(normalizedName, this.filters);
           this.currentPreset = normalizedName;
           this.renderFilters();
-          new Notice2(`Saved view: ${normalizedName}`);
+          new Notice2(t2("view.preset.saved_notice", { name: normalizedName }));
         }
         async deleteCurrentPresetInteractive() {
           if (!this.currentPreset) return;
           const name = this.currentPreset;
           const confirmed = await this.plugin.openConfirmModal({
-            title: "Delete Preset",
-            message: `Delete preset "${name}"?`,
-            confirmText: "Delete"
+            title: t2("view.preset.delete_dialog_title"),
+            message: t2("view.preset.delete_confirm", { name }),
+            confirmText: t2("common.delete")
           });
           if (!confirmed) return;
           await this.plugin.deleteFilterPreset(name);
           this.currentPreset = "";
           this.renderFilters();
-          new Notice2(`Deleted view: ${name}`);
+          new Notice2(t2("view.preset.deleted_notice", { name }));
         }
         clearFilters() {
           this.filters = this.plugin.createEmptyFilters();
@@ -1672,9 +2315,9 @@ var require_view = __commonJS({
           this.boardEl.addClass("smart-kanban-board");
           if (this.cards.length === 0) {
             const emptyEl = this.boardEl.createDiv({ cls: "smart-kanban-empty-state" });
-            emptyEl.createEl("h3", { text: "No tasks found" });
-            emptyEl.createEl("p", { text: "Create your first task to get started, or check that your source folder is configured correctly." });
-            const createBtn = emptyEl.createEl("button", { text: "Create First Task", cls: "mod-cta" });
+            emptyEl.createEl("h3", { text: t2("view.empty.no_tasks_title") });
+            emptyEl.createEl("p", { text: t2("view.empty.no_tasks_desc") });
+            const createBtn = emptyEl.createEl("button", { text: t2("view.empty.create_first_task"), cls: "mod-cta" });
             createBtn.addEventListener("click", async () => {
               await this.createTaskInteractive();
             });
@@ -1689,8 +2332,8 @@ var require_view = __commonJS({
           const filteredCards = this.filteredCards();
           if (this.cards.length > 0 && filteredCards.length === 0) {
             const emptyEl = this.boardEl.createDiv({ cls: "smart-kanban-empty-state" });
-            emptyEl.createEl("p", { text: "No tasks match current filters." });
-            const clearBtn = emptyEl.createEl("button", { text: "Clear Filters" });
+            emptyEl.createEl("p", { text: t2("view.empty.no_filter_match") });
+            const clearBtn = emptyEl.createEl("button", { text: t2("view.empty.clear_filters") });
             clearBtn.addEventListener("click", () => {
               this.clearFilters();
               this.renderFilters();
@@ -1698,15 +2341,16 @@ var require_view = __commonJS({
             });
             return;
           }
+          const eff = this.getActiveSettings();
           for (const status of statuses) {
             const lane = this.boardEl.createDiv({ cls: "smart-kanban-lane" });
             lane.dataset.status = status;
             const isCollapsed = this.collapsedLanes.has(status);
             if (isCollapsed) lane.addClass("is-collapsed");
-            const laneHeader = lane.createDiv({ cls: "smart-kanban-lane-header" });
             const laneColor = this.plugin.getResolvedLaneColor(status);
-            if (laneColor.bg) laneHeader.style.setProperty("--sk-lane-accent-bg", laneColor.bg);
-            if (laneColor.text) laneHeader.style.setProperty("--sk-lane-accent-text", laneColor.text);
+            if (laneColor.bg) lane.style.setProperty("--sk-lane-accent-bg", laneColor.bg);
+            if (laneColor.text) lane.style.setProperty("--sk-lane-accent-text", laneColor.text);
+            const laneHeader = lane.createDiv({ cls: "smart-kanban-lane-header" });
             const laneTitle = laneHeader.createEl("h3", { text: status });
             laneHeader.addEventListener("click", () => {
               if (this.collapsedLanes.has(status)) this.collapsedLanes.delete(status);
@@ -1731,44 +2375,51 @@ var require_view = __commonJS({
               const list = lane.createDiv({ cls: "smart-kanban-card-list" });
               list.dataset.status = status;
               for (const card of laneCards) {
-                this.renderCard(list, card);
+                this.renderCard(list, card, eff);
               }
               const quickAdd = lane.createDiv({ cls: "smart-kanban-quick-add" });
               const quickLabel = quickAdd.createEl("span", {
-                text: "+ New page",
+                text: t2("view.quick_add.new_page"),
                 cls: "smart-kanban-quick-add-label"
               });
-              if (laneColor.bg) quickLabel.style.color = laneColor.bg;
+              if (laneColor.text) quickLabel.style.color = laneColor.text;
               const quickInput = quickAdd.createEl("input", {
                 type: "text",
-                placeholder: "Untitled",
+                placeholder: t2("view.quick_add.placeholder"),
                 cls: "smart-kanban-quick-add-input"
               });
               quickInput.style.display = "none";
+              let quickAddPending = false;
               quickLabel.addEventListener("click", () => {
                 quickLabel.style.display = "none";
                 quickInput.style.display = "";
                 quickInput.focus();
               });
               const doQuickAdd = async () => {
+                if (quickAddPending) return;
                 const title = quickInput.value.trim();
                 if (!title) {
                   quickInput.style.display = "none";
                   quickLabel.style.display = "";
                   return;
                 }
-                const s = this.plugin.getEffectiveSettings(this.boardId);
-                await this.plugin.createTaskEntry(title, {
-                  [s.statusField]: status,
-                  [s.categoryField]: "",
-                  [s.priorityField]: "",
-                  [s.dueDateField]: "",
-                  [s.tagsField]: ""
-                }, this.boardId);
-                quickInput.value = "";
+                quickAddPending = true;
                 quickInput.style.display = "none";
                 quickLabel.style.display = "";
-                await this.reload();
+                const s = this.plugin.getEffectiveSettings(this.boardId);
+                try {
+                  await this.plugin.createTaskEntry(title, {
+                    [s.statusField]: status,
+                    [s.categoryField]: "",
+                    [s.priorityField]: "",
+                    [s.dueDateField]: "",
+                    [s.tagsField]: ""
+                  }, this.boardId);
+                  quickInput.value = "";
+                  await this.reload();
+                } finally {
+                  quickAddPending = false;
+                }
               };
               quickInput.addEventListener("keydown", (e) => {
                 if (e.key === "Enter") {
@@ -1795,10 +2446,11 @@ var require_view = __commonJS({
           this.boardEl.empty();
           this.boardEl.removeClass("smart-kanban-board");
           this.boardEl.addClass("smart-kanban-table-wrap");
+          const eff = this.getActiveSettings();
           const filtered = this.filteredCards();
           const sorted = this.plugin.sortCards(filtered);
           if (!sorted.length) {
-            this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: "No tasks found." });
+            this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: t2("view.empty.no_tasks") });
             return;
           }
           const table = this.boardEl.createEl("table", { cls: "smart-kanban-table" });
@@ -1819,7 +2471,11 @@ var require_view = __commonJS({
             });
             tr.createEl("td").createSpan({ text: card.status || "Todo", cls: "smart-kanban-badge smart-kanban-badge-category" });
             const tdCat = tr.createEl("td");
-            if (card.category) tdCat.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+            if (card.category) {
+              const catBadge = tdCat.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+              this.applyBadgeColor(catBadge, eff.categoryColors, card.category);
+              this.bindFilterBadge(catBadge, "categories", card.category);
+            }
             const tdPri = tr.createEl("td");
             if (card.priority) {
               const slug = card.priority.toLowerCase().replace(/\s+/g, "-");
@@ -1828,11 +2484,13 @@ var require_view = __commonJS({
             const tdDue = tr.createEl("td");
             if (card.dueDate) {
               const cls = card.dueInfo ? `smart-kanban-badge smart-kanban-due-badge ${card.dueInfo.cls || ""}` : "";
-              tdDue.createSpan({ text: card.dueDate, cls });
+              tdDue.createSpan({ text: card.dueInfo && card.dueInfo.label ? card.dueInfo.label : card.dueDate, cls });
             }
             const tdTags = tr.createEl("td", { cls: "smart-kanban-table-tags" });
             for (const tag of card.tags || []) {
-              tdTags.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
+              const tagBadge = tdTags.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
+              this.applyBadgeColor(tagBadge, eff.tagColors, tag);
+              this.bindFilterBadge(tagBadge, "tags", tag);
             }
           }
         }
@@ -1840,10 +2498,11 @@ var require_view = __commonJS({
           this.boardEl.empty();
           this.boardEl.removeClass("smart-kanban-board");
           this.boardEl.addClass("smart-kanban-list-wrap");
+          const eff = this.getActiveSettings();
           const filtered = this.filteredCards();
           const statuses = this.plugin.collectStatusesFromCards(this.cards);
           if (!filtered.length) {
-            this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: "No tasks found." });
+            this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: t2("view.empty.no_tasks") });
             return;
           }
           for (const status of statuses) {
@@ -1865,14 +2524,20 @@ var require_view = __commonJS({
                 if (file instanceof TFile2) await this.app.workspace.getLeaf(true).openFile(file);
               });
               const badges = row.createDiv({ cls: "smart-kanban-list-item-badges" });
-              if (card.category) badges.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+              if (card.category) {
+                const catBadge = badges.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+                this.applyBadgeColor(catBadge, eff.categoryColors, card.category);
+                this.bindFilterBadge(catBadge, "categories", card.category);
+              }
               if (card.priority) {
                 const slug = card.priority.toLowerCase().replace(/\s+/g, "-");
                 badges.createSpan({ text: card.priority, cls: `smart-kanban-badge smart-kanban-priority-badge smart-kanban-priority-${slug}` });
               }
               if (card.dueInfo) badges.createSpan({ text: card.dueInfo.label, cls: "smart-kanban-badge smart-kanban-due-badge" });
               for (const tag of card.tags || []) {
-                badges.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
+                const tagBadge = badges.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
+                this.applyBadgeColor(tagBadge, eff.tagColors, tag);
+                this.bindFilterBadge(tagBadge, "tags", tag);
               }
             }
           }
@@ -1881,9 +2546,10 @@ var require_view = __commonJS({
           this.boardEl.empty();
           this.boardEl.removeClass("smart-kanban-board");
           this.boardEl.addClass("smart-kanban-list-wrap");
+          const eff = this.getActiveSettings();
           const sorted = this.plugin.sortCards(this.filteredCards());
           if (!sorted.length) {
-            this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: "No tasks found." });
+            this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: t2("view.empty.no_tasks") });
             return;
           }
           for (const card of sorted) {
@@ -1896,18 +2562,24 @@ var require_view = __commonJS({
             });
             const badges = row.createDiv({ cls: "smart-kanban-list-item-badges" });
             badges.createSpan({ text: card.status || "Todo", cls: "smart-kanban-badge smart-kanban-badge-category" });
-            if (card.category) badges.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+            if (card.category) {
+              const catBadge = badges.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+              this.applyBadgeColor(catBadge, eff.categoryColors, card.category);
+              this.bindFilterBadge(catBadge, "categories", card.category);
+            }
             if (card.priority) {
               const slug = card.priority.toLowerCase().replace(/\s+/g, "-");
               badges.createSpan({ text: card.priority, cls: `smart-kanban-badge smart-kanban-priority-badge smart-kanban-priority-${slug}` });
             }
             if (card.dueInfo) badges.createSpan({ text: card.dueInfo.label, cls: "smart-kanban-badge smart-kanban-due-badge" });
             for (const tag of card.tags || []) {
-              badges.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
+              const tagBadge = badges.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
+              this.applyBadgeColor(tagBadge, eff.tagColors, tag);
+              this.bindFilterBadge(tagBadge, "tags", tag);
             }
           }
         }
-        renderCard(parent, card) {
+        renderCard(parent, card, eff = this.getActiveSettings()) {
           const cardEl = parent.createDiv({ cls: "smart-kanban-card" });
           cardEl.dataset.cardId = card.id;
           if (card.priority) cardEl.dataset.priority = card.priority.toLowerCase().replace(/\s+/g, "-");
@@ -1935,7 +2607,9 @@ var require_view = __commonJS({
           setIcon2(overflowBtn, "more-horizontal");
           const badges = cardEl.createDiv({ cls: "smart-kanban-card-badges" });
           if (card.category) {
-            badges.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+            const catBadge = badges.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+            this.applyBadgeColor(catBadge, eff.categoryColors, card.category);
+            this.bindFilterBadge(catBadge, "categories", card.category);
           }
           if (card.priority) {
             const prioSlug = card.priority.toLowerCase().replace(/\s+/g, "-");
@@ -1955,7 +2629,9 @@ var require_view = __commonJS({
           }
           if (card.tags && card.tags.length) {
             for (const tag of card.tags) {
-              badges.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
+              const tagBadge = badges.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
+              this.applyBadgeColor(tagBadge, eff.tagColors, tag);
+              this.bindFilterBadge(tagBadge, "tags", tag);
             }
           }
           const menu = overflowWrap.createDiv({ cls: "smart-kanban-overflow-menu" });
@@ -1973,12 +2649,12 @@ var require_view = __commonJS({
             menu.style.display = opening ? "" : "none";
             cardEl.classList.toggle("has-menu-open", opening);
           });
-          const editItem = menu.createDiv({ text: "Edit", cls: "smart-kanban-menu-item" });
+          const editItem = menu.createDiv({ text: t2("view.menu.edit"), cls: "smart-kanban-menu-item" });
           editItem.addEventListener("click", async () => {
             menu.style.display = "none";
             await this.editCardInteractive(card);
           });
-          const openItem = menu.createDiv({ text: "Open Note", cls: "smart-kanban-menu-item" });
+          const openItem = menu.createDiv({ text: t2("view.menu.open_note"), cls: "smart-kanban-menu-item" });
           openItem.addEventListener("click", async () => {
             menu.style.display = "none";
             const file = this.app.vault.getAbstractFileByPath(card.path);
@@ -1986,17 +2662,17 @@ var require_view = __commonJS({
               await this.app.workspace.getLeaf(true).openFile(file);
             }
           });
-          const completeItem = menu.createDiv({ text: "Mark Done", cls: "smart-kanban-menu-item" });
+          const completeItem = menu.createDiv({ text: t2("view.menu.mark_done"), cls: "smart-kanban-menu-item" });
           completeItem.addEventListener("click", async () => {
             menu.style.display = "none";
             await this.plugin.updateCardStatus(card, "Done", this.boardId);
             await this.reload();
-            new Notice2(`Completed: ${card.title}`);
+            new Notice2(t2("view.menu.completed_notice", { title: card.title }));
           });
           const moveItem = menu.createDiv({ cls: "smart-kanban-menu-item smart-kanban-move-item" });
-          moveItem.createSpan({ text: "Move to " });
+          moveItem.createSpan({ text: t2("view.menu.move_to") + " " });
           const moveSelect = moveItem.createEl("select", { cls: "smart-kanban-move-select" });
-          moveSelect.createEl("option", { text: "...", value: "" });
+          moveSelect.createEl("option", { text: t2("common.ellipsis"), value: "" });
           const allStatuses = this.plugin.collectStatusesFromCards(this.cards);
           for (const s of allStatuses) {
             if (s !== card.status) {
@@ -2009,7 +2685,7 @@ var require_view = __commonJS({
             await this.plugin.updateCardStatus(card, moveSelect.value, this.boardId);
             await this.reload();
           });
-          const deleteItem = menu.createDiv({ text: "Delete", cls: "smart-kanban-menu-item smart-kanban-menu-delete" });
+          const deleteItem = menu.createDiv({ text: t2("common.delete"), cls: "smart-kanban-menu-item smart-kanban-menu-delete" });
           deleteItem.addEventListener("click", async () => {
             menu.style.display = "none";
             await this.deleteCardInteractive(card);
@@ -2023,9 +2699,9 @@ var require_view = __commonJS({
         }
         async deleteCardInteractive(card) {
           const confirmed = await this.plugin.openConfirmModal({
-            title: "Delete Task",
-            message: `Delete "${card.title}"? This cannot be undone.`,
-            confirmText: "Delete"
+            title: t2("view.delete.title"),
+            message: t2("view.delete.message", { title: card.title }),
+            confirmText: t2("common.delete")
           });
           if (!confirmed) return;
           if (card.kind === "task") {
@@ -2034,15 +2710,15 @@ var require_view = __commonJS({
             await this.plugin.deleteNoteCard(card);
           }
           await this.reload();
-          new Notice2(`Deleted: ${card.title}`);
+          new Notice2(t2("view.delete.deleted_notice", { title: card.title }));
         }
         async editCardInteractive(card) {
           const eff = this.plugin.getEffectiveSettings(this.boardId);
           const categories = this.uniqueValues("category");
           const priorities = this.uniqueValues("priority");
           const values = await this.plugin.openFormModal({
-            title: "Edit Task",
-            submitText: "Save",
+            title: t2("view.task.edit.title"),
+            submitText: t2("common.save"),
             fields: [
               { key: "title", label: "Title", value: card.title || "" },
               {
@@ -2075,7 +2751,7 @@ var require_view = __commonJS({
           const nextDueInput = String(values.due || "");
           const nextDue = normalizeDateInput2(nextDueInput);
           if (nextDueInput.trim() && !nextDue) {
-            new Notice2("Invalid due date. Use YYYY-MM-DD.");
+            new Notice2(t2("view.task.invalid_due_date"));
             return;
           }
           const nextTagsInput = String(values.tags || "");
@@ -2241,8 +2917,13 @@ var require_view = __commonJS({
             clearTimeout(this._dragReloadTimer);
             this._dragReloadTimer = null;
           }
+          if (this._keyHandler) {
+            this.containerEl.removeEventListener("keydown", this._keyHandler);
+            this._keyHandler = null;
+          }
           if (this._clickOutsideHandler) {
             document.removeEventListener("click", this._clickOutsideHandler);
+            this._clickOutsideHandler = null;
           }
         }
       }
@@ -2254,7 +2935,25 @@ var require_view = __commonJS({
 // src/settings-tab.js
 var require_settings_tab = __commonJS({
   "src/settings-tab.js"(exports2, module2) {
-    module2.exports = function createSettingsTab({ PluginSettingTab: PluginSettingTab2, Setting: Setting2, Notice: Notice2, DEFAULT_SETTINGS: DEFAULT_SETTINGS2, THEME_PRESETS: THEME_PRESETS2 }) {
+    module2.exports = function createSettingsTab({ PluginSettingTab: PluginSettingTab2, Setting: Setting2, Notice: Notice2, DEFAULT_SETTINGS: DEFAULT_SETTINGS2, THEME_PRESETS: THEME_PRESETS2, t: t2 = (k) => k, LOCALES: LOCALES2 = { en: {} }, setLocale: setLocale2 = () => {
+    } }) {
+      function tx(key, fallback, params) {
+        const value = t2(key, params);
+        return value === key ? fallback : value;
+      }
+      function normalizeColorMap(input) {
+        const out = {};
+        if (!input || typeof input !== "object") return out;
+        for (const [name, value] of Object.entries(input)) {
+          const key = String(name || "").trim();
+          if (!key || !value || typeof value !== "object") continue;
+          out[key] = {
+            bg: String(value.bg || "").trim(),
+            text: String(value.text || "").trim()
+          };
+        }
+        return out;
+      }
       function section(containerEl, title, desc) {
         const el = containerEl.createDiv({ cls: "sk-settings-section" });
         const header = el.createDiv({ cls: "sk-settings-section-header" });
@@ -2270,41 +2969,48 @@ var require_settings_tab = __commonJS({
         display() {
           const { containerEl } = this;
           containerEl.empty();
-          const srcSection = section(containerEl, "Data Source", "Where your tasks come from.");
-          new Setting2(srcSection).setName("Source mode").setDesc("Note cards create one file per task. Task lines use checklist syntax in a single file.").addDropdown(
-            (dropdown) => dropdown.addOption("notes", "Note cards").addOption("tasks", "Task lines").setValue(this.plugin.settings.sourceMode).onChange(async (value) => {
+          const srcSection = section(containerEl, t2("settings.section.dataSource"), t2("settings.section.dataSource.desc"));
+          new Setting2(srcSection).setName(tx("settings.source_mode.name", "Source mode")).setDesc(tx("settings.source_mode.desc", "Note cards create one file per task. Task lines use checklist syntax in a single file.")).addDropdown(
+            (dropdown) => dropdown.addOption("notes", tx("settings.source_mode.notes", "Note cards")).addOption("tasks", tx("settings.source_mode.tasks", "Task lines")).setValue(this.plugin.settings.sourceMode).onChange(async (value) => {
               this.plugin.settings.sourceMode = value;
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(srcSection).setName("Source folder").setDesc("Folder containing your task notes or files.").addText(
+          new Setting2(srcSection).setName(tx("settings.source_folder.name", "Source folder")).setDesc(tx("settings.source_folder.desc", "Folder containing your task notes or files.")).addText(
             (text) => text.setPlaceholder("Tasks").setValue(this.plugin.settings.sourceFolder).onChange(async (value) => {
               this.plugin.settings.sourceFolder = value.trim();
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(srcSection).setName("Include subfolders").setDesc("Also scan nested folders inside the source folder.").addToggle(
+          new Setting2(srcSection).setName(tx("settings.include_subfolders.name", "Include subfolders")).setDesc(tx("settings.include_subfolders.desc", "Also scan nested folders inside the source folder.")).addToggle(
             (toggle) => toggle.setValue(this.plugin.settings.includeSubfolders).onChange(async (value) => {
               this.plugin.settings.includeSubfolders = value;
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(srcSection).setName("Task inbox file").setDesc("File used when adding new tasks in Task Lines mode.").addText(
+          new Setting2(srcSection).setName(tx("settings.task_inbox.name", "Task inbox file")).setDesc(tx("settings.task_inbox.desc", "File used when adding new tasks in Task Lines mode.")).addText(
             (text) => text.setPlaceholder("Tasks/Task Inbox.md").setValue(this.plugin.settings.taskInboxFile).onChange(async (value) => {
               this.plugin.settings.taskInboxFile = value.trim() || "Tasks/Task Inbox.md";
               await this.plugin.saveSettings();
             })
           );
-          const fieldSection = section(containerEl, "Field Mapping", "Map your frontmatter or inline fields to Kanban properties.");
+          new Setting2(srcSection).setName(tx("settings.note_template.name", "Note template")).setDesc(tx("settings.note_template.desc", "Optional template file path used when creating note-mode tasks.")).addText(
+            (text) => text.setPlaceholder("Templates/Task.md").setValue(this.plugin.settings.noteTemplate || "").onChange(async (value) => {
+              this.plugin.settings.noteTemplate = String(value || "").trim();
+              await this.plugin.saveSettings();
+              this.plugin.refreshViews();
+            })
+          );
+          const fieldSection = section(containerEl, t2("settings.section.fieldMapping"), t2("settings.section.fieldMapping.desc"));
           const fieldDefs = [
-            ["statusField", "Status field", "Determines which lane a card appears in."],
-            ["categoryField", "Category field", "Optional grouping label shown as a badge."],
-            ["priorityField", "Priority field", "Sets priority level (Urgent, High, Medium, Low)."],
-            ["tagsField", "Tags field", "Comma-separated tags displayed on the card."],
-            ["dueDateField", "Due date field", "Date in YYYY-MM-DD format for due tracking."]
+            ["statusField", tx("settings.field.status.name", "Status field"), tx("settings.field.status.desc", "Determines which lane a card appears in.")],
+            ["categoryField", tx("settings.field.category.name", "Category field"), tx("settings.field.category.desc", "Optional grouping label shown as a badge.")],
+            ["priorityField", tx("settings.field.priority.name", "Priority field"), tx("settings.field.priority.desc", "Sets priority level (Urgent, High, Medium, Low).")],
+            ["tagsField", tx("settings.field.tags.name", "Tags field"), tx("settings.field.tags.desc", "Comma-separated tags displayed on the card.")],
+            ["dueDateField", tx("settings.field.due.name", "Due date field"), tx("settings.field.due.desc", "Date in YYYY-MM-DD format for due tracking.")]
           ];
           for (const [key, label, desc] of fieldDefs) {
             new Setting2(fieldSection).setName(label).setDesc(desc).addText(
@@ -2315,43 +3021,43 @@ var require_settings_tab = __commonJS({
               })
             );
           }
-          new Setting2(fieldSection).setName("Custom fields").setDesc("Extra frontmatter keys to display on cards. Comma-separated.").addText(
+          new Setting2(fieldSection).setName(tx("settings.custom_fields.name", "Custom fields")).setDesc(tx("settings.custom_fields.desc", "Extra frontmatter keys to display on cards. Comma-separated.")).addText(
             (text) => text.setPlaceholder("effort, assignee").setValue(this.plugin.settings.customFields).onChange(async (value) => {
               this.plugin.settings.customFields = value;
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          const layoutSection = section(containerEl, "Board Layout", "Control lane order, sorting, and work-in-progress limits.");
-          new Setting2(layoutSection).setName("Status order").setDesc("Comma-separated lane names in display order.").addTextArea(
+          const layoutSection = section(containerEl, t2("settings.section.layout"), t2("settings.section.layout.desc"));
+          new Setting2(layoutSection).setName(tx("settings.status_order.name", "Status order")).setDesc(tx("settings.status_order.desc", "Comma-separated lane names in display order.")).addTextArea(
             (text) => text.setValue(this.plugin.settings.statusOrder).onChange(async (value) => {
               this.plugin.settings.statusOrder = value;
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(layoutSection).setName("Priority order").setDesc("Defines priority ranking for sorting. Comma-separated, highest first.").addText(
+          new Setting2(layoutSection).setName(tx("settings.priority_order.name", "Priority order")).setDesc(tx("settings.priority_order.desc", "Defines priority ranking for sorting. Comma-separated, highest first.")).addText(
             (text) => text.setPlaceholder("Urgent,High,Medium,Low").setValue(this.plugin.settings.priorityOrder).onChange(async (value) => {
               this.plugin.settings.priorityOrder = value;
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(layoutSection).setName("Sort by").setDesc("Default card sorting within each lane.").addDropdown(
-            (dropdown) => dropdown.addOption("none", "Manual (drag to reorder)").addOption("priority", "Priority").addOption("due", "Due date").addOption("title", "Title").setValue(this.plugin.settings.sortBy).onChange(async (value) => {
+          new Setting2(layoutSection).setName(tx("settings.sort_by.name", "Sort by")).setDesc(tx("settings.sort_by.desc", "Default card sorting within each lane.")).addDropdown(
+            (dropdown) => dropdown.addOption("none", tx("settings.sort_by.none", "Manual (drag to reorder)")).addOption("priority", tx("settings.sort_by.priority", "Priority")).addOption("due", tx("settings.sort_by.due", "Due date")).addOption("title", tx("settings.sort_by.title", "Title")).setValue(this.plugin.settings.sortBy).onChange(async (value) => {
               this.plugin.settings.sortBy = value;
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(layoutSection).setName("Sort direction").addDropdown(
-            (dropdown) => dropdown.addOption("asc", "Ascending").addOption("desc", "Descending").setValue(this.plugin.settings.sortDirection).onChange(async (value) => {
+          new Setting2(layoutSection).setName(tx("settings.sort_direction.name", "Sort direction")).addDropdown(
+            (dropdown) => dropdown.addOption("asc", tx("settings.sort_direction.asc", "Ascending")).addOption("desc", tx("settings.sort_direction.desc", "Descending")).setValue(this.plugin.settings.sortDirection).onChange(async (value) => {
               this.plugin.settings.sortDirection = value;
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(layoutSection).setName("Due soon threshold").setDesc("Cards due within this many days are highlighted.").addText(
+          new Setting2(layoutSection).setName(tx("settings.due_soon.name", "Due soon threshold")).setDesc(tx("settings.due_soon.desc", "Cards due within this many days are highlighted.")).addText(
             (text) => text.setValue(String(this.plugin.settings.dueSoonDays)).onChange(async (value) => {
               const parsed = Number.parseInt(value, 10);
               this.plugin.settings.dueSoonDays = Number.isFinite(parsed) && parsed >= 0 ? parsed : 2;
@@ -2359,14 +3065,14 @@ var require_settings_tab = __commonJS({
               this.plugin.refreshViews();
             })
           );
-          new Setting2(layoutSection).setName("WIP limits").setDesc("Limit cards per lane. Format: Todo:10, In Progress:3").addTextArea(
+          new Setting2(layoutSection).setName(tx("settings.wip_limits.name", "WIP limits")).setDesc(tx("settings.wip_limits.desc", "Limit cards per lane. Format: Todo:10, In Progress:3")).addTextArea(
             (text) => text.setValue(this.plugin.settings.wipLimits).onChange(async (value) => {
               this.plugin.settings.wipLimits = value;
               await this.plugin.saveSettings();
               this.plugin.refreshViews();
             })
           );
-          new Setting2(layoutSection).setName("Auto-archive done tasks").setDesc("Hide completed tasks older than this many days. Set to 0 to disable.").addText(
+          new Setting2(layoutSection).setName(tx("settings.auto_archive.name", "Auto-archive done tasks")).setDesc(tx("settings.auto_archive.desc", "Hide completed tasks older than this many days. Set to 0 to disable.")).addText(
             (text) => text.setValue(String(this.plugin.settings.autoArchiveDays || 0)).onChange(async (value) => {
               const parsed = Number.parseInt(value, 10);
               this.plugin.settings.autoArchiveDays = Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
@@ -2374,8 +3080,30 @@ var require_settings_tab = __commonJS({
               this.plugin.refreshViews();
             })
           );
-          const themeSection = section(containerEl, "Appearance", "Customize colors, fonts, and visual theme.");
-          new Setting2(themeSection).setName("Theme preset").setDesc("Choose a color scheme as a starting point. You can override individual colors below.").addDropdown((dropdown) => {
+          const dateSection = section(containerEl, t2("settings.section.dateDisplay"), t2("settings.section.dateDisplay.desc"));
+          new Setting2(dateSection).setName(tx("settings.date_format.name", "Date format")).setDesc(tx("settings.date_format.desc", "Storage format for new due dates. Uses Moment.js patterns.")).addText(
+            (text) => text.setPlaceholder("YYYY-MM-DD").setValue(this.plugin.settings.dateFormat || "YYYY-MM-DD").onChange(async (value) => {
+              this.plugin.settings.dateFormat = String(value || "").trim() || "YYYY-MM-DD";
+              await this.plugin.saveSettings();
+              this.plugin.refreshViews();
+            })
+          );
+          new Setting2(dateSection).setName(tx("settings.date_display_format.name", "Date display format")).setDesc(tx("settings.date_display_format.desc", "Optional display format. Leave empty to use Date format.")).addText(
+            (text) => text.setPlaceholder("MMM D, YYYY").setValue(this.plugin.settings.dateDisplayFormat || "").onChange(async (value) => {
+              this.plugin.settings.dateDisplayFormat = String(value || "").trim();
+              await this.plugin.saveSettings();
+              this.plugin.refreshViews();
+            })
+          );
+          new Setting2(dateSection).setName(tx("settings.relative_due.name", "Show relative due labels")).setDesc(tx("settings.relative_due.desc", 'Show labels like "Due in 3d" instead of absolute dates.')).addToggle(
+            (toggle) => toggle.setValue(this.plugin.settings.showRelativeDate !== false).onChange(async (value) => {
+              this.plugin.settings.showRelativeDate = !!value;
+              await this.plugin.saveSettings();
+              this.plugin.refreshViews();
+            })
+          );
+          const themeSection = section(containerEl, t2("settings.section.appearance"), t2("settings.section.appearance.desc"));
+          new Setting2(themeSection).setName(tx("settings.theme_preset.name", "Theme preset")).setDesc(tx("settings.theme_preset.desc", "Choose a color scheme as a starting point. You can override individual colors below.")).addDropdown((dropdown) => {
             for (const [key, preset] of Object.entries(THEME_PRESETS2)) {
               dropdown.addOption(key, preset.name);
             }
@@ -2388,7 +3116,7 @@ var require_settings_tab = __commonJS({
               this.display();
             });
           });
-          new Setting2(themeSection).setName("Font family").setDesc("Custom font stack for the board. Leave empty for default.").addText(
+          new Setting2(themeSection).setName(tx("settings.font_family.name", "Font family")).setDesc(tx("settings.font_family.desc", "Custom font stack for the board. Leave empty for default.")).addText(
             (text) => text.setPlaceholder("e.g. Inter, sans-serif").setValue(this.plugin.settings.theme && this.plugin.settings.theme.overrides && this.plugin.settings.theme.overrides.fontFamily || "").onChange(async (value) => {
               if (!this.plugin.settings.theme.overrides) this.plugin.settings.theme.overrides = {};
               this.plugin.settings.theme.overrides.fontFamily = value.trim();
@@ -2396,53 +3124,83 @@ var require_settings_tab = __commonJS({
               this.plugin.refreshViews();
             })
           );
+          new Setting2(themeSection).setName(tx("settings.tag_colors.name", "Tag colors")).setDesc(tx("settings.tag_colors.desc", "Define per-tag badge colors."));
+          this.renderColorMapEditor(themeSection, "tagColors", tx("settings.tag_colors.add", "Add tag color"), tx("settings.tag_colors.key_placeholder", "tag name"));
+          new Setting2(themeSection).setName(tx("settings.category_colors.name", "Category colors")).setDesc(tx("settings.category_colors.desc", "Define per-category badge colors."));
+          this.renderColorMapEditor(themeSection, "categoryColors", tx("settings.category_colors.add", "Add category color"), tx("settings.category_colors.key_placeholder", "category name"));
+          new Setting2(themeSection).setName(tx("settings.lane_tint.name", "Lane body tint strength")).setDesc(tx("settings.lane_tint.desc", "How much lane accent color appears in lane background. 0-40.")).addText(
+            (text) => {
+              var _a;
+              return text.setPlaceholder("10").setValue(String((_a = this.plugin.settings.theme && this.plugin.settings.theme.overrides && this.plugin.settings.theme.overrides.laneTintStrength) != null ? _a : 10)).onChange(async (value) => {
+                const parsed = Number.parseInt(value, 10);
+                if (!this.plugin.settings.theme.overrides) this.plugin.settings.theme.overrides = {};
+                if (!Number.isFinite(parsed)) delete this.plugin.settings.theme.overrides.laneTintStrength;
+                else this.plugin.settings.theme.overrides.laneTintStrength = Math.max(0, Math.min(40, parsed));
+                await this.plugin.saveSettings();
+                this.plugin.refreshViews();
+              });
+            }
+          );
+          new Setting2(themeSection).setName(tx("settings.lane_header_tint.name", "Lane header tint strength")).setDesc(tx("settings.lane_header_tint.desc", "How much lane accent color appears in lane header chip. 0-60.")).addText(
+            (text) => {
+              var _a;
+              return text.setPlaceholder("24").setValue(String((_a = this.plugin.settings.theme && this.plugin.settings.theme.overrides && this.plugin.settings.theme.overrides.laneHeaderTintStrength) != null ? _a : 24)).onChange(async (value) => {
+                const parsed = Number.parseInt(value, 10);
+                if (!this.plugin.settings.theme.overrides) this.plugin.settings.theme.overrides = {};
+                if (!Number.isFinite(parsed)) delete this.plugin.settings.theme.overrides.laneHeaderTintStrength;
+                else this.plugin.settings.theme.overrides.laneHeaderTintStrength = Math.max(0, Math.min(60, parsed));
+                await this.plugin.saveSettings();
+                this.plugin.refreshViews();
+              });
+            }
+          );
           const themeColorGroups = [
             {
-              label: "Card Colors",
+              label: tx("settings.theme.group.card", "Card Colors"),
               fields: [
-                { key: "cardBg", label: "Background" },
-                { key: "cardText", label: "Text" },
-                { key: "cardBorder", label: "Border" }
+                { key: "cardBg", label: tx("settings.theme.cardBg", "Background") },
+                { key: "cardText", label: tx("settings.theme.cardText", "Text") },
+                { key: "cardBorder", label: tx("settings.theme.cardBorder", "Border") }
               ]
             },
             {
-              label: "Lane Colors",
+              label: tx("settings.theme.group.lane", "Lane Colors"),
               fields: [
-                { key: "laneBg", label: "Background" },
-                { key: "laneHeaderBg", label: "Header background" },
-                { key: "laneHeaderText", label: "Header text" },
-                { key: "laneBorder", label: "Border" }
+                { key: "laneBg", label: tx("settings.theme.laneBg", "Base lane tint") },
+                { key: "laneHeaderBg", label: tx("settings.theme.laneHeaderBg", "Base header tint") },
+                { key: "laneHeaderText", label: tx("settings.theme.laneHeaderText", "Header text") },
+                { key: "laneBorder", label: tx("settings.theme.laneBorder", "Lane border") }
               ]
             },
             {
-              label: "Priority",
+              label: tx("settings.theme.group.priority", "Priority"),
               fields: [
-                { key: "priorityUrgent", label: "Urgent" },
-                { key: "priorityHigh", label: "High" },
-                { key: "priorityMedium", label: "Medium" },
-                { key: "priorityLow", label: "Low" }
+                { key: "priorityUrgent", label: tx("settings.theme.priorityUrgent", "Urgent") },
+                { key: "priorityHigh", label: tx("settings.theme.priorityHigh", "High") },
+                { key: "priorityMedium", label: tx("settings.theme.priorityMedium", "Medium") },
+                { key: "priorityLow", label: tx("settings.theme.priorityLow", "Low") }
               ]
             },
             {
-              label: "Tags & Accent",
+              label: tx("settings.theme.group.tags", "Tags & Accent"),
               fields: [
-                { key: "tagBg", label: "Tag background" },
-                { key: "tagText", label: "Tag text" },
-                { key: "tagBorder", label: "Tag border" },
-                { key: "accentColor", label: "Accent" }
+                { key: "tagBg", label: tx("settings.theme.tagBg", "Tag background") },
+                { key: "tagText", label: tx("settings.theme.tagText", "Tag text") },
+                { key: "tagBorder", label: tx("settings.theme.tagBorder", "Tag border") },
+                { key: "accentColor", label: tx("settings.theme.accentColor", "Accent") }
               ]
             },
             {
-              label: "Due Dates",
+              label: tx("settings.theme.group.due", "Due Dates"),
               fields: [
-                { key: "dueBadgeOverdue", label: "Overdue" },
-                { key: "dueBadgeSoon", label: "Due soon" }
+                { key: "dueBadgeOverdue", label: tx("settings.theme.dueBadgeOverdue", "Overdue") },
+                { key: "dueBadgeSoon", label: tx("settings.theme.dueBadgeSoon", "Due soon") }
               ]
             },
             {
-              label: "Board",
+              label: tx("settings.theme.group.board", "Board"),
               fields: [
-                { key: "boardBg", label: "Board background" }
+                { key: "boardBg", label: tx("settings.theme.boardBg", "Board background") }
               ]
             }
           ];
@@ -2465,7 +3223,7 @@ var require_settings_tab = __commonJS({
               });
               if (isOverridden) {
                 setting.addButton((btn) => {
-                  btn.setButtonText("Reset").onClick(async () => {
+                  btn.setButtonText(tx("common.reset", "Reset")).onClick(async () => {
                     delete this.plugin.settings.theme.overrides[field.key];
                     await this.plugin.saveSettings();
                     this.plugin.refreshViews();
@@ -2475,12 +3233,12 @@ var require_settings_tab = __commonJS({
               }
             }
           }
-          themeSection.createEl("h4", { text: "Per-Lane Header Colors", cls: "sk-settings-color-group-title" });
+          themeSection.createEl("h4", { text: tx("settings.per_lane_accent", "Per-Lane Accent Colors"), cls: "sk-settings-color-group-title" });
           const statuses = this.plugin.getStatusOrder();
           for (const status of statuses) {
             const laneColor = this.plugin.getResolvedLaneColor(status);
             const userLane = this.plugin.settings.theme && this.plugin.settings.theme.laneColors && this.plugin.settings.theme.laneColors[status];
-            const setting = new Setting2(themeSection).setName(status);
+            const setting = new Setting2(themeSection).setName(status).setDesc(tx("settings.per_lane_accent.desc", "Accent and header text color for this lane."));
             setting.addColorPicker((picker) => {
               picker.setValue(laneColor.bg || "#868e96");
               picker.onChange(async (value) => {
@@ -2503,7 +3261,7 @@ var require_settings_tab = __commonJS({
             });
             if (userLane && (userLane.bg || userLane.text)) {
               setting.addButton((btn) => {
-                btn.setButtonText("Reset").onClick(async () => {
+                btn.setButtonText(tx("common.reset", "Reset")).onClick(async () => {
                   delete this.plugin.settings.theme.laneColors[status];
                   await this.plugin.saveSettings();
                   this.plugin.refreshViews();
@@ -2512,14 +3270,94 @@ var require_settings_tab = __commonJS({
               });
             }
           }
-          const advSection = section(containerEl, "Advanced", "Performance and behavior tuning.");
-          new Setting2(advSection).setName("Refresh debounce").setDesc("Milliseconds to wait after a file change before refreshing the board.").addText(
+          const advSection = section(containerEl, t2("settings.section.advanced"), t2("settings.section.advanced.desc"));
+          new Setting2(advSection).setName(t2("settings.language.name")).setDesc(t2("settings.language.desc")).addDropdown((dropdown) => {
+            for (const key of Object.keys(LOCALES2)) {
+              dropdown.addOption(key, t2(`settings.language.${key}`));
+            }
+            dropdown.setValue(this.plugin.settings.language || "en");
+            dropdown.onChange(async (value) => {
+              this.plugin.settings.language = value;
+              setLocale2(value);
+              await this.plugin.saveSettings();
+              this.plugin.refreshViews();
+              this.display();
+            });
+          });
+          new Setting2(advSection).setName(tx("settings.refresh_debounce.name", "Refresh debounce")).setDesc(tx("settings.refresh_debounce.desc", "Milliseconds to wait after a file change before refreshing the board.")).addText(
             (text) => text.setValue(String(this.plugin.settings.refreshDebounceMs)).onChange(async (value) => {
               const parsed = Number.parseInt(value, 10);
               this.plugin.settings.refreshDebounceMs = Number.isFinite(parsed) && parsed >= 0 ? parsed : 250;
               await this.plugin.saveSettings();
             })
           );
+        }
+        renderColorMapEditor(parentEl, mapKey, addButtonLabel, keyPlaceholder) {
+          const container = parentEl.createDiv({ cls: "sk-settings-color-map-editor" });
+          const currentMap = normalizeColorMap(this.plugin.settings[mapKey] || {});
+          const saveMap = async () => {
+            this.plugin.settings[mapKey] = currentMap;
+            await this.plugin.saveSettings();
+            this.plugin.refreshViews();
+          };
+          const renderRows = () => {
+            container.empty();
+            const keys = Object.keys(currentMap).sort((a, b) => a.localeCompare(b));
+            for (const key of keys) {
+              const entry = currentMap[key] || { bg: "", text: "" };
+              const row = new Setting2(container).setName(key);
+              row.addText((text) => {
+                text.setPlaceholder(keyPlaceholder).setValue(key).onChange(async (value) => {
+                  const nextKey = String(value || "").trim();
+                  if (!nextKey || nextKey === key) return;
+                  if (currentMap[nextKey]) return;
+                  currentMap[nextKey] = currentMap[key];
+                  delete currentMap[key];
+                  await saveMap();
+                  renderRows();
+                });
+              });
+              row.addColorPicker((picker) => {
+                picker.setValue(entry.bg || "#e8e8e8");
+                picker.onChange(async (value) => {
+                  currentMap[key].bg = value;
+                  await saveMap();
+                });
+              });
+              row.addColorPicker((picker) => {
+                picker.setValue(entry.text || "#4a4a4a");
+                picker.onChange(async (value) => {
+                  currentMap[key].text = value;
+                  await saveMap();
+                });
+              });
+              row.addButton((btn) => {
+                btn.setButtonText(tx("common.delete", "Delete")).onClick(async () => {
+                  delete currentMap[key];
+                  await saveMap();
+                  renderRows();
+                });
+              });
+            }
+            const addWrap = new Setting2(container).setName(addButtonLabel);
+            let pendingKey = "";
+            addWrap.addText((text) => {
+              text.setPlaceholder(keyPlaceholder).onChange((value) => {
+                pendingKey = String(value || "").trim();
+              });
+            });
+            addWrap.addButton((btn) => {
+              btn.setButtonText(tx("common.add", "Add")).onClick(async () => {
+                if (!pendingKey) return;
+                if (!currentMap[pendingKey]) {
+                  currentMap[pendingKey] = { bg: "#e8e8e8", text: "#4a4a4a" };
+                  await saveMap();
+                  renderRows();
+                }
+              });
+            });
+          };
+          renderRows();
         }
       }
       return { SmartKanbanSettingTab: SmartKanbanSettingTab2 };
@@ -2528,8 +3366,9 @@ var require_settings_tab = __commonJS({
 });
 
 // src/main.js
-var { Plugin, ItemView, Modal, TFile, TFolder, Notice, PluginSettingTab, Setting, setIcon } = require("obsidian");
+var { Plugin, ItemView, Modal, TFile, TFolder, Notice, PluginSettingTab, Setting, setIcon, parseYaml } = require("obsidian");
 var { VIEW_TYPE_SMART_KANBAN, THEME_PRESETS, DEFAULT_SETTINGS } = require_constants();
+var { t, setLocale, LOCALES } = require_i18n();
 var {
   normalizeDateInput,
   getDueInfo,
@@ -2560,7 +3399,7 @@ var {
   DragReorderListModal,
   SimpleFormModal,
   SimpleConfirmModal
-} = require_modals()({ Modal, Notice });
+} = require_modals()({ Modal, Notice, t });
 var { SmartKanbanView } = require_view()({
   ItemView,
   TFile,
@@ -2568,14 +3407,18 @@ var { SmartKanbanView } = require_view()({
   setIcon,
   VIEW_TYPE_SMART_KANBAN,
   normalizeDateInput,
-  splitCsv
+  splitCsv,
+  t
 });
 var { SmartKanbanSettingTab } = require_settings_tab()({
   PluginSettingTab,
   Setting,
   Notice,
   DEFAULT_SETTINGS,
-  THEME_PRESETS
+  THEME_PRESETS,
+  t,
+  LOCALES,
+  setLocale
 });
 module.exports = class SmartKanbanPlugin extends Plugin {
   async onload() {
@@ -2603,7 +3446,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
       name: "Smart Kanban: Self-check",
       callback: async () => {
         const cards = await this.collectCards();
-        new Notice(`Smart Kanban self-check OK. Cards loaded: ${cards.length}`);
+        new Notice(t("main.self_check_ok", { count: cards.length }));
       }
     });
     this.addCommand({
@@ -2612,21 +3455,21 @@ module.exports = class SmartKanbanPlugin extends Plugin {
       callback: async () => {
         const boards = this.settings.boards || [];
         if (boards.length === 0) {
-          new Notice("No custom boards. Use default board.");
+          new Notice(t("main.no_custom_boards"));
           await this.activateView();
           return;
         }
         const values = await this.openFormModal({
-          title: "Select Board",
-          submitText: "Open",
+          title: t("main.select_board.title"),
+          submitText: t("main.select_board.submit"),
           fields: [
             {
               key: "board",
-              label: "Board",
+              label: t("main.select_board.label"),
               value: "",
               type: "select",
               options: ["", ...boards.map((b) => b.id)],
-              optionLabels: { "": "Default Board", ...Object.fromEntries(boards.map((b) => [b.id, b.name])) }
+              optionLabels: { "": t("view.board.default"), ...Object.fromEntries(boards.map((b) => [b.id, b.name])) }
             }
           ]
         });
@@ -2646,17 +3489,17 @@ module.exports = class SmartKanbanPlugin extends Plugin {
       this.app.workspace.on("file-menu", (menu, file) => {
         if (file instanceof TFolder) {
           menu.addItem((item) => {
-            item.setTitle("Open as Kanban Board").setIcon("kanban-square").onClick(async () => {
+            item.setTitle(t("main.file_menu.open_as_board")).setIcon("kanban-square").onClick(async () => {
               this.settings.sourceFolder = file.path;
               await this.saveSettings();
               await this.activateView();
-              new Notice(`Kanban: source folder \u2192 ${file.path}`);
+              new Notice(t("main.source_folder_set", { path: file.path }));
             });
           });
         }
         if (file instanceof TFile && file.extension === "md") {
           menu.addItem((item) => {
-            item.setTitle("Show in Kanban").setIcon("kanban-square").onClick(async () => {
+            item.setTitle(t("main.file_menu.show_in_kanban")).setIcon("kanban-square").onClick(async () => {
               const folder = file.parent ? file.parent.path : "";
               if (folder && folder !== this.settings.sourceFolder) {
                 this.settings.sourceFolder = folder;
@@ -2756,7 +3599,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     const overrides = this.settings.theme && this.settings.theme.overrides || {};
     const resolved = { ...preset };
     for (const [key, value] of Object.entries(overrides)) {
-      if (value && typeof value === "string") resolved[key] = value;
+      if (value !== void 0 && value !== null && value !== "") resolved[key] = value;
     }
     return resolved;
   }
@@ -2764,11 +3607,17 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     if (!boardId) return null;
     return (this.settings.boards || []).find((b) => b.id === boardId) || null;
   }
-  getEffectiveSettings(boardId) {
+  getEffectiveSettings(boardId, visited = /* @__PURE__ */ new Set()) {
     const board = this.getBoard(boardId);
     if (!board) return { ...this.settings };
     if (board.type === "filtered-view" && board.parentBoardId) {
-      const parentEff = this.getEffectiveSettings(board.parentBoardId);
+      if (visited.has(board.id)) {
+        new Notice(t("main.board_parent_cycle", { name: board.name || board.id }));
+        return { ...this.settings };
+      }
+      const nextVisited = new Set(visited);
+      nextVisited.add(board.id);
+      const parentEff = this.getEffectiveSettings(board.parentBoardId, nextVisited);
       const merged = { ...parentEff };
       for (const key of Object.keys(board)) {
         if (key === "id" || key === "name" || key === "type" || key === "parentBoardId") continue;
@@ -2811,6 +3660,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     const loaded = await this.loadData();
     this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded || {});
     this.settings.filterPresets = this.settings.filterPresets || {};
+    setLocale(this.settings.language || "en");
   }
   async saveSettings() {
     await this.saveData(this.settings);
@@ -2867,44 +3717,128 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     const file = await this.createTaskNote(title, fields, eff);
     if (file) {
       await this.app.workspace.getLeaf(true).openFile(file);
-      new Notice(`Created task note: ${file.basename}`);
+      new Notice(t("main.task_note_created", { name: file.basename }));
     }
   }
   async createTaskNote(title, fields, eff = this.settings) {
     const folderPath = String(eff.sourceFolder || "").trim();
     if (!folderPath) {
-      new Notice("Source folder is empty.");
+      new Notice(t("main.source_folder_empty"));
       return null;
     }
     await ensureFolderPath(this.app, folderPath);
     const safeBase = sanitizeFileName(title) || "task";
     const filePath = await this.buildUniqueTaskPath(folderPath, safeBase);
-    const frontmatter = buildFrontmatterBlock(fields);
-    return await this.app.vault.create(filePath, `${frontmatter}
+    const preparedFields = this.prepareFieldsForWrite(fields, eff);
+    const templatePath = String(eff.noteTemplate || "").trim();
+    if (!templatePath) {
+      const frontmatter = buildFrontmatterBlock(preparedFields);
+      return await this.app.vault.create(filePath, `${frontmatter}
 # ${title}
 `);
+    }
+    const templateFile = this.app.vault.getAbstractFileByPath(templatePath);
+    if (!(templateFile instanceof TFile)) {
+      new Notice(t("main.template_missing", { path: templatePath }));
+      const frontmatter = buildFrontmatterBlock(preparedFields);
+      return await this.app.vault.create(filePath, `${frontmatter}
+# ${title}
+`);
+    }
+    const templateContent = await this.app.vault.cachedRead(templateFile);
+    const rendered = this.renderTaskNoteFromTemplate(templateContent, title, preparedFields, eff);
+    return await this.app.vault.create(filePath, rendered);
   }
   async createTaskLine(title, fields, eff = this.settings) {
     const inboxFile = String(eff.taskInboxFile || "").trim();
     if (!inboxFile) {
-      new Notice("Task inbox file is empty.");
+      new Notice(t("main.task_inbox_empty"));
       return;
     }
     const file = await ensureFile(this.app, inboxFile, "# Todo Tasks\n\n");
+    const preparedFields = this.prepareFieldsForWrite(fields, eff);
     const line = buildTaskChecklistLine(title, {
       statusField: eff.statusField,
       categoryField: eff.categoryField,
       priorityField: eff.priorityField,
       tagsField: eff.tagsField,
       dueDateField: eff.dueDateField,
-      fields
+      fields: preparedFields
     });
     const current = await this.app.vault.read(file);
     const prefix = current.endsWith("\n") ? "" : "\n";
     await this.app.vault.modify(file, `${current}${prefix}${line}
 `);
     await this.app.workspace.getLeaf(true).openFile(file);
-    new Notice("Created task line.");
+    new Notice(t("main.task_line_created"));
+  }
+  prepareFieldsForWrite(fields, eff = this.settings) {
+    const out = { ...fields || {} };
+    const dueField = String(eff.dueDateField || "Due Date");
+    const dueValue = normalizeDateInput(out[dueField]);
+    if (dueValue) {
+      out[dueField] = this.formatDateForStorage(dueValue, eff);
+    }
+    return out;
+  }
+  formatDateForStorage(isoDate, eff = this.settings) {
+    const normalized = normalizeDateInput(isoDate);
+    if (!normalized) return "";
+    const format = String(eff.dateFormat || "YYYY-MM-DD").trim();
+    if (!format || format === "YYYY-MM-DD") return normalized;
+    const momentRef = typeof window !== "undefined" && window.moment || typeof globalThis !== "undefined" && globalThis.moment;
+    if (typeof momentRef === "function") {
+      const m = momentRef(normalized, "YYYY-MM-DD", true);
+      if (m && typeof m.isValid === "function" && m.isValid()) return m.format(format);
+    }
+    return normalized;
+  }
+  parseDateByFormat(rawDate, eff = this.settings) {
+    const raw = String(rawDate || "").trim();
+    if (!raw) return "";
+    const normalized = normalizeDateInput(raw);
+    if (normalized) return normalized;
+    const format = String(eff.dateFormat || "YYYY-MM-DD").trim();
+    const momentRef = typeof window !== "undefined" && window.moment || typeof globalThis !== "undefined" && globalThis.moment;
+    if (typeof momentRef === "function" && format) {
+      const m = momentRef(raw, format, true);
+      if (m && typeof m.isValid === "function" && m.isValid()) return m.format("YYYY-MM-DD");
+    }
+    return "";
+  }
+  renderTaskNoteFromTemplate(templateContent, title, fields, eff = this.settings) {
+    const todayIso = normalizeDateInput((/* @__PURE__ */ new Date()).toISOString().slice(0, 10));
+    const dateToken = this.formatDateForStorage(todayIso, eff) || todayIso;
+    const withTokens = String(templateContent || "").replace(/\r\n/g, "\n").replaceAll("{{title}}", title).replaceAll("{{date}}", dateToken);
+    const { frontmatter, body } = this.extractFrontmatterAndBody(withTokens);
+    const merged = { ...frontmatter, ...fields || {} };
+    const mergedFrontmatter = buildFrontmatterBlock(merged);
+    const cleanedBody = String(body || "").replace(/^\n+/, "");
+    return `${mergedFrontmatter}
+${cleanedBody || `# ${title}
+`}`;
+  }
+  extractFrontmatterAndBody(content) {
+    const text = String(content || "").replace(/\r\n/g, "\n");
+    if (!text.startsWith("---\n")) {
+      return { frontmatter: {}, body: text };
+    }
+    const match = text.match(/^---\n([\s\S]*?)\n---\n?/);
+    if (!match) return { frontmatter: {}, body: text };
+    const frontmatterText = match[1];
+    const body = text.slice(match[0].length);
+    let frontmatter = {};
+    if (typeof parseYaml === "function") {
+      try {
+        const parsed = parseYaml(frontmatterText);
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+          frontmatter = parsed;
+        }
+      } catch (_e) {
+        frontmatter = {};
+      }
+    }
+    return { frontmatter, body };
   }
   async buildUniqueTaskPath(folderPath, baseName) {
     const normalized = folderPath.replace(/\/$/, "");
@@ -2943,8 +3877,13 @@ module.exports = class SmartKanbanPlugin extends Plugin {
       const cache = this.app.metadataCache.getFileCache(file);
       const fm = cache && cache.frontmatter || {};
       if (isKanbanBoardFile(fm)) continue;
-      const dueDate = normalizeDateInput(fm[eff.dueDateField]);
-      const dueInfo = getDueInfo(dueDate, eff.dueSoonDays);
+      const dueDate = this.parseDateByFormat(fm[eff.dueDateField], eff);
+      const dueInfo = getDueInfo(dueDate, eff.dueSoonDays, void 0, {
+        showRelativeDate: eff.showRelativeDate,
+        dateDisplayFormat: eff.dateDisplayFormat,
+        dateFormat: eff.dateFormat,
+        t
+      });
       const customFields = {};
       for (const key of customFieldKeys) {
         customFields[key] = normalizeFmValue(fm[key]);
@@ -2998,7 +3937,13 @@ module.exports = class SmartKanbanPlugin extends Plugin {
           statusOrder: statuses
         });
         if (!parsed) continue;
-        const dueInfo = getDueInfo(parsed.dueDate, eff.dueSoonDays);
+        const taskDueDate = parsed.dueDate || this.parseDateByFormat(inlineMap.get(String(eff.dueDateField || "Due Date").toLowerCase()) || "", eff);
+        const dueInfo = getDueInfo(taskDueDate, eff.dueSoonDays, void 0, {
+          showRelativeDate: eff.showRelativeDate,
+          dateDisplayFormat: eff.dateDisplayFormat,
+          dateFormat: eff.dateFormat,
+          t
+        });
         const customFields = {};
         for (const key of customFieldKeys) {
           customFields[key] = normalizeFmValue(inlineMap.get(key.toLowerCase()) || "");
@@ -3014,7 +3959,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
           priority: parsed.priority || "",
           tags: parsed.tags || [],
           customFields,
-          dueDate: parsed.dueDate || "",
+          dueDate: taskDueDate || "",
           dueTs: dueInfo ? dueInfo.sortValue : null,
           dueInfo
         });
@@ -3036,14 +3981,14 @@ module.exports = class SmartKanbanPlugin extends Plugin {
   async deleteTaskLine(card) {
     const file = this.app.vault.getAbstractFileByPath(card.path);
     if (!(file instanceof TFile)) {
-      new Notice(`File not found: ${card.path}`);
+      new Notice(t("main.file_not_found", { path: card.path }));
       return;
     }
     const content = await this.app.vault.read(file);
     const lines = content.split(/\r?\n/);
     const index = Number(card.lineNumber) - 1;
     if (index < 0 || index >= lines.length) {
-      new Notice(`Task line not found: ${card.path}:${card.lineNumber}`);
+      new Notice(t("main.task_line_not_found", { path: card.path, line: card.lineNumber }));
       return;
     }
     lines.splice(index, 1);
@@ -3052,7 +3997,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
   async deleteNoteCard(card) {
     const file = this.app.vault.getAbstractFileByPath(card.path);
     if (!(file instanceof TFile)) {
-      new Notice(`File not found: ${card.path}`);
+      new Notice(t("main.file_not_found", { path: card.path }));
       return;
     }
     await this.app.vault.trash(file, true);
@@ -3068,7 +4013,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
   async renameNoteCard(card, newTitle) {
     const file = this.app.vault.getAbstractFileByPath(card.path);
     if (!(file instanceof TFile)) {
-      new Notice(`File not found: ${card.path}`);
+      new Notice(t("main.file_not_found", { path: card.path }));
       return;
     }
     const folder = file.parent ? file.parent.path : "";
@@ -3077,20 +4022,20 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     try {
       await this.app.fileManager.renameFile(file, newPath);
     } catch (err) {
-      new Notice(`Rename failed: ${err.message || err}`);
+      new Notice(t("main.rename_failed", { error: err.message || err }));
     }
   }
   async updateTaskCardTitle(card, newTitle) {
     const file = this.app.vault.getAbstractFileByPath(card.path);
     if (!(file instanceof TFile)) {
-      new Notice(`File not found: ${card.path}`);
+      new Notice(t("main.file_not_found", { path: card.path }));
       return;
     }
     const content = await this.app.vault.read(file);
     const lines = content.split(/\r?\n/);
     const index = Number(card.lineNumber) - 1;
     if (index < 0 || index >= lines.length) {
-      new Notice(`Task line not found: ${card.path}:${card.lineNumber}`);
+      new Notice(t("main.task_line_not_found", { path: card.path, line: card.lineNumber }));
       return;
     }
     const line = lines[index];
@@ -3114,7 +4059,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
   async updateNoteCardFields(card, updates, _eff = this.settings) {
     const file = this.app.vault.getAbstractFileByPath(card.path);
     if (!(file instanceof TFile)) {
-      new Notice(`File not found: ${card.path}`);
+      new Notice(t("main.file_not_found", { path: card.path }));
       return;
     }
     await this.app.fileManager.processFrontMatter(file, (fm) => {
@@ -3133,14 +4078,14 @@ module.exports = class SmartKanbanPlugin extends Plugin {
   async updateTaskCardFields(card, updates, _eff = this.settings) {
     const file = this.app.vault.getAbstractFileByPath(card.path);
     if (!(file instanceof TFile)) {
-      new Notice(`File not found: ${card.path}`);
+      new Notice(t("main.file_not_found", { path: card.path }));
       return;
     }
     const content = await this.app.vault.read(file);
     const lines = content.split(/\r?\n/);
     const index = Number(card.lineNumber) - 1;
     if (index < 0 || index >= lines.length) {
-      new Notice(`Task line not found: ${card.path}:${card.lineNumber}`);
+      new Notice(t("main.task_line_not_found", { path: card.path, line: card.lineNumber }));
       return;
     }
     const normalizedUpdates = {};

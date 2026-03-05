@@ -1,4 +1,4 @@
-module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TYPE_SMART_KANBAN, normalizeDateInput, splitCsv }) {
+module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TYPE_SMART_KANBAN, normalizeDateInput, splitCsv, t = (k) => k }) {
 
   class SmartKanbanView extends ItemView {
     constructor(leaf, plugin) {
@@ -137,13 +137,13 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       this.boardTabsEl.style.display = "";
 
       const defaultTab = this.boardTabsEl.createEl("button", {
-        text: "Default Board",
+        text: t("view.board.default"),
         cls: `smart-kanban-board-tab ${!this.boardId ? "is-active" : ""}`,
       });
       defaultTab.addEventListener("click", () => this.switchBoard(""));
 
       for (const board of boards) {
-        const label = board.name + (board.type === "filtered-view" ? " (view)" : "");
+        const label = board.name + (board.type === "filtered-view" ? ` ${t("view.board.view_suffix")}` : "");
         const tab = this.boardTabsEl.createEl("button", {
           text: label,
           cls: `smart-kanban-board-tab ${this.boardId === board.id ? "is-active" : ""}`,
@@ -210,7 +210,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
       const left = this.headerEl.createDiv({ cls: "smart-kanban-header-left" });
       const board = this.boardId ? this.plugin.getBoard(this.boardId) : null;
-      left.createEl("h2", { text: board?.name || "Todo", cls: "smart-kanban-title" });
+      left.createEl("h2", { text: board?.name || t("view.board.fallback_title"), cls: "smart-kanban-title" });
       this.buildViewModeTabs(left);
 
       const toolbar = this.headerEl.createDiv({ cls: "smart-kanban-toolbar" });
@@ -218,7 +218,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       const searchWrap = toolbar.createDiv({ cls: "smart-kanban-search-wrap" });
       const searchInput = searchWrap.createEl("input", {
         type: "text",
-        placeholder: "Search...",
+        placeholder: t("view.search.placeholder"),
         cls: "smart-kanban-search-input",
       });
       searchInput.value = this.filters.text;
@@ -230,23 +230,23 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       const searchIcon = searchWrap.createSpan({ cls: "smart-kanban-search-icon" });
       setIcon(searchIcon, "search");
 
-      this.createIconBtn(toolbar, "filter", "Toggle Filters", () => {
+      this.createIconBtn(toolbar, "filter", t("view.toolbar.toggle_filters"), () => {
         this.filtersCollapsed = !this.filtersCollapsed;
         this.filtersEl.style.display = this.filtersCollapsed ? "none" : "";
       });
-      this.createIconBtn(toolbar, "plus", "New Task", () => this.createTaskInteractive());
-      this.createIconBtn(toolbar, "refresh-cw", "Refresh", () => this.reload());
-      this.createIconBtn(toolbar, "sliders-horizontal", "Plugin Settings", () => this.openPluginSettings());
-      this.createIconBtn(toolbar, "settings", "Configure Board", () => this.configureBoardInteractive());
+      this.createIconBtn(toolbar, "plus", t("view.toolbar.new_task"), () => this.createTaskInteractive());
+      this.createIconBtn(toolbar, "refresh-cw", t("view.toolbar.refresh"), () => this.reload());
+      this.createIconBtn(toolbar, "sliders-horizontal", t("view.toolbar.plugin_settings"), () => this.openPluginSettings());
+      this.createIconBtn(toolbar, "settings", t("view.toolbar.configure_board"), () => this.configureBoardInteractive());
     }
 
     buildViewModeTabs(parent) {
       const wrap = parent.createDiv({ cls: "smart-kanban-viewmode-tabs" });
       const modes = [
-        { key: "board", icon: "kanban-square", label: "Board" },
-        { key: "table", icon: "table", label: "Table" },
-        { key: "feed", icon: "activity", label: "Feed" },
-        { key: "list", icon: "list", label: "List" },
+        { key: "board", icon: "kanban-square", label: t("view.mode.board") },
+        { key: "table", icon: "table", label: t("view.mode.table") },
+        { key: "feed", icon: "activity", label: t("view.mode.feed") },
+        { key: "list", icon: "list", label: t("view.mode.list") },
       ];
       for (const mode of modes) {
         const item = wrap.createEl("button", {
@@ -316,16 +316,16 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
     async configureBoardInteractive() {
       const result = await this.plugin.openDragReorderModal({
-        title: "Configure Board",
+        title: t("view.configure.title"),
         sections: [
           {
             key: "statuses",
-            label: "Lanes / Statuses",
+            label: t("view.configure.lanes"),
             items: [...this.plugin.getStatusOrder()],
           },
           {
             key: "customFields",
-            label: "Custom Fields",
+            label: t("view.configure.custom_fields"),
             items: [...this.plugin.getCustomFieldKeys()],
           },
         ],
@@ -336,7 +336,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       this.plugin.settings.customFields = (result.customFields || []).join(", ");
       await this.plugin.saveSettings();
       await this.reload();
-      new Notice("Board configuration updated.");
+      new Notice(t("view.configure.updated_notice"));
     }
 
     async createTaskInteractive() {
@@ -345,8 +345,8 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       const categories = this.uniqueValues("category");
       const priorities = this.uniqueValues("priority");
       const values = await this.plugin.openFormModal({
-        title: "New Task",
-        submitText: "Create",
+        title: t("view.task.new.title"),
+        submitText: t("common.create"),
         fields: [
           { key: "title", label: "Task title", value: "", type: "text" },
           { key: "status", label: "Status", value: defaultStatus, type: "select", options: statuses },
@@ -374,7 +374,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
       const title = String(values.title || "").trim();
       if (!title) {
-        new Notice("Task title is required.");
+        new Notice(t("view.task.title_required"));
         return;
       }
 
@@ -386,7 +386,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
       const dueDate = normalizeDateInput(dueInput);
       if (dueInput.trim() && !dueDate) {
-        new Notice("Invalid due date. Use YYYY-MM-DD.");
+        new Notice(t("view.task.invalid_due_date"));
         return;
       }
 
@@ -427,7 +427,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
       const hasFilters = this.filters.categories.length || this.filters.priorities.length || this.filters.tags.length || this.filters.text;
       if (hasFilters) {
-        const clearBtn = row.createEl("button", { text: "Clear", cls: "smart-kanban-filter-clear-btn" });
+        const clearBtn = row.createEl("button", { text: t("common.clear"), cls: "smart-kanban-filter-clear-btn" });
         clearBtn.addEventListener("click", () => {
           this.clearFilters();
           this.renderFilters();
@@ -447,7 +447,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
       if (names.length > 0) {
         const select = wrap.createEl("select", { cls: "smart-kanban-preset-select" });
-        select.createEl("option", { text: "Views...", value: "" });
+        select.createEl("option", { text: t("view.preset.placeholder"), value: "" });
         for (const name of names.sort((a, b) => a.localeCompare(b))) {
           const opt = select.createEl("option", { value: name });
           opt.textContent = name;
@@ -459,13 +459,13 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         });
 
         if (this.currentPreset) {
-          const deleteBtn = wrap.createEl("button", { cls: "smart-kanban-icon-btn-sm", attr: { title: "Delete view" } });
+          const deleteBtn = wrap.createEl("button", { cls: "smart-kanban-icon-btn-sm", attr: { title: t("view.preset.delete_title") } });
           setIcon(deleteBtn, "trash-2");
           deleteBtn.addEventListener("click", () => this.deleteCurrentPresetInteractive());
         }
       }
 
-      const saveBtn = wrap.createEl("button", { cls: "smart-kanban-icon-btn-sm", attr: { title: "Save current filters as view" } });
+      const saveBtn = wrap.createEl("button", { cls: "smart-kanban-icon-btn-sm", attr: { title: t("view.preset.save_title") } });
       setIcon(saveBtn, "bookmark-plus");
       saveBtn.addEventListener("click", () => this.savePresetInteractive());
     }
@@ -542,7 +542,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       }
 
       if (selected.length > 0) {
-        const clearAll = panel.createEl("button", { text: "Clear", cls: "smart-kanban-dropdown-clear" });
+        const clearAll = panel.createEl("button", { text: t("common.clear"), cls: "smart-kanban-dropdown-clear" });
         clearAll.addEventListener("click", () => {
           this.filters[key] = [];
           this.currentPreset = "";
@@ -566,7 +566,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
     applyPreset(name) {
       const preset = this.plugin.getFilterPreset(name);
       if (!preset) {
-        new Notice(`Preset not found: ${name}`);
+        new Notice(t("view.preset.not_found", { name }));
         this.currentPreset = "";
         this.renderFilters();
         return;
@@ -580,12 +580,12 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
     async savePresetInteractive() {
       const values = await this.plugin.openFormModal({
-        title: "Save View Preset",
-        submitText: "Save",
+        title: t("view.preset.save_dialog_title"),
+        submitText: t("common.save"),
         fields: [
           {
             key: "name",
-            label: "Preset name",
+            label: t("view.preset.name_label"),
             value: this.currentPreset || "",
           },
         ],
@@ -598,7 +598,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       await this.plugin.saveFilterPreset(normalizedName, this.filters);
       this.currentPreset = normalizedName;
       this.renderFilters();
-      new Notice(`Saved view: ${normalizedName}`);
+      new Notice(t("view.preset.saved_notice", { name: normalizedName }));
     }
 
     async deleteCurrentPresetInteractive() {
@@ -606,16 +606,16 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
       const name = this.currentPreset;
       const confirmed = await this.plugin.openConfirmModal({
-        title: "Delete Preset",
-        message: `Delete preset "${name}"?`,
-        confirmText: "Delete",
+        title: t("view.preset.delete_dialog_title"),
+        message: t("view.preset.delete_confirm", { name }),
+        confirmText: t("common.delete"),
       });
       if (!confirmed) return;
 
       await this.plugin.deleteFilterPreset(name);
       this.currentPreset = "";
       this.renderFilters();
-      new Notice(`Deleted view: ${name}`);
+      new Notice(t("view.preset.deleted_notice", { name }));
     }
 
     clearFilters() {
@@ -648,9 +648,9 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
       if (this.cards.length === 0) {
         const emptyEl = this.boardEl.createDiv({ cls: "smart-kanban-empty-state" });
-        emptyEl.createEl("h3", { text: "No tasks found" });
-        emptyEl.createEl("p", { text: "Create your first task to get started, or check that your source folder is configured correctly." });
-        const createBtn = emptyEl.createEl("button", { text: "Create First Task", cls: "mod-cta" });
+        emptyEl.createEl("h3", { text: t("view.empty.no_tasks_title") });
+        emptyEl.createEl("p", { text: t("view.empty.no_tasks_desc") });
+        const createBtn = emptyEl.createEl("button", { text: t("view.empty.create_first_task"), cls: "mod-cta" });
         createBtn.addEventListener("click", async () => {
           await this.createTaskInteractive();
         });
@@ -667,8 +667,8 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
       if (this.cards.length > 0 && filteredCards.length === 0) {
         const emptyEl = this.boardEl.createDiv({ cls: "smart-kanban-empty-state" });
-        emptyEl.createEl("p", { text: "No tasks match current filters." });
-        const clearBtn = emptyEl.createEl("button", { text: "Clear Filters" });
+        emptyEl.createEl("p", { text: t("view.empty.no_filter_match") });
+        const clearBtn = emptyEl.createEl("button", { text: t("view.empty.clear_filters") });
           clearBtn.addEventListener("click", () => {
             this.clearFilters();
             this.renderFilters();
@@ -677,6 +677,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         return;
       }
 
+      const eff = this.getActiveSettings();
       for (const status of statuses) {
         const lane = this.boardEl.createDiv({ cls: "smart-kanban-lane" });
         lane.dataset.status = status;
@@ -721,7 +722,6 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
           /* drop targets are handled by pointer-based drag system */
 
-          const eff = this.getActiveSettings();
           for (const card of laneCards) {
             this.renderCard(list, card, eff);
           }
@@ -729,14 +729,14 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
           /* Notion-style "+ New page" that expands to inline input */
           const quickAdd = lane.createDiv({ cls: "smart-kanban-quick-add" });
           const quickLabel = quickAdd.createEl("span", {
-            text: "+ New page",
+            text: t("view.quick_add.new_page"),
             cls: "smart-kanban-quick-add-label",
           });
           if (laneColor.text) quickLabel.style.color = laneColor.text;
 
           const quickInput = quickAdd.createEl("input", {
             type: "text",
-            placeholder: "Untitled",
+            placeholder: t("view.quick_add.placeholder"),
             cls: "smart-kanban-quick-add-input",
           });
           quickInput.style.display = "none";
@@ -805,7 +805,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       const sorted = this.plugin.sortCards(filtered);
 
       if (!sorted.length) {
-        this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: "No tasks found." });
+        this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: t("view.empty.no_tasks") });
         return;
       }
 
@@ -868,7 +868,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       const statuses = this.plugin.collectStatusesFromCards(this.cards);
 
       if (!filtered.length) {
-        this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: "No tasks found." });
+        this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: t("view.empty.no_tasks") });
         return;
       }
 
@@ -922,7 +922,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
       const sorted = this.plugin.sortCards(this.filteredCards());
       if (!sorted.length) {
-        this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: "No tasks found." });
+        this.boardEl.createDiv({ cls: "smart-kanban-empty-state" }).createEl("p", { text: t("view.empty.no_tasks") });
         return;
       }
 
@@ -1037,13 +1037,13 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         cardEl.classList.toggle("has-menu-open", opening);
       });
 
-      const editItem = menu.createDiv({ text: "Edit", cls: "smart-kanban-menu-item" });
+      const editItem = menu.createDiv({ text: t("view.menu.edit"), cls: "smart-kanban-menu-item" });
       editItem.addEventListener("click", async () => {
         menu.style.display = "none";
         await this.editCardInteractive(card);
       });
 
-      const openItem = menu.createDiv({ text: "Open Note", cls: "smart-kanban-menu-item" });
+      const openItem = menu.createDiv({ text: t("view.menu.open_note"), cls: "smart-kanban-menu-item" });
       openItem.addEventListener("click", async () => {
         menu.style.display = "none";
         const file = this.app.vault.getAbstractFileByPath(card.path);
@@ -1052,18 +1052,18 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         }
       });
 
-      const completeItem = menu.createDiv({ text: "Mark Done", cls: "smart-kanban-menu-item" });
+      const completeItem = menu.createDiv({ text: t("view.menu.mark_done"), cls: "smart-kanban-menu-item" });
       completeItem.addEventListener("click", async () => {
         menu.style.display = "none";
         await this.plugin.updateCardStatus(card, "Done", this.boardId);
         await this.reload();
-        new Notice(`Completed: ${card.title}`);
+        new Notice(t("view.menu.completed_notice", { title: card.title }));
       });
 
       const moveItem = menu.createDiv({ cls: "smart-kanban-menu-item smart-kanban-move-item" });
-      moveItem.createSpan({ text: "Move to " });
+      moveItem.createSpan({ text: t("view.menu.move_to") + " " });
       const moveSelect = moveItem.createEl("select", { cls: "smart-kanban-move-select" });
-      moveSelect.createEl("option", { text: "...", value: "" });
+      moveSelect.createEl("option", { text: t("common.ellipsis"), value: "" });
       const allStatuses = this.plugin.collectStatusesFromCards(this.cards);
       for (const s of allStatuses) {
         if (s !== card.status) {
@@ -1077,7 +1077,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         await this.reload();
       });
 
-      const deleteItem = menu.createDiv({ text: "Delete", cls: "smart-kanban-menu-item smart-kanban-menu-delete" });
+      const deleteItem = menu.createDiv({ text: t("common.delete"), cls: "smart-kanban-menu-item smart-kanban-menu-delete" });
       deleteItem.addEventListener("click", async () => {
         menu.style.display = "none";
         await this.deleteCardInteractive(card);
@@ -1093,9 +1093,9 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
     async deleteCardInteractive(card) {
       const confirmed = await this.plugin.openConfirmModal({
-        title: "Delete Task",
-        message: `Delete "${card.title}"? This cannot be undone.`,
-        confirmText: "Delete",
+        title: t("view.delete.title"),
+        message: t("view.delete.message", { title: card.title }),
+        confirmText: t("common.delete"),
       });
       if (!confirmed) return;
       if (card.kind === "task") {
@@ -1104,7 +1104,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         await this.plugin.deleteNoteCard(card);
       }
       await this.reload();
-      new Notice(`Deleted: ${card.title}`);
+      new Notice(t("view.delete.deleted_notice", { title: card.title }));
     }
 
     async editCardInteractive(card) {
@@ -1112,8 +1112,8 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       const categories = this.uniqueValues("category");
       const priorities = this.uniqueValues("priority");
       const values = await this.plugin.openFormModal({
-        title: "Edit Task",
-        submitText: "Save",
+        title: t("view.task.edit.title"),
+        submitText: t("common.save"),
         fields: [
           { key: "title", label: "Title", value: card.title || "" },
           {
@@ -1148,7 +1148,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       const nextDueInput = String(values.due || "");
       const nextDue = normalizeDateInput(nextDueInput);
       if (nextDueInput.trim() && !nextDue) {
-        new Notice("Invalid due date. Use YYYY-MM-DD.");
+        new Notice(t("view.task.invalid_due_date"));
         return;
       }
 
