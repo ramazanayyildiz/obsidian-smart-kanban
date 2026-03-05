@@ -399,6 +399,7 @@ var require_i18n = __commonJS({
         "view.toolbar.new_task": "New Task",
         "view.toolbar.refresh": "Refresh",
         "view.toolbar.plugin_settings": "Plugin Settings",
+        "view.toolbar.quick_config": "Quick Configure (Lanes/Fields)",
         "view.toolbar.configure_board": "Configure Board",
         "view.mode.board": "Board",
         "view.mode.table": "Table",
@@ -642,6 +643,7 @@ var require_i18n = __commonJS({
         "view.toolbar.new_task": "Yeni Gorev",
         "view.toolbar.refresh": "Yenile",
         "view.toolbar.plugin_settings": "Eklenti Ayarlari",
+        "view.toolbar.quick_config": "Hizli Yapilandir (Lane/Alan)",
         "view.toolbar.configure_board": "Panoyu Yapilandir",
         "view.mode.board": "Pano",
         "view.mode.table": "Tablo",
@@ -2090,8 +2092,8 @@ var require_view = __commonJS({
           });
           this.createIconBtn(toolbar, "plus", t2("view.toolbar.new_task"), () => this.createTaskInteractive());
           this.createIconBtn(toolbar, "refresh-cw", t2("view.toolbar.refresh"), () => this.reload());
-          this.createIconBtn(toolbar, "sliders-horizontal", t2("view.toolbar.plugin_settings"), () => this.openPluginSettings());
-          this.createIconBtn(toolbar, "settings", t2("view.toolbar.configure_board"), () => this.configureBoardInteractive());
+          this.createIconBtn(toolbar, "settings", t2("view.toolbar.plugin_settings"), () => this.openPluginSettings());
+          this.createIconBtn(toolbar, "sliders-horizontal", t2("view.toolbar.quick_config"), () => this.configureBoardInteractive());
         }
         buildViewModeTabs(parent) {
           const wrap = parent.createDiv({ cls: "smart-kanban-viewmode-tabs" });
@@ -2180,10 +2182,20 @@ var require_view = __commonJS({
             ]
           });
           if (!result) return;
-          const target = this.boardId ? this.plugin.getBoard(this.boardId) : this.plugin.settings;
-          if (!target) return;
-          target.statusOrder = (result.statuses || []).join(", ");
-          target.customFields = (result.customFields || []).join(", ");
+          const statusValue = (result.statuses || []).join(", ");
+          const customFieldsValue = (result.customFields || []).join(", ");
+          const board = this.boardId ? this.plugin.getBoard(this.boardId) : null;
+          if (board) {
+            board.statusOrder = statusValue || null;
+            board.customFields = customFieldsValue || null;
+          } else {
+            this.plugin.settings.statusOrder = statusValue;
+            this.plugin.settings.customFields = customFieldsValue;
+            if (this.plugin.settings.defaultBoardConfig) {
+              this.plugin.settings.defaultBoardConfig.statusOrder = statusValue;
+              this.plugin.settings.defaultBoardConfig.customFields = customFieldsValue;
+            }
+          }
           await this.plugin.saveSettings();
           await this.reload();
           new Notice2(t2("view.configure.updated_notice"));

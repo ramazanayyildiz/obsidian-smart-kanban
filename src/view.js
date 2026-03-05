@@ -236,8 +236,8 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       });
       this.createIconBtn(toolbar, "plus", t("view.toolbar.new_task"), () => this.createTaskInteractive());
       this.createIconBtn(toolbar, "refresh-cw", t("view.toolbar.refresh"), () => this.reload());
-      this.createIconBtn(toolbar, "sliders-horizontal", t("view.toolbar.plugin_settings"), () => this.openPluginSettings());
-      this.createIconBtn(toolbar, "settings", t("view.toolbar.configure_board"), () => this.configureBoardInteractive());
+      this.createIconBtn(toolbar, "settings", t("view.toolbar.plugin_settings"), () => this.openPluginSettings());
+      this.createIconBtn(toolbar, "sliders-horizontal", t("view.toolbar.quick_config"), () => this.configureBoardInteractive());
     }
 
     buildViewModeTabs(parent) {
@@ -332,10 +332,20 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       });
       if (!result) return;
 
-      const target = this.boardId ? this.plugin.getBoard(this.boardId) : this.plugin.settings;
-      if (!target) return;
-      target.statusOrder = (result.statuses || []).join(", ");
-      target.customFields = (result.customFields || []).join(", ");
+      const statusValue = (result.statuses || []).join(", ");
+      const customFieldsValue = (result.customFields || []).join(", ");
+      const board = this.boardId ? this.plugin.getBoard(this.boardId) : null;
+      if (board) {
+        board.statusOrder = statusValue || null;
+        board.customFields = customFieldsValue || null;
+      } else {
+        this.plugin.settings.statusOrder = statusValue;
+        this.plugin.settings.customFields = customFieldsValue;
+        if (this.plugin.settings.defaultBoardConfig) {
+          this.plugin.settings.defaultBoardConfig.statusOrder = statusValue;
+          this.plugin.settings.defaultBoardConfig.customFields = customFieldsValue;
+        }
+      }
       await this.plugin.saveSettings();
       await this.reload();
       new Notice(t("view.configure.updated_notice"));
