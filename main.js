@@ -311,6 +311,13 @@ var require_i18n = __commonJS({
         "settings.custom_fields.desc": "Extra frontmatter keys to display on cards. Comma-separated.",
         "settings.status_order.name": "Status order",
         "settings.status_order.desc": "Comma-separated lane names in display order.",
+        "settings.status_manager.title": "Manage Lanes",
+        "settings.status_manager.section": "Lanes",
+        "settings.status_manager.name": "Lane manager",
+        "settings.status_manager.desc": "Discover and reorder lanes from current board data.",
+        "settings.status_manager.open": "Manage lanes",
+        "settings.status_manager.empty": "At least one lane is required.",
+        "settings.status_manager.saved": "Lane order updated.",
         "settings.priority_order.name": "Priority order",
         "settings.priority_order.desc": "Defines priority ranking for sorting. Comma-separated, highest first.",
         "settings.sort_by.name": "Sort by",
@@ -545,6 +552,13 @@ var require_i18n = __commonJS({
         "settings.custom_fields.desc": "Kartta gosterilecek ek frontmatter anahtarlari. Virgul ayracli.",
         "settings.status_order.name": "Durum sirasi",
         "settings.status_order.desc": "Gosterim sirasi icin virgul ayracli lane adlari.",
+        "settings.status_manager.title": "Lane'leri Yonet",
+        "settings.status_manager.section": "Lane'ler",
+        "settings.status_manager.name": "Lane yoneticisi",
+        "settings.status_manager.desc": "Aktif pano verisinden lane'leri kesfet ve sirala.",
+        "settings.status_manager.open": "Lane'leri yonet",
+        "settings.status_manager.empty": "En az bir lane gerekli.",
+        "settings.status_manager.saved": "Lane sirasi guncellendi.",
         "settings.priority_order.name": "Oncelik sirasi",
         "settings.priority_order.desc": "Siralama icin oncelik sirasi. Virgul ayracli, yuksekten dusuge.",
         "settings.sort_by.name": "Siralama alani",
@@ -2251,7 +2265,15 @@ var require_view = __commonJS({
           new Notice2(t2("view.configure.updated_notice"));
         }
         async createTaskInteractive() {
-          const statuses = this.plugin.collectStatusesFromCards(this.cards, this.boardId);
+          let statuses = this.plugin.collectStatusesFromCards(this.cards, this.boardId);
+          const board = this.boardId ? this.plugin.getBoard(this.boardId) : null;
+          if (board && board.type === "filtered-view" && board.visibleStatuses) {
+            const visible = String(board.visibleStatuses).split(",").map((s) => s.trim()).filter(Boolean);
+            if (visible.length) {
+              statuses = [...visible];
+            }
+          }
+          if (!statuses.length) statuses = [this.plugin.getDefaultStatus(this.boardId)];
           const defaultStatus = statuses[0] || this.plugin.getDefaultStatus(this.boardId);
           const categories = this.uniqueValues("category");
           const priorities = this.uniqueValues("priority");
@@ -2333,7 +2355,7 @@ var require_view = __commonJS({
               this.renderContent();
             });
           }
-          const presetNames = Object.keys(this.plugin.settings.filterPresets || {});
+          const presetNames = this.plugin.getFilterPresetNames(this.boardId);
           if (presetNames.length > 0 || hasFilters) {
             const spacer = row.createDiv({ cls: "smart-kanban-filter-spacer" });
             this.renderPresetControls(row, presetNames);
@@ -2448,7 +2470,7 @@ var require_view = __commonJS({
           this.renderContent();
         }
         applyPreset(name) {
-          const preset = this.plugin.getFilterPreset(name);
+          const preset = this.plugin.getFilterPreset(name, this.boardId);
           if (!preset) {
             new Notice2(t2("view.preset.not_found", { name }));
             this.currentPreset = "";
@@ -2475,7 +2497,7 @@ var require_view = __commonJS({
           if (!values) return;
           const normalizedName = String(values.name || "").trim();
           if (!normalizedName) return;
-          await this.plugin.saveFilterPreset(normalizedName, this.filters);
+          await this.plugin.saveFilterPreset(normalizedName, this.filters, this.boardId);
           this.currentPreset = normalizedName;
           this.renderFilters();
           new Notice2(t2("view.preset.saved_notice", { name: normalizedName }));
@@ -2489,7 +2511,7 @@ var require_view = __commonJS({
             confirmText: t2("common.delete")
           });
           if (!confirmed) return;
-          await this.plugin.deleteFilterPreset(name);
+          await this.plugin.deleteFilterPreset(name, this.boardId);
           this.currentPreset = "";
           this.renderFilters();
           new Notice2(t2("view.preset.deleted_notice", { name }));
@@ -3241,6 +3263,37 @@ var require_settings_tab = __commonJS({
             });
           });
         }
+        async manageStatusesInteractive() {
+          const boardId = this.plugin.settings.activeBoardId || "";
+          let cards = [];
+          try {
+            cards = await this.plugin.collectCards(boardId);
+          } catch (_e) {
+            cards = [];
+          }
+          const statuses = this.plugin.collectStatusesFromCards(cards, boardId);
+          const result = await this.plugin.openDragReorderModal({
+            title: tx("settings.status_manager.title", "Manage Lanes"),
+            sections: [
+              {
+                key: "statuses",
+                label: tx("settings.status_manager.section", "Lanes"),
+                items: statuses
+              }
+            ]
+          });
+          if (!result) return;
+          const ordered = (result.statuses || []).map((x) => String(x || "").trim()).filter(Boolean);
+          if (!ordered.length) {
+            new Notice2(tx("settings.status_manager.empty", "At least one lane is required."));
+            return;
+          }
+          this.setSetting("statusOrder", ordered.join(", "), { allowInherit: true });
+          await this.plugin.saveSettings();
+          this.plugin.refreshViews();
+          this.display();
+          new Notice2(tx("settings.status_manager.saved", "Lane order updated."));
+        }
         syncTheme() {
           if (!this.getActiveBoard() && this.plugin.settings.defaultBoardConfig && this.plugin.settings.theme) {
             this.plugin.settings.defaultBoardConfig.theme = JSON.parse(JSON.stringify(this.plugin.settings.theme));
@@ -3353,6 +3406,11 @@ var require_settings_tab = __commonJS({
             })
           );
           this.addInheritButton(statusOrderSetting, "statusOrder");
+          new Setting2(layoutSection).setName(tx("settings.status_manager.name", "Lane manager")).setDesc(tx("settings.status_manager.desc", "Discover and reorder lanes from current board data.")).addButton((btn) => {
+            btn.setButtonText(tx("settings.status_manager.open", "Manage lanes")).onClick(async () => {
+              await this.manageStatusesInteractive();
+            });
+          });
           const priorityOrderSetting = new Setting2(layoutSection).setName(tx("settings.priority_order.name", "Priority order")).setDesc(tx("settings.priority_order.desc", "Defines priority ranking for sorting. Comma-separated, highest first.")).addText(
             (text) => text.setPlaceholder("Urgent,High,Medium,Low").setValue(this.getSetting("priorityOrder")).onChange(async (value) => {
               this.setSetting("priorityOrder", value, { allowInherit: true });
@@ -3939,18 +3997,36 @@ module.exports = class SmartKanbanPlugin extends Plugin {
       text: String(source.text || "").toLowerCase()
     };
   }
-  getFilterPreset(name) {
-    const preset = (this.settings.filterPresets || {})[name];
+  getFilterPresetStore(boardId = "", createIfMissing = false) {
+    if (boardId) {
+      const board = this.getBoard(boardId);
+      if (!board) return this.settings.filterPresets || {};
+      if (createIfMissing && (!board.filterPresets || typeof board.filterPresets !== "object")) {
+        board.filterPresets = {};
+      }
+      return board.filterPresets || {};
+    }
+    if (createIfMissing && (!this.settings.filterPresets || typeof this.settings.filterPresets !== "object")) {
+      this.settings.filterPresets = {};
+    }
+    return this.settings.filterPresets || {};
+  }
+  getFilterPresetNames(boardId = "") {
+    return Object.keys(this.getFilterPresetStore(boardId, false));
+  }
+  getFilterPreset(name, boardId = "") {
+    const preset = this.getFilterPresetStore(boardId, false)[name];
     return preset ? this.cloneFilters(preset) : null;
   }
-  async saveFilterPreset(name, filters) {
-    if (!this.settings.filterPresets) this.settings.filterPresets = {};
-    this.settings.filterPresets[name] = this.cloneFilters(filters);
+  async saveFilterPreset(name, filters, boardId = "") {
+    const store = this.getFilterPresetStore(boardId, true);
+    store[name] = this.cloneFilters(filters);
     await this.saveSettings();
   }
-  async deleteFilterPreset(name) {
-    if (!this.settings.filterPresets) return;
-    delete this.settings.filterPresets[name];
+  async deleteFilterPreset(name, boardId = "") {
+    const store = this.getFilterPresetStore(boardId, false);
+    if (!store || typeof store !== "object") return;
+    delete store[name];
     await this.saveSettings();
   }
   getStatusOrder(boardId = "") {

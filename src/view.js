@@ -342,7 +342,18 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
     }
 
     async createTaskInteractive() {
-      const statuses = this.plugin.collectStatusesFromCards(this.cards, this.boardId);
+      let statuses = this.plugin.collectStatusesFromCards(this.cards, this.boardId);
+      const board = this.boardId ? this.plugin.getBoard(this.boardId) : null;
+      if (board && board.type === "filtered-view" && board.visibleStatuses) {
+        const visible = String(board.visibleStatuses)
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean);
+        if (visible.length) {
+          statuses = [...visible];
+        }
+      }
+      if (!statuses.length) statuses = [this.plugin.getDefaultStatus(this.boardId)];
       const defaultStatus = statuses[0] || this.plugin.getDefaultStatus(this.boardId);
       const categories = this.uniqueValues("category");
       const priorities = this.uniqueValues("priority");
@@ -437,7 +448,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         });
       }
 
-      const presetNames = Object.keys(this.plugin.settings.filterPresets || {});
+      const presetNames = this.plugin.getFilterPresetNames(this.boardId);
       if (presetNames.length > 0 || hasFilters) {
         const spacer = row.createDiv({ cls: "smart-kanban-filter-spacer" });
         this.renderPresetControls(row, presetNames);
@@ -566,7 +577,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
     }
 
     applyPreset(name) {
-      const preset = this.plugin.getFilterPreset(name);
+      const preset = this.plugin.getFilterPreset(name, this.boardId);
       if (!preset) {
         new Notice(t("view.preset.not_found", { name }));
         this.currentPreset = "";
@@ -597,7 +608,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       const normalizedName = String(values.name || "").trim();
       if (!normalizedName) return;
 
-      await this.plugin.saveFilterPreset(normalizedName, this.filters);
+      await this.plugin.saveFilterPreset(normalizedName, this.filters, this.boardId);
       this.currentPreset = normalizedName;
       this.renderFilters();
       new Notice(t("view.preset.saved_notice", { name: normalizedName }));
@@ -614,7 +625,7 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
       });
       if (!confirmed) return;
 
-      await this.plugin.deleteFilterPreset(name);
+      await this.plugin.deleteFilterPreset(name, this.boardId);
       this.currentPreset = "";
       this.renderFilters();
       new Notice(t("view.preset.deleted_notice", { name }));

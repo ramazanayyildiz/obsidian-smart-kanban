@@ -231,20 +231,40 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     };
   }
 
-  getFilterPreset(name) {
-    const preset = (this.settings.filterPresets || {})[name];
+  getFilterPresetStore(boardId = "", createIfMissing = false) {
+    if (boardId) {
+      const board = this.getBoard(boardId);
+      if (!board) return this.settings.filterPresets || {};
+      if (createIfMissing && (!board.filterPresets || typeof board.filterPresets !== "object")) {
+        board.filterPresets = {};
+      }
+      return board.filterPresets || {};
+    }
+    if (createIfMissing && (!this.settings.filterPresets || typeof this.settings.filterPresets !== "object")) {
+      this.settings.filterPresets = {};
+    }
+    return this.settings.filterPresets || {};
+  }
+
+  getFilterPresetNames(boardId = "") {
+    return Object.keys(this.getFilterPresetStore(boardId, false));
+  }
+
+  getFilterPreset(name, boardId = "") {
+    const preset = this.getFilterPresetStore(boardId, false)[name];
     return preset ? this.cloneFilters(preset) : null;
   }
 
-  async saveFilterPreset(name, filters) {
-    if (!this.settings.filterPresets) this.settings.filterPresets = {};
-    this.settings.filterPresets[name] = this.cloneFilters(filters);
+  async saveFilterPreset(name, filters, boardId = "") {
+    const store = this.getFilterPresetStore(boardId, true);
+    store[name] = this.cloneFilters(filters);
     await this.saveSettings();
   }
 
-  async deleteFilterPreset(name) {
-    if (!this.settings.filterPresets) return;
-    delete this.settings.filterPresets[name];
+  async deleteFilterPreset(name, boardId = "") {
+    const store = this.getFilterPresetStore(boardId, false);
+    if (!store || typeof store !== "object") return;
+    delete store[name];
     await this.saveSettings();
   }
 

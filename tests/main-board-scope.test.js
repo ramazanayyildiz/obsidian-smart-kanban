@@ -300,3 +300,125 @@ test("getResolvedLaneColor uses board lane color overrides", () => {
   const lane = plugin.getResolvedLaneColor("Todo", "b1");
   assert.deepEqual(lane, { bg: "#123456", text: "#abcdef" });
 });
+
+test("filter presets are isolated per board", async () => {
+  const plugin = new SmartKanbanPlugin();
+  plugin.settings = {
+    ...DEFAULT_SETTINGS,
+    defaultBoardConfig: { ...DEFAULT_BOARD_CONFIG },
+    filterPresets: {},
+    boards: [{ id: "b1", name: "Board 1", type: "independent" }],
+  };
+
+  await plugin.saveFilterPreset("mine", { categories: ["A"], priorities: [], tags: [], text: "" }, "b1");
+  await plugin.saveFilterPreset("global", { categories: ["G"], priorities: [], tags: [], text: "" }, "");
+
+  const boardPreset = plugin.getFilterPreset("mine", "b1");
+  const boardMissingGlobal = plugin.getFilterPreset("global", "b1");
+  const globalPreset = plugin.getFilterPreset("global", "");
+  const globalMissingBoard = plugin.getFilterPreset("mine", "");
+
+  assert.deepEqual(boardPreset.categories, ["A"]);
+  assert.equal(boardMissingGlobal, null);
+  assert.deepEqual(globalPreset.categories, ["G"]);
+  assert.equal(globalMissingBoard, null);
+});
+
+test("filtered-view inherits parent board mapping and source settings", () => {
+  const plugin = new SmartKanbanPlugin();
+  plugin.settings = {
+    ...DEFAULT_SETTINGS,
+    defaultBoardConfig: { ...DEFAULT_BOARD_CONFIG },
+    sourceMode: "notes",
+    statusField: "Status",
+    boards: [
+      {
+        id: "parent",
+        name: "Parent",
+        type: "independent",
+        sourceMode: "tasks",
+        statusField: "State",
+        categoryField: "Area",
+      },
+      {
+        id: "child",
+        name: "Child",
+        type: "filtered-view",
+        parentBoardId: "parent",
+      },
+    ],
+  };
+
+  const eff = plugin.getEffectiveSettings("child");
+  assert.equal(eff.sourceMode, "tasks");
+  assert.equal(eff.statusField, "State");
+  assert.equal(eff.categoryField, "Area");
+});
+
+test("filtered-view can override parent while inheriting rest", () => {
+  const plugin = new SmartKanbanPlugin();
+  plugin.settings = {
+    ...DEFAULT_SETTINGS,
+    defaultBoardConfig: { ...DEFAULT_BOARD_CONFIG },
+    boards: [
+      {
+        id: "parent",
+        name: "Parent",
+        type: "independent",
+        sortBy: "priority",
+        sortDirection: "desc",
+      },
+      {
+        id: "child",
+        name: "Child",
+        type: "filtered-view",
+        parentBoardId: "parent",
+        sortBy: "due",
+      },
+    ],
+  };
+
+  const eff = plugin.getEffectiveSettings("child");
+  assert.equal(eff.sortBy, "due");
+  assert.equal(eff.sortDirection, "desc");
+});
+
+test("collectStatusesFromCards keeps configured order and appends discovered statuses", () => {
+  const plugin = new SmartKanbanPlugin();
+  plugin.settings = {
+    ...DEFAULT_SETTINGS,
+    defaultBoardConfig: { ...DEFAULT_BOARD_CONFIG },
+    boards: [
+      {
+        id: "b1",
+        name: "Board 1",
+        type: "independent",
+        statusOrder: "Backlog,In Progress,Done",
+      },
+    ],
+  };
+  const cards = [
+    { status: "In Progress" },
+    { status: "Review" },
+    { status: "Blocked" },
+    { status: "Backlog" },
+  ];
+
+  const statuses = plugin.collectStatusesFromCards(cards, "b1");
+  assert.deepEqual(statuses, ["Backlog", "In Progress", "Done", "Review", "Blocked"]);
+});
+
+test("getFilterPresetNames is board scoped", async () => {
+  const plugin = new SmartKanbanPlugin();
+  plugin.settings = {
+    ...DEFAULT_SETTINGS,
+    defaultBoardConfig: { ...DEFAULT_BOARD_CONFIG },
+    filterPresets: {},
+    boards: [{ id: "b1", name: "Board 1", type: "independent", filterPresets: {} }],
+  };
+  await plugin.saveFilterPreset("one", plugin.createEmptyFilters(), "");
+  await plugin.saveFilterPreset("two", plugin.createEmptyFilters(), "b1");
+
+  assert.deepEqual(plugin.getFilterPresetNames("").sort(), ["one"]);
+  assert.deepEqual(plugin.getFilterPresetNames("b1").sort(), ["two"]);
+});

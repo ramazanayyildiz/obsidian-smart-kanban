@@ -105,6 +105,38 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
       });
     }
 
+    async manageStatusesInteractive() {
+      const boardId = this.plugin.settings.activeBoardId || "";
+      let cards = [];
+      try {
+        cards = await this.plugin.collectCards(boardId);
+      } catch (_e) {
+        cards = [];
+      }
+      const statuses = this.plugin.collectStatusesFromCards(cards, boardId);
+      const result = await this.plugin.openDragReorderModal({
+        title: tx("settings.status_manager.title", "Manage Lanes"),
+        sections: [
+          {
+            key: "statuses",
+            label: tx("settings.status_manager.section", "Lanes"),
+            items: statuses,
+          },
+        ],
+      });
+      if (!result) return;
+      const ordered = (result.statuses || []).map((x) => String(x || "").trim()).filter(Boolean);
+      if (!ordered.length) {
+        new Notice(tx("settings.status_manager.empty", "At least one lane is required."));
+        return;
+      }
+      this.setSetting("statusOrder", ordered.join(", "), { allowInherit: true });
+      await this.plugin.saveSettings();
+      this.plugin.refreshViews();
+      this.display();
+      new Notice(tx("settings.status_manager.saved", "Lane order updated."));
+    }
+
     syncTheme() {
       if (!this.getActiveBoard() && this.plugin.settings.defaultBoardConfig && this.plugin.settings.theme) {
         this.plugin.settings.defaultBoardConfig.theme = JSON.parse(JSON.stringify(this.plugin.settings.theme));
@@ -272,6 +304,15 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
           })
         );
       this.addInheritButton(statusOrderSetting, "statusOrder");
+
+      new Setting(layoutSection)
+        .setName(tx("settings.status_manager.name", "Lane manager"))
+        .setDesc(tx("settings.status_manager.desc", "Discover and reorder lanes from current board data."))
+        .addButton((btn) => {
+          btn.setButtonText(tx("settings.status_manager.open", "Manage lanes")).onClick(async () => {
+            await this.manageStatusesInteractive();
+          });
+        });
 
       const priorityOrderSetting = new Setting(layoutSection)
         .setName(tx("settings.priority_order.name", "Priority order"))

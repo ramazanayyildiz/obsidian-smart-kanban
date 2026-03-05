@@ -313,7 +313,7 @@
   - No hard runtime dependence on default backlog/todo list.
 
 ### P3-002: Lane manager
-- Status: `todo`
+- Status: `done`
 - Priority: `P1`
 - Estimate: `1d`
 - Depends on: `P3-001`
@@ -326,7 +326,7 @@
   - User can control lane order without editing raw settings.
 
 ### P3-003: Create flow uses dynamic statuses
-- Status: `todo`
+- Status: `done`
 - Priority: `P1`
 - Estimate: `0.5d`
 - Depends on: `P3-001`
@@ -341,7 +341,7 @@
 ## Phase 4 — Hardening + Release
 
 ### P4-001: State isolation audit
-- Status: `in-progress`
+- Status: `done`
 - Priority: `P1`
 - Estimate: `0.5d`
 - Depends on: `P2-003`, `P3-003`
@@ -355,7 +355,7 @@
   - Switching boards never carries unintended UI/behavior state.
 
 ### P4-002: Regression suite expansion
-- Status: `todo`
+- Status: `done`
 - Priority: `P1`
 - Estimate: `1d`
 - Depends on: all Phase 1–3 tasks
@@ -369,7 +369,7 @@
   - Critical board-centric flows covered by automated tests.
 
 ### P4-003: Release package
-- Status: `todo`
+- Status: `done`
 - Priority: `P2`
 - Estimate: `0.5d`
 - Depends on: `P4-001`, `P4-002`
