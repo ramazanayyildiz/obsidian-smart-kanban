@@ -82,6 +82,29 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
       return this.plugin.settings.theme;
     }
 
+    hasBoardOverride(key) {
+      const activeBoard = this.getActiveBoard();
+      if (!activeBoard) return false;
+      return activeBoard[key] !== null && activeBoard[key] !== undefined && activeBoard[key] !== "";
+    }
+
+    addInheritButton(setting, key, onAfterSave) {
+      if (!this.getActiveBoard()) return;
+      setting.addExtraButton((btn) => {
+        btn.setIcon("undo-2");
+        btn.setTooltip(tx("settings.inherit.tooltip", "Use global value"));
+        btn.onClick(async () => {
+          const board = this.getActiveBoard();
+          if (!board) return;
+          board[key] = null;
+          await this.plugin.saveSettings();
+          this.plugin.refreshViews();
+          if (typeof onAfterSave === "function") onAfterSave();
+          this.display();
+        });
+      });
+    }
+
     syncTheme() {
       if (!this.getActiveBoard() && this.plugin.settings.defaultBoardConfig && this.plugin.settings.theme) {
         this.plugin.settings.defaultBoardConfig.theme = JSON.parse(JSON.stringify(this.plugin.settings.theme));
@@ -126,7 +149,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
       /* ── Section: Data Source ── */
       const srcSection = section(containerEl, t("settings.section.dataSource"), t("settings.section.dataSource.desc"));
 
-      new Setting(srcSection)
+      const sourceModeSetting = new Setting(srcSection)
         .setName(tx("settings.source_mode.name", "Source mode"))
         .setDesc(tx("settings.source_mode.desc", "Note cards create one file per task. Task lines use checklist syntax in a single file."))
         .addDropdown((dropdown) =>
@@ -140,8 +163,9 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
               this.plugin.refreshViews();
             })
         );
+      this.addInheritButton(sourceModeSetting, "sourceMode");
 
-      new Setting(srcSection)
+      const sourceFolderSetting = new Setting(srcSection)
         .setName(tx("settings.source_folder.name", "Source folder"))
         .setDesc(tx("settings.source_folder.desc", "Folder containing your task notes or files."))
         .addText((text) =>
@@ -151,8 +175,9 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             this.plugin.refreshViews();
           })
         );
+      this.addInheritButton(sourceFolderSetting, "sourceFolder");
 
-      new Setting(srcSection)
+      const includeSubfoldersSetting = new Setting(srcSection)
         .setName(tx("settings.include_subfolders.name", "Include subfolders"))
         .setDesc(tx("settings.include_subfolders.desc", "Also scan nested folders inside the source folder."))
         .addToggle((toggle) =>
@@ -162,8 +187,9 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             this.plugin.refreshViews();
           })
         );
+      this.addInheritButton(includeSubfoldersSetting, "includeSubfolders");
 
-      new Setting(srcSection)
+      const taskInboxSetting = new Setting(srcSection)
         .setName(tx("settings.task_inbox.name", "Task inbox file"))
         .setDesc(tx("settings.task_inbox.desc", "File used when adding new tasks in Task Lines mode."))
         .addText((text) =>
@@ -171,12 +197,16 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             .setPlaceholder("Tasks/Task Inbox.md")
             .setValue(this.getSetting("taskInboxFile"))
             .onChange(async (value) => {
-              this.setSetting("taskInboxFile", value.trim() || "Tasks/Task Inbox.md", { allowInherit: true });
+              const trimmed = value.trim();
+              const activeBoard = this.getActiveBoard();
+              const next = activeBoard ? trimmed : (trimmed || "Tasks/Task Inbox.md");
+              this.setSetting("taskInboxFile", next, { allowInherit: true });
               await this.plugin.saveSettings();
             })
         );
+      this.addInheritButton(taskInboxSetting, "taskInboxFile");
 
-      new Setting(srcSection)
+      const noteTemplateSetting = new Setting(srcSection)
         .setName(tx("settings.note_template.name", "Note template"))
         .setDesc(tx("settings.note_template.desc", "Optional template file path used when creating note-mode tasks."))
         .addText((text) =>
@@ -189,6 +219,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
               this.plugin.refreshViews();
             })
         );
+      this.addInheritButton(noteTemplateSetting, "noteTemplate");
 
       /* ── Section: Field Mapping ── */
       const fieldSection = section(containerEl, t("settings.section.fieldMapping"), t("settings.section.fieldMapping.desc"));
@@ -202,16 +233,20 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
       ];
 
       for (const [key, label, desc] of fieldDefs) {
-        new Setting(fieldSection).setName(label).setDesc(desc).addText((text) =>
+        const st = new Setting(fieldSection).setName(label).setDesc(desc).addText((text) =>
           text.setValue(this.getSetting(key)).onChange(async (value) => {
-            this.setSetting(key, value.trim() || DEFAULT_SETTINGS[key]);
+            const trimmed = value.trim();
+            const activeBoard = this.getActiveBoard();
+            const next = activeBoard ? trimmed : (trimmed || DEFAULT_SETTINGS[key]);
+            this.setSetting(key, next, { allowInherit: true });
             await this.plugin.saveSettings();
             this.plugin.refreshViews();
           })
         );
+        this.addInheritButton(st, key);
       }
 
-      new Setting(fieldSection)
+      const customFieldsSetting = new Setting(fieldSection)
         .setName(tx("settings.custom_fields.name", "Custom fields"))
         .setDesc(tx("settings.custom_fields.desc", "Extra frontmatter keys to display on cards. Comma-separated."))
         .addText((text) =>
@@ -221,11 +256,12 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             this.plugin.refreshViews();
           })
         );
+      this.addInheritButton(customFieldsSetting, "customFields");
 
       /* ── Section: Board Layout ── */
       const layoutSection = section(containerEl, t("settings.section.layout"), t("settings.section.layout.desc"));
 
-      new Setting(layoutSection)
+      const statusOrderSetting = new Setting(layoutSection)
         .setName(tx("settings.status_order.name", "Status order"))
         .setDesc(tx("settings.status_order.desc", "Comma-separated lane names in display order."))
         .addTextArea((text) =>
@@ -235,8 +271,9 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             this.plugin.refreshViews();
           })
         );
+      this.addInheritButton(statusOrderSetting, "statusOrder");
 
-      new Setting(layoutSection)
+      const priorityOrderSetting = new Setting(layoutSection)
         .setName(tx("settings.priority_order.name", "Priority order"))
         .setDesc(tx("settings.priority_order.desc", "Defines priority ranking for sorting. Comma-separated, highest first."))
         .addText((text) =>
@@ -246,8 +283,9 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             this.plugin.refreshViews();
           })
         );
+      this.addInheritButton(priorityOrderSetting, "priorityOrder");
 
-      new Setting(layoutSection)
+      const sortBySetting = new Setting(layoutSection)
         .setName(tx("settings.sort_by.name", "Sort by"))
         .setDesc(tx("settings.sort_by.desc", "Default card sorting within each lane."))
         .addDropdown((dropdown) =>
@@ -263,8 +301,9 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
               this.plugin.refreshViews();
             })
         );
+      this.addInheritButton(sortBySetting, "sortBy");
 
-      new Setting(layoutSection)
+      const sortDirectionSetting = new Setting(layoutSection)
         .setName(tx("settings.sort_direction.name", "Sort direction"))
         .addDropdown((dropdown) =>
           dropdown
@@ -277,8 +316,9 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
               this.plugin.refreshViews();
             })
         );
+      this.addInheritButton(sortDirectionSetting, "sortDirection");
 
-      new Setting(layoutSection)
+      const dueSoonSetting = new Setting(layoutSection)
         .setName(tx("settings.due_soon.name", "Due soon threshold"))
         .setDesc(tx("settings.due_soon.desc", "Cards due within this many days are highlighted."))
         .addText((text) =>
@@ -289,8 +329,9 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             this.plugin.refreshViews();
           })
         );
+      this.addInheritButton(dueSoonSetting, "dueSoonDays");
 
-      new Setting(layoutSection)
+      const wipLimitsSetting = new Setting(layoutSection)
         .setName(tx("settings.wip_limits.name", "WIP limits"))
         .setDesc(tx("settings.wip_limits.desc", "Limit cards per lane. Format: Todo:10, In Progress:3"))
         .addTextArea((text) =>
@@ -300,8 +341,9 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             this.plugin.refreshViews();
           })
         );
+      this.addInheritButton(wipLimitsSetting, "wipLimits");
 
-      new Setting(layoutSection)
+      const autoArchiveSetting = new Setting(layoutSection)
         .setName(tx("settings.auto_archive.name", "Auto-archive done tasks"))
         .setDesc(tx("settings.auto_archive.desc", "Hide completed tasks older than this many days. Set to 0 to disable."))
         .addText((text) =>
@@ -312,11 +354,12 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             this.plugin.refreshViews();
           })
         );
+      this.addInheritButton(autoArchiveSetting, "autoArchiveDays");
 
       /* ── Section: Date Display ── */
       const dateSection = section(containerEl, t("settings.section.dateDisplay"), t("settings.section.dateDisplay.desc"));
 
-      new Setting(dateSection)
+      const dateFormatSetting = new Setting(dateSection)
         .setName(tx("settings.date_format.name", "Date format"))
         .setDesc(tx("settings.date_format.desc", "Storage format for new due dates. Uses Moment.js patterns."))
         .addText((text) =>
@@ -329,8 +372,9 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
               this.plugin.refreshViews();
             })
         );
+      this.addInheritButton(dateFormatSetting, "dateFormat");
 
-      new Setting(dateSection)
+      const dateDisplayFormatSetting = new Setting(dateSection)
         .setName(tx("settings.date_display_format.name", "Date display format"))
         .setDesc(tx("settings.date_display_format.desc", "Optional display format. Leave empty to use Date format."))
         .addText((text) =>
@@ -343,8 +387,9 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
               this.plugin.refreshViews();
             })
         );
+      this.addInheritButton(dateDisplayFormatSetting, "dateDisplayFormat");
 
-      new Setting(dateSection)
+      const relativeDateSetting = new Setting(dateSection)
         .setName(tx("settings.relative_due.name", "Show relative due labels"))
         .setDesc(tx("settings.relative_due.desc", "Show labels like \"Due in 3d\" instead of absolute dates."))
         .addToggle((toggle) =>
@@ -354,6 +399,7 @@ module.exports = function createSettingsTab({ PluginSettingTab, Setting, Notice,
             this.plugin.refreshViews();
           })
         );
+      this.addInheritButton(relativeDateSetting, "showRelativeDate");
 
       /* ── Section: Appearance ── */
       const themeSection = section(containerEl, t("settings.section.appearance"), t("settings.section.appearance.desc"));
