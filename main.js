@@ -2897,7 +2897,8 @@ var require_view = __commonJS({
             const laneColor = this.plugin.getResolvedLaneColor(status, this.boardId);
             if (laneColor.bg) lane.style.setProperty("--sk-lane-accent-bg", laneColor.bg);
             if (laneColor.text) lane.style.setProperty("--sk-lane-accent-text", laneColor.text);
-            const laneHeader = lane.createDiv({ cls: "smart-kanban-lane-header" });
+            const laneTopRow = lane.createDiv({ cls: "smart-kanban-lane-top-row" });
+            const laneHeader = laneTopRow.createDiv({ cls: "smart-kanban-lane-header" });
             const laneTitle = laneHeader.createEl("h3", { text: status });
             laneHeader.addEventListener("click", () => {
               if (this.collapsedLanes.has(status)) this.collapsedLanes.delete(status);
@@ -2932,6 +2933,26 @@ var require_view = __commonJS({
             }
             laneCards = this.plugin.sortCards(laneCards, this.boardId);
             laneHeader.createEl("span", { text: String(laneCards.length), cls: "smart-kanban-count" });
+            const laneMenuBtn = laneTopRow.createEl("button", { cls: "smart-kanban-lane-menu-btn" });
+            setIcon3(laneMenuBtn, "more-horizontal");
+            laneMenuBtn.addEventListener("click", (e) => {
+              e.stopPropagation();
+              const currentColor = this.plugin.getResolvedLaneColor(status, this.boardId);
+              showLaneColorPicker2(laneMenuBtn, currentColor.bg, async ({ bg, text }) => {
+                const board2 = this.boardId ? this.plugin.getBoard(this.boardId) : null;
+                const theme = (board2 == null ? void 0 : board2.theme) || this.plugin.settings.theme || {};
+                if (!theme.laneColors) theme.laneColors = {};
+                if (bg) {
+                  theme.laneColors[status] = { bg, text };
+                } else {
+                  delete theme.laneColors[status];
+                }
+                if (board2) board2.theme = theme;
+                else this.plugin.settings.theme = theme;
+                await this.plugin.saveSettings();
+                this.renderBoard();
+              });
+            });
             const wipLimit = this.plugin.getWipLimit(status, this.boardId);
             if (wipLimit > 0) {
               const wip = laneHeader.createEl("span", {

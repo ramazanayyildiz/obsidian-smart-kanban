@@ -391,7 +391,7 @@
   cursor: pointer;
   user-select: none;
   gap: 6px;
-  margin-bottom: 8px;
+  margin-bottom: 0;
   width: fit-content;
 }
 
@@ -1512,6 +1512,40 @@
 .smart-kanban-group-controls {
   display: inline-flex;
   align-items: center;
+}
+
+/* ═══ Lane Top Row (header pill + menu button) ═══ */
+.smart-kanban-lane-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+/* ═══ Lane Menu Button ═══ */
+.smart-kanban-lane-menu-btn {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  color: var(--text-faint);
+  opacity: 0;
+  transition: opacity 0.15s;
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+}
+.smart-kanban-lane-menu-btn .svg-icon {
+  width: 16px;
+  height: 16px;
+}
+.smart-kanban-lane-top-row:hover .smart-kanban-lane-menu-btn {
+  opacity: 0.5;
+}
+.smart-kanban-lane-menu-btn:hover {
+  opacity: 1 !important;
+  color: var(--text-normal);
+  background: var(--background-modifier-hover);
 }
 
 /* ═══ Lane Color Picker (Notion-style) ═══ */

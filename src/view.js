@@ -846,7 +846,8 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
         const laneColor = this.plugin.getResolvedLaneColor(status, this.boardId);
         if (laneColor.bg) lane.style.setProperty("--sk-lane-accent-bg", laneColor.bg);
         if (laneColor.text) lane.style.setProperty("--sk-lane-accent-text", laneColor.text);
-        const laneHeader = lane.createDiv({ cls: "smart-kanban-lane-header" });
+        const laneTopRow = lane.createDiv({ cls: "smart-kanban-lane-top-row" });
+        const laneHeader = laneTopRow.createDiv({ cls: "smart-kanban-lane-header" });
 
         const laneTitle = laneHeader.createEl("h3", { text: status });
 
@@ -888,6 +889,28 @@ module.exports = function createView({ ItemView, TFile, Notice, setIcon, VIEW_TY
 
         /* count right next to the title, no wrapper */
         laneHeader.createEl("span", { text: String(laneCards.length), cls: "smart-kanban-count" });
+
+        /* 3-dot lane menu button (outside the pill, in the top row) */
+        const laneMenuBtn = laneTopRow.createEl("button", { cls: "smart-kanban-lane-menu-btn" });
+        setIcon(laneMenuBtn, "more-horizontal");
+        laneMenuBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          const currentColor = this.plugin.getResolvedLaneColor(status, this.boardId);
+          showLaneColorPicker(laneMenuBtn, currentColor.bg, async ({ bg, text }) => {
+            const board = this.boardId ? this.plugin.getBoard(this.boardId) : null;
+            const theme = board?.theme || this.plugin.settings.theme || {};
+            if (!theme.laneColors) theme.laneColors = {};
+            if (bg) {
+              theme.laneColors[status] = { bg, text };
+            } else {
+              delete theme.laneColors[status];
+            }
+            if (board) board.theme = theme;
+            else this.plugin.settings.theme = theme;
+            await this.plugin.saveSettings();
+            this.renderBoard();
+          });
+        });
 
         const wipLimit = this.plugin.getWipLimit(status, this.boardId);
         if (wipLimit > 0) {
