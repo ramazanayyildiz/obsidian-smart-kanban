@@ -1,7 +1,26 @@
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
 var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+};
 var __commonJS = (cb, mod) => function __require() {
   return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
 };
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
 // src/constants.js
 var require_constants = __commonJS({
@@ -169,7 +188,9 @@ var require_constants = __commonJS({
       dateDisplayFormat: "",
       showRelativeDate: true,
       theme: { preset: "default", overrides: {}, laneColors: {} },
-      cardOrder: {}
+      cardOrder: {},
+      groupByField: "",
+      categoryDisplayDepth: 1
     };
     var BOARD_CONFIG_KEYS2 = Object.freeze(Object.keys(DEFAULT_BOARD_CONFIG2));
     var DEFAULT_SETTINGS2 = {
@@ -1549,15 +1570,591 @@ var require_modals = __commonJS({
   }
 });
 
+// src/category-display.js
+var category_display_exports = {};
+__export(category_display_exports, {
+  truncateCategory: () => truncateCategory
+});
+function truncateCategory(category, maxDepth = 1) {
+  if (!category) return { display: "", full: "", truncated: false };
+  const parts = category.split("/").map((s) => s.trim()).filter(Boolean);
+  if (parts.length <= maxDepth) {
+    return { display: category, full: category, truncated: false };
+  }
+  const display = parts.slice(-maxDepth).join("/");
+  return { display, full: category, truncated: true };
+}
+var init_category_display = __esm({
+  "src/category-display.js"() {
+  }
+});
+
+// src/url-preview.js
+var url_preview_exports = {};
+__export(url_preview_exports, {
+  formatUrlDisplay: () => formatUrlDisplay,
+  renderUrlLink: () => renderUrlLink
+});
+function formatUrlDisplay(url, maxLen = 45) {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    let display = u.hostname.replace(/^www\./, "");
+    if (u.pathname && u.pathname !== "/") {
+      display += u.pathname;
+    }
+    if (display.length > maxLen) {
+      display = display.slice(0, maxLen - 1) + "\u2026";
+    }
+    return { display, href: url };
+  } catch (e) {
+    return null;
+  }
+}
+function renderUrlLink(parent, url) {
+  const info = formatUrlDisplay(url);
+  if (!info) return null;
+  const link = parent.createEl("a", {
+    text: info.display,
+    cls: "smart-kanban-card-url",
+    href: info.href
+  });
+  link.setAttr("title", info.href);
+  link.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    window.open(info.href, "_blank");
+  });
+  return link;
+}
+var init_url_preview = __esm({
+  "src/url-preview.js"() {
+  }
+});
+
+// src/virtual-scroll.js
+var virtual_scroll_exports = {};
+__export(virtual_scroll_exports, {
+  LaneVirtualizer: () => LaneVirtualizer
+});
+var BATCH_SIZE, LaneVirtualizer;
+var init_virtual_scroll = __esm({
+  "src/virtual-scroll.js"() {
+    BATCH_SIZE = 30;
+    LaneVirtualizer = class {
+      constructor() {
+        this._observers = /* @__PURE__ */ new Map();
+        this._renderState = /* @__PURE__ */ new Map();
+      }
+      /**
+       * Initialize lazy rendering for a lane.
+       * @param {string} laneId - Unique identifier for the lane (e.g., status value)
+       * @param {HTMLElement} container - The .smart-kanban-card-list element
+       * @param {Array} cards - Full array of cards for this lane
+       * @param {Function} renderFn - Function(parent, card) to render a single card
+       */
+      initLane(laneId, container, cards, renderFn) {
+        this.destroyLane(laneId);
+        if (cards.length <= BATCH_SIZE) {
+          for (const card of cards) {
+            renderFn(container, card);
+          }
+          return;
+        }
+        const firstBatch = cards.slice(0, BATCH_SIZE);
+        for (const card of firstBatch) {
+          renderFn(container, card);
+        }
+        const state = {
+          cards,
+          offset: BATCH_SIZE,
+          container,
+          renderFn
+        };
+        this._renderState.set(laneId, state);
+        const sentinel = document.createElement("div");
+        sentinel.className = "smart-kanban-scroll-sentinel";
+        sentinel.style.height = "1px";
+        container.appendChild(sentinel);
+        const observer = new IntersectionObserver(
+          (entries) => {
+            for (const entry of entries) {
+              if (entry.isIntersecting) {
+                this._loadNextBatch(laneId, sentinel);
+              }
+            }
+          },
+          { root: container, rootMargin: "200px" }
+        );
+        observer.observe(sentinel);
+        this._observers.set(laneId, observer);
+      }
+      _loadNextBatch(laneId, sentinel) {
+        const state = this._renderState.get(laneId);
+        if (!state) return;
+        const { cards, offset, container, renderFn } = state;
+        if (offset >= cards.length) {
+          this.destroyLane(laneId);
+          sentinel.remove();
+          return;
+        }
+        const end = Math.min(offset + BATCH_SIZE, cards.length);
+        const batch = cards.slice(offset, end);
+        for (const card of batch) {
+          const cardEl = renderFn(container, card);
+          if (cardEl && sentinel.parentNode) {
+            container.insertBefore(cardEl, sentinel);
+          }
+        }
+        state.offset = end;
+        if (end >= cards.length) {
+          this.destroyLane(laneId);
+          sentinel.remove();
+        }
+      }
+      /**
+       * Force-render all remaining cards for a lane (needed before drag operations).
+       */
+      forceRenderAll(laneId) {
+        const state = this._renderState.get(laneId);
+        if (!state) return;
+        const { cards, offset, container, renderFn } = state;
+        const sentinel = container.querySelector(".smart-kanban-scroll-sentinel");
+        for (let i = offset; i < cards.length; i++) {
+          const cardEl = renderFn(container, cards[i]);
+          if (cardEl && sentinel && sentinel.parentNode) {
+            container.insertBefore(cardEl, sentinel);
+          }
+        }
+        state.offset = cards.length;
+        this.destroyLane(laneId);
+        if (sentinel) sentinel.remove();
+      }
+      destroyLane(laneId) {
+        const observer = this._observers.get(laneId);
+        if (observer) {
+          observer.disconnect();
+          this._observers.delete(laneId);
+        }
+        this._renderState.delete(laneId);
+      }
+      destroyAll() {
+        for (const [laneId] of this._observers) {
+          this.destroyLane(laneId);
+        }
+      }
+      /**
+       * Get the total card count for a lane (rendered + unrendered).
+       */
+      getTotalCount(laneId) {
+        const state = this._renderState.get(laneId);
+        return state ? state.cards.length : 0;
+      }
+      /**
+       * Check if a lane still has unrendered cards.
+       */
+      hasMore(laneId) {
+        const state = this._renderState.get(laneId);
+        return state ? state.offset < state.cards.length : false;
+      }
+    };
+  }
+});
+
+// src/bulk-actions.js
+var bulk_actions_exports = {};
+__export(bulk_actions_exports, {
+  BulkActionManager: () => BulkActionManager
+});
+var import_obsidian, BulkActionManager, PickerModal, InputModal;
+var init_bulk_actions = __esm({
+  "src/bulk-actions.js"() {
+    import_obsidian = require("obsidian");
+    BulkActionManager = class {
+      constructor(plugin, view) {
+        this.plugin = plugin;
+        this.view = view;
+        this.selectedIds = /* @__PURE__ */ new Set();
+        this.enabled = false;
+        this.barEl = null;
+      }
+      toggle() {
+        this.enabled = !this.enabled;
+        if (!this.enabled) {
+          this.selectedIds.clear();
+        }
+        this.updateBar();
+        return this.enabled;
+      }
+      isSelected(cardId) {
+        return this.selectedIds.has(cardId);
+      }
+      toggleCard(cardId) {
+        if (this.selectedIds.has(cardId)) {
+          this.selectedIds.delete(cardId);
+        } else {
+          this.selectedIds.add(cardId);
+        }
+        this.updateBar();
+      }
+      selectAll(cardIds) {
+        for (const id of cardIds) this.selectedIds.add(id);
+        this.updateBar();
+      }
+      clearSelection() {
+        this.selectedIds.clear();
+        this.updateBar();
+      }
+      /**
+       * Create the bulk action toolbar.
+       * @param {HTMLElement} parent - Container to append the bar to
+       */
+      createBar(parent) {
+        this.barEl = parent.createDiv({ cls: "smart-kanban-bulk-bar" });
+        this.barEl.style.display = "none";
+        this.countEl = this.barEl.createSpan({ cls: "smart-kanban-bulk-count" });
+        const actions = [
+          { label: "Change Status", icon: "columns", action: () => this._batchChangeField("status") },
+          { label: "Change Category", icon: "folder", action: () => this._batchChangeField("category") },
+          { label: "Add Tag", icon: "tag", action: () => this._batchAddTag() },
+          { label: "Clear Selection", icon: "x", action: () => {
+            this.clearSelection();
+            this.view.renderContent();
+          } }
+        ];
+        for (const { label, icon, action } of actions) {
+          const btn = this.barEl.createEl("button", { cls: "smart-kanban-bulk-btn", attr: { title: label } });
+          (0, import_obsidian.setIcon)(btn, icon);
+          btn.createSpan({ text: label });
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            action();
+          });
+        }
+      }
+      updateBar() {
+        if (!this.barEl) return;
+        if (this.enabled && this.selectedIds.size > 0) {
+          this.barEl.style.display = "flex";
+          this.countEl.textContent = `${this.selectedIds.size} selected`;
+        } else {
+          this.barEl.style.display = "none";
+        }
+      }
+      /**
+       * Render a checkbox on a card (called from renderCard).
+       */
+      renderCheckbox(cardEl, card) {
+        if (!this.enabled) return;
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.className = "smart-kanban-card-checkbox";
+        cb.checked = this.isSelected(card.id);
+        cb.addEventListener("click", (e) => {
+          e.stopPropagation();
+        });
+        cb.addEventListener("change", (e) => {
+          this.toggleCard(card.id);
+          cardEl.toggleClass("is-selected", this.isSelected(card.id));
+        });
+        const titleRow = cardEl.querySelector(".smart-kanban-card-title");
+        if (titleRow) {
+          titleRow.insertBefore(cb, titleRow.firstChild);
+        }
+        if (this.isSelected(card.id)) {
+          cardEl.addClass("is-selected");
+        }
+      }
+      async _batchChangeField(fieldType) {
+        const eff = this.view.getActiveSettings();
+        let fieldName, values;
+        if (fieldType === "status") {
+          fieldName = eff.statusField;
+          values = String(eff.statusOrder || "").split(",").map((s) => s.trim()).filter(Boolean);
+        } else if (fieldType === "category") {
+          fieldName = eff.categoryField;
+          values = [...new Set(this.view.allCards.map((c) => c.category).filter(Boolean))].sort();
+        }
+        if (!values || !values.length) return;
+        const selected = await this._showPickerModal(`Change ${fieldType}`, values);
+        if (!selected) return;
+        await this._applyBatchUpdate(fieldName, selected);
+      }
+      async _batchAddTag() {
+        const tag = await this._showInputModal("Add Tag", "Enter tag name:");
+        if (!tag) return;
+        for (const cardId of this.selectedIds) {
+          const card = this.view.allCards.find((c) => c.id === cardId);
+          if (!card) continue;
+          const file = this.plugin.app.vault.getAbstractFileByPath(card.path);
+          if (!file) continue;
+          try {
+            await this.plugin.app.fileManager.processFrontMatter(file, (fm) => {
+              const eff = this.view.getActiveSettings();
+              const tagsKey = eff.tagsField || "Tags";
+              let tags = fm[tagsKey];
+              if (!Array.isArray(tags)) tags = tags ? [tags] : [];
+              if (!tags.includes(tag)) {
+                tags.push(tag);
+                fm[tagsKey] = tags;
+              }
+            });
+          } catch (e) {
+          }
+        }
+        this.clearSelection();
+        this.view.reload();
+      }
+      async _applyBatchUpdate(fieldName, newValue) {
+        for (const cardId of this.selectedIds) {
+          const card = this.view.allCards.find((c) => c.id === cardId);
+          if (!card) continue;
+          const file = this.plugin.app.vault.getAbstractFileByPath(card.path);
+          if (!file) continue;
+          try {
+            await this.plugin.app.fileManager.processFrontMatter(file, (fm) => {
+              fm[fieldName] = newValue;
+            });
+          } catch (e) {
+          }
+        }
+        this.clearSelection();
+        this.view.reload();
+      }
+      _showPickerModal(title, options) {
+        return new Promise((resolve) => {
+          const modal = new PickerModal(this.plugin.app, title, options, resolve);
+          modal.open();
+        });
+      }
+      _showInputModal(title, placeholder) {
+        return new Promise((resolve) => {
+          const modal = new InputModal(this.plugin.app, title, placeholder, resolve);
+          modal.open();
+        });
+      }
+    };
+    PickerModal = class {
+      constructor(app, title, options, onSelect) {
+        this.app = app;
+        this.title = title;
+        this.options = options;
+        this.onSelect = onSelect;
+        this.modal = null;
+      }
+      open() {
+        const { Modal: Modal2 } = require("obsidian");
+        const self = this;
+        this.modal = new class extends Modal2 {
+          onOpen() {
+            const { contentEl } = this;
+            contentEl.createEl("h3", { text: self.title });
+            const list = contentEl.createDiv({ cls: "smart-kanban-picker-list" });
+            for (const opt of self.options) {
+              const item = list.createDiv({ cls: "smart-kanban-picker-item", text: opt });
+              item.addEventListener("click", () => {
+                self.onSelect(opt);
+                this.close();
+              });
+            }
+          }
+          onClose() {
+            if (!this._resolved) self.onSelect(null);
+            this._resolved = true;
+          }
+        }(this.app);
+        this.modal.open();
+      }
+    };
+    InputModal = class {
+      constructor(app, title, placeholder, onSubmit) {
+        this.app = app;
+        this.title = title;
+        this.placeholder = placeholder;
+        this.onSubmit = onSubmit;
+      }
+      open() {
+        const { Modal: Modal2 } = require("obsidian");
+        const self = this;
+        const modal = new class extends Modal2 {
+          onOpen() {
+            const { contentEl } = this;
+            contentEl.createEl("h3", { text: self.title });
+            const input = contentEl.createEl("input", {
+              type: "text",
+              placeholder: self.placeholder,
+              cls: "smart-kanban-bulk-input"
+            });
+            input.style.width = "100%";
+            input.style.marginBottom = "8px";
+            const btn = contentEl.createEl("button", { text: "Apply", cls: "mod-cta" });
+            btn.addEventListener("click", () => {
+              self.onSubmit(input.value.trim());
+              this.close();
+            });
+            input.addEventListener("keydown", (e) => {
+              if (e.key === "Enter") {
+                self.onSubmit(input.value.trim());
+                this.close();
+              }
+            });
+            input.focus();
+          }
+          onClose() {
+            if (!this._resolved) self.onSubmit(null);
+            this._resolved = true;
+          }
+        }(this.app);
+        modal.open();
+      }
+    };
+  }
+});
+
+// src/group-by.js
+var group_by_exports = {};
+__export(group_by_exports, {
+  collectGroupValues: () => collectGroupValues,
+  filterCardsByGroup: () => filterCardsByGroup,
+  getCardFieldValue: () => getCardFieldValue,
+  resolveGroupFieldForWrite: () => resolveGroupFieldForWrite
+});
+function getCardFieldValue(card, fieldName, eff) {
+  if (fieldName === eff.statusField || fieldName === "status") return card.status;
+  if (fieldName === eff.categoryField || fieldName === "category") return card.category;
+  if (fieldName === eff.priorityField || fieldName === "priority") return card.priority;
+  if (fieldName === eff.tagsField || fieldName === "tags") {
+    return Array.isArray(card.tags) ? card.tags.join(", ") : "";
+  }
+  if (card.customFields && card.customFields[fieldName]) {
+    return card.customFields[fieldName];
+  }
+  return card[fieldName] || "";
+}
+function collectGroupValues(cards, fieldName, eff, explicitOrder) {
+  if (explicitOrder) {
+    const ordered = explicitOrder.split(",").map((s) => s.trim()).filter(Boolean);
+    const seen = new Set(ordered);
+    for (const card of cards) {
+      const val = getCardFieldValue(card, fieldName, eff);
+      if (val && !seen.has(val)) {
+        ordered.push(val);
+        seen.add(val);
+      }
+    }
+    return ordered;
+  }
+  const values = /* @__PURE__ */ new Set();
+  for (const card of cards) {
+    const val = getCardFieldValue(card, fieldName, eff);
+    if (val) values.add(val);
+  }
+  return [...values].sort();
+}
+function filterCardsByGroup(cards, groupValue, fieldName, eff) {
+  return cards.filter((card) => {
+    const val = getCardFieldValue(card, fieldName, eff);
+    return val === groupValue;
+  });
+}
+function resolveGroupFieldForWrite(groupByField, eff) {
+  if (groupByField === "status" || groupByField === eff.statusField) return eff.statusField;
+  if (groupByField === "category" || groupByField === eff.categoryField) return eff.categoryField;
+  if (groupByField === "priority" || groupByField === eff.priorityField) return eff.priorityField;
+  return groupByField;
+}
+var init_group_by = __esm({
+  "src/group-by.js"() {
+  }
+});
+
+// src/lane-colors.js
+var lane_colors_exports = {};
+__export(lane_colors_exports, {
+  NOTION_COLORS: () => NOTION_COLORS,
+  showLaneColorPicker: () => showLaneColorPicker
+});
+function showLaneColorPicker(anchor, currentBg, onSelect) {
+  document.querySelectorAll(".sk-lane-color-picker").forEach((el) => el.remove());
+  const picker = document.createElement("div");
+  picker.className = "sk-lane-color-picker";
+  for (const color of NOTION_COLORS) {
+    const item = document.createElement("div");
+    item.className = "sk-lane-color-item";
+    const swatch = document.createElement("span");
+    swatch.className = "sk-lane-color-swatch";
+    if (color.bg) {
+      swatch.style.background = color.bg;
+      swatch.style.opacity = "0.35";
+    } else {
+      swatch.style.background = "var(--background-modifier-border)";
+    }
+    const label = document.createElement("span");
+    label.className = "sk-lane-color-label";
+    label.textContent = color.name;
+    item.appendChild(swatch);
+    item.appendChild(label);
+    if (currentBg === color.bg || !currentBg && !color.bg) {
+      const check = document.createElement("span");
+      check.className = "sk-lane-color-check";
+      check.textContent = "\u2713";
+      item.appendChild(check);
+    }
+    item.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onSelect({ bg: color.bg, text: color.text });
+      picker.remove();
+    });
+    picker.appendChild(item);
+  }
+  const rect = anchor.getBoundingClientRect();
+  picker.style.position = "fixed";
+  picker.style.top = `${rect.bottom + 4}px`;
+  picker.style.left = `${rect.left}px`;
+  picker.style.zIndex = "1000";
+  document.body.appendChild(picker);
+  const closeHandler = (e) => {
+    if (!picker.contains(e.target)) {
+      picker.remove();
+      document.removeEventListener("click", closeHandler, true);
+    }
+  };
+  setTimeout(() => document.addEventListener("click", closeHandler, true), 50);
+}
+var NOTION_COLORS;
+var init_lane_colors = __esm({
+  "src/lane-colors.js"() {
+    NOTION_COLORS = [
+      { name: "Default", bg: "", text: "" },
+      { name: "Gray", bg: "#9b9b9b", text: "#6b6b6b" },
+      { name: "Brown", bg: "#c48a5c", text: "#8b5e3c" },
+      { name: "Orange", bg: "#e8805a", text: "#c05621" },
+      { name: "Yellow", bg: "#d4a22c", text: "#96700a" },
+      { name: "Green", bg: "#2bae7e", text: "#1a7a54" },
+      { name: "Blue", bg: "#5b9bd5", text: "#2e6da4" },
+      { name: "Purple", bg: "#9775c4", text: "#6b4d96" },
+      { name: "Pink", bg: "#d46b8d", text: "#a44a6a" },
+      { name: "Red", bg: "#d46b6b", text: "#a44a4a" }
+    ];
+  }
+});
+
 // src/view.js
 var require_view = __commonJS({
   "src/view.js"(exports2, module2) {
-    module2.exports = function createView({ ItemView: ItemView2, TFile: TFile2, Notice: Notice2, setIcon: setIcon2, VIEW_TYPE_SMART_KANBAN: VIEW_TYPE_SMART_KANBAN2, normalizeDateInput: normalizeDateInput2, splitCsv: splitCsv2, t: t2 = (k) => k }) {
+    var { truncateCategory: truncateCategory2 } = (init_category_display(), __toCommonJS(category_display_exports));
+    var { renderUrlLink: renderUrlLink2 } = (init_url_preview(), __toCommonJS(url_preview_exports));
+    var { LaneVirtualizer: LaneVirtualizer2 } = (init_virtual_scroll(), __toCommonJS(virtual_scroll_exports));
+    var { BulkActionManager: BulkActionManager2 } = (init_bulk_actions(), __toCommonJS(bulk_actions_exports));
+    var { getCardFieldValue: getCardFieldValue2, collectGroupValues: collectGroupValues2, filterCardsByGroup: filterCardsByGroup2, resolveGroupFieldForWrite: resolveGroupFieldForWrite2 } = (init_group_by(), __toCommonJS(group_by_exports));
+    var { showLaneColorPicker: showLaneColorPicker2 } = (init_lane_colors(), __toCommonJS(lane_colors_exports));
+    module2.exports = function createView({ ItemView: ItemView2, TFile: TFile2, Notice: Notice2, setIcon: setIcon3, VIEW_TYPE_SMART_KANBAN: VIEW_TYPE_SMART_KANBAN2, normalizeDateInput: normalizeDateInput2, splitCsv: splitCsv2, t: t2 = (k) => k }) {
       class SmartKanbanView2 extends ItemView2 {
         constructor(leaf, plugin) {
           super(leaf);
           this.plugin = plugin;
           this.cards = [];
+          this.allCards = [];
           this.currentPreset = "";
           this.filters = this.plugin.createEmptyFilters();
           this.filtersCollapsed = false;
@@ -1565,6 +2162,8 @@ var require_view = __commonJS({
           this.collapsedLanes = /* @__PURE__ */ new Set();
           this.viewMode = "board";
           this._drag = null;
+          this._virtualizer = new LaneVirtualizer2();
+          this.bulkManager = new BulkActionManager2(plugin, this);
         }
         getViewType() {
           return VIEW_TYPE_SMART_KANBAN2;
@@ -1595,6 +2194,8 @@ var require_view = __commonJS({
           this.boardTabsEl = this.containerEl.createDiv({ cls: "smart-kanban-board-tabs" });
           this.headerEl = this.containerEl.createDiv({ cls: "smart-kanban-header" });
           this.filtersEl = this.containerEl.createDiv({ cls: "smart-kanban-filters" });
+          this.bulkBarEl = this.containerEl.createDiv({ cls: "smart-kanban-bulk-bar-container" });
+          this.bulkManager.createBar(this.bulkBarEl);
           this.boardEl = this.containerEl.createDiv({ cls: "smart-kanban-board" });
           this.applyTheme();
           this.renderBoardTabs();
@@ -1724,11 +2325,14 @@ var require_view = __commonJS({
         }
         async reload() {
           this._cancelDrag();
+          this._virtualizer.destroyAll();
           this._cachedSettings = null;
           this._cachedStatuses = null;
           this.cards = await this.plugin.collectCards(this.boardId);
+          this.allCards = this.cards;
           this._cachedSettings = this.plugin.getEffectiveSettings(this.boardId);
           this._cachedStatuses = this.plugin.collectStatusesFromCards(this.cards, this.boardId);
+          this.bulkManager.clearSelection();
           this.applyTheme();
           this.renderFilters();
           this.renderContent();
@@ -1775,7 +2379,7 @@ var require_view = __commonJS({
             this.renderContent();
           });
           const searchIcon = searchWrap.createSpan({ cls: "smart-kanban-search-icon" });
-          setIcon2(searchIcon, "search");
+          setIcon3(searchIcon, "search");
           const eff = this.plugin.getEffectiveSettings(this.boardId);
           const sortWrap = toolbar.createDiv({ cls: "smart-kanban-sort-controls" });
           const sortBySelect = sortWrap.createEl("select", {
@@ -1804,9 +2408,37 @@ var require_view = __commonJS({
           };
           sortBySelect.addEventListener("change", applySortSettings);
           sortDirectionSelect.addEventListener("change", applySortSettings);
+          const groupWrap = toolbar.createDiv({ cls: "smart-kanban-group-controls" });
+          const groupSelect = groupWrap.createEl("select", {
+            cls: "smart-kanban-sort-select",
+            attr: { title: "Group by", "aria-label": "Group by" }
+          });
+          const groupOptions = [
+            ["", "Group: Status"],
+            [eff.categoryField || "Category", "Group: Category"],
+            [eff.priorityField || "Priority", "Group: Priority"]
+          ];
+          const customKeys = String(eff.customFields || "").split(",").map((s) => s.trim()).filter(Boolean);
+          for (const key of customKeys) {
+            groupOptions.push([key, `Group: ${key}`]);
+          }
+          for (const [value, label] of groupOptions) {
+            groupSelect.createEl("option", { value, text: label });
+          }
+          groupSelect.value = eff.groupByField || "";
+          groupSelect.addEventListener("change", async () => {
+            await this.plugin.updateBoardConfig(this.boardId, { groupByField: groupSelect.value });
+            this._cachedSettings = null;
+            await this.reload();
+          });
           this.createIconBtn(toolbar, "filter", t2("view.toolbar.toggle_filters"), () => {
             this.filtersCollapsed = !this.filtersCollapsed;
             this.filtersEl.style.display = this.filtersCollapsed ? "none" : "";
+          });
+          const bulkBtn = this.createIconBtn(toolbar, "check-square", "Bulk Select", () => {
+            const active = this.bulkManager.toggle();
+            bulkBtn.toggleClass("is-active", active);
+            this.renderContent();
           });
           this.createIconBtn(toolbar, "plus", t2("view.toolbar.new_task"), () => this.createTaskInteractive());
           this.createIconBtn(toolbar, "refresh-cw", t2("view.toolbar.refresh"), () => this.reload());
@@ -1827,7 +2459,7 @@ var require_view = __commonJS({
               attr: { title: `View as ${mode.label.toLowerCase()}` }
             });
             const iconEl = item.createSpan({ cls: "smart-kanban-viewmode-tab-icon" });
-            setIcon2(iconEl, mode.icon);
+            setIcon3(iconEl, mode.icon);
             item.createSpan({ text: mode.label });
             item.addEventListener("click", () => {
               this.viewMode = mode.key;
@@ -1838,7 +2470,7 @@ var require_view = __commonJS({
         }
         createIconBtn(parent, icon, title, onClick) {
           const btn = parent.createEl("button", { cls: "smart-kanban-icon-btn", attr: { title, "aria-label": title } });
-          setIcon2(btn, icon);
+          setIcon3(btn, icon);
           btn.addEventListener("click", async (e) => {
             e.stopPropagation();
             await onClick();
@@ -2059,12 +2691,12 @@ var require_view = __commonJS({
             });
             if (this.currentPreset) {
               const deleteBtn = wrap.createEl("button", { cls: "smart-kanban-icon-btn-sm", attr: { title: t2("view.preset.delete_title") } });
-              setIcon2(deleteBtn, "trash-2");
+              setIcon3(deleteBtn, "trash-2");
               deleteBtn.addEventListener("click", () => this.deleteCurrentPresetInteractive());
             }
           }
           const saveBtn = wrap.createEl("button", { cls: "smart-kanban-icon-btn-sm", attr: { title: t2("view.preset.save_title") } });
-          setIcon2(saveBtn, "bookmark-plus");
+          setIcon3(saveBtn, "bookmark-plus");
           saveBtn.addEventListener("click", () => this.savePresetInteractive());
         }
         renderDropdownFilter(parent, label, values, key) {
@@ -2074,7 +2706,7 @@ var require_view = __commonJS({
           const trigger = wrap.createEl("button", { cls: "smart-kanban-dropdown-trigger" });
           trigger.createSpan({ text: btnText });
           const chevron = trigger.createSpan({ cls: "smart-kanban-dropdown-chevron" });
-          setIcon2(chevron, "chevron-down");
+          setIcon3(chevron, "chevron-down");
           const panel = wrap.createDiv({ cls: "smart-kanban-dropdown-panel" });
           panel.style.display = "none";
           let isOpen = false;
@@ -2229,13 +2861,22 @@ var require_view = __commonJS({
             });
             return;
           }
-          let statuses = this._cachedStatuses || this.plugin.collectStatusesFromCards(this.cards, this.boardId);
+          const eff0 = this.getActiveSettings();
+          const groupByField = eff0.groupByField || "";
+          const useGroupBy = groupByField && groupByField !== eff0.statusField && groupByField !== "status";
+          let statuses;
+          if (useGroupBy) {
+            statuses = collectGroupValues2(this.cards, groupByField, eff0, null);
+          } else {
+            statuses = this._cachedStatuses || this.plugin.collectStatusesFromCards(this.cards, this.boardId);
+          }
           const board = this.boardId ? this.plugin.getBoard(this.boardId) : null;
-          if (board && board.type === "filtered-view" && board.visibleStatuses) {
+          if (!useGroupBy && board && board.type === "filtered-view" && board.visibleStatuses) {
             const visible = board.visibleStatuses.split(",").map((s) => s.trim()).filter(Boolean);
             if (visible.length) statuses = statuses.filter((s) => visible.includes(s));
           }
           const filteredCards = this.filteredCards();
+          this.allCards = this.cards;
           if (this.cards.length > 0 && filteredCards.length === 0) {
             const emptyEl = this.boardEl.createDiv({ cls: "smart-kanban-empty-state" });
             emptyEl.createEl("p", { text: t2("view.empty.no_filter_match") });
@@ -2263,8 +2904,32 @@ var require_view = __commonJS({
               else this.collapsedLanes.add(status);
               this.renderBoard();
             });
+            laneHeader.addEventListener("contextmenu", (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const currentColor = this.plugin.getResolvedLaneColor(status, this.boardId);
+              showLaneColorPicker2(laneHeader, currentColor.bg, async ({ bg, text }) => {
+                const board2 = this.boardId ? this.plugin.getBoard(this.boardId) : null;
+                const theme = (board2 == null ? void 0 : board2.theme) || this.plugin.settings.theme || {};
+                if (!theme.laneColors) theme.laneColors = {};
+                if (bg) {
+                  theme.laneColors[status] = { bg, text };
+                } else {
+                  delete theme.laneColors[status];
+                }
+                if (board2) board2.theme = theme;
+                else this.plugin.settings.theme = theme;
+                await this.plugin.saveSettings();
+                this.renderBoard();
+              });
+            });
             const fallbackStatus = this.plugin.getDefaultStatus(this.boardId);
-            let laneCards = filteredCards.filter((card) => (card.status || fallbackStatus) === status);
+            let laneCards;
+            if (useGroupBy) {
+              laneCards = filterCardsByGroup2(filteredCards, status, groupByField, eff0);
+            } else {
+              laneCards = filteredCards.filter((card) => (card.status || fallbackStatus) === status);
+            }
             laneCards = this.plugin.sortCards(laneCards, this.boardId);
             laneHeader.createEl("span", { text: String(laneCards.length), cls: "smart-kanban-count" });
             const wipLimit = this.plugin.getWipLimit(status, this.boardId);
@@ -2281,9 +2946,9 @@ var require_view = __commonJS({
             if (!isCollapsed) {
               const list = lane.createDiv({ cls: "smart-kanban-card-list" });
               list.dataset.status = status;
-              for (const card of laneCards) {
-                this.renderCard(list, card, eff);
-              }
+              this._virtualizer.initLane(status, list, laneCards, (container, card) => {
+                return this.renderCard(container, card, eff);
+              });
               const quickAdd = lane.createDiv({ cls: "smart-kanban-quick-add" });
               const quickLabel = quickAdd.createEl("span", {
                 text: t2("view.quick_add.new_page"),
@@ -2488,6 +3153,7 @@ var require_view = __commonJS({
           }
         }
         renderCard(parent, card, eff = this.getActiveSettings()) {
+          var _a;
           const cardEl = parent.createDiv({ cls: "smart-kanban-card" });
           cardEl.dataset.cardId = card.id;
           if (card.priority) cardEl.dataset.priority = card.priority.toLowerCase().replace(/\s+/g, "-");
@@ -2502,7 +3168,8 @@ var require_view = __commonJS({
             cardEl.addClass(card.dueInfo.cls);
           }
           const titleRow = cardEl.createDiv({ cls: "smart-kanban-card-title" });
-          const link = titleRow.createEl("a", { text: card.title, href: "#", cls: "smart-kanban-card-title-link" });
+          const displayTitle = card.title.replace(/^\d{4}-\d{2}-\d{2}\s+/, "").replace(/^unknown\s+/, "");
+          const link = titleRow.createEl("a", { text: displayTitle, href: "#", cls: "smart-kanban-card-title-link" });
           link.addEventListener("click", async (event) => {
             event.preventDefault();
             const file = this.app.vault.getAbstractFileByPath(card.path);
@@ -2512,12 +3179,19 @@ var require_view = __commonJS({
           });
           const overflowWrap = titleRow.createDiv({ cls: "smart-kanban-overflow-wrap" });
           const overflowBtn = overflowWrap.createEl("button", { cls: "smart-kanban-overflow-btn" });
-          setIcon2(overflowBtn, "more-horizontal");
+          setIcon3(overflowBtn, "more-horizontal");
           const badges = cardEl.createDiv({ cls: "smart-kanban-card-badges" });
           if (card.category) {
-            const catBadge = badges.createSpan({ text: card.category, cls: "smart-kanban-badge smart-kanban-badge-category" });
+            const depth = eff.categoryDisplayDepth || 1;
+            const { display, full, truncated } = truncateCategory2(card.category, depth);
+            const catBadge = badges.createSpan({ text: display, cls: "smart-kanban-badge smart-kanban-badge-category" });
+            if (truncated) catBadge.setAttr("title", full);
             this.applyBadgeColor(catBadge, eff.categoryColors, card.category);
             this.bindFilterBadge(catBadge, "categories", card.category);
+          }
+          const source = (_a = card.customFields) == null ? void 0 : _a.source;
+          if (source) {
+            badges.createSpan({ text: source, cls: "smart-kanban-badge smart-kanban-badge-source" });
           }
           if (card.priority) {
             const prioSlug = card.priority.toLowerCase().replace(/\s+/g, "-");
@@ -2526,22 +3200,10 @@ var require_view = __commonJS({
               cls: `smart-kanban-badge smart-kanban-priority-badge smart-kanban-priority-${prioSlug}`
             });
           }
-          if (card.dueInfo) {
-            badges.createSpan({ text: card.dueInfo.label, cls: "smart-kanban-badge smart-kanban-due-badge" });
+          if (card.url) {
+            renderUrlLink2(cardEl, card.url);
           }
-          const customEntries = this.plugin.getCardMetaEntries(card, eff);
-          for (const [label, value] of customEntries) {
-            if (!value || value === "-") continue;
-            if (label === "Category" || label === "Priority" || label === "Due") continue;
-            badges.createSpan({ text: value, cls: "smart-kanban-badge smart-kanban-badge-custom" });
-          }
-          if (card.tags && card.tags.length) {
-            for (const tag of card.tags) {
-              const tagBadge = badges.createSpan({ text: tag, cls: "smart-kanban-badge smart-kanban-tag" });
-              this.applyBadgeColor(tagBadge, eff.tagColors, tag);
-              this.bindFilterBadge(tagBadge, "tags", tag);
-            }
-          }
+          this.bulkManager.renderCheckbox(cardEl, card);
           const menu = overflowWrap.createDiv({ cls: "smart-kanban-overflow-menu" });
           menu.style.display = "none";
           overflowBtn.addEventListener("click", (event) => {
@@ -2604,6 +3266,7 @@ var require_view = __commonJS({
               this.editCardInteractive(card);
             }
           });
+          return cardEl;
         }
         async deleteCardInteractive(card) {
           const confirmed = await this.plugin.openConfirmModal({
@@ -2699,6 +3362,7 @@ var require_view = __commonJS({
         }
         /* ── Pointer-based drag & drop ── */
         _startDrag(e, cardEl, card) {
+          if (this.bulkManager.enabled) return;
           const startX = e.clientX;
           const startY = e.clientY;
           const threshold = 5;
@@ -2824,6 +3488,7 @@ var require_view = __commonJS({
         }
         async onClose() {
           this._cancelDrag();
+          this._virtualizer.destroyAll();
           for (const cleanup of this._dropdownCleanups) cleanup();
           this._dropdownCleanups = [];
           if (this._dragReloadTimer) {
@@ -3650,7 +4315,7 @@ var require_settings_tab = __commonJS({
 });
 
 // src/main.js
-var { Plugin, ItemView, Modal, TFile, TFolder, Notice, PluginSettingTab, Setting, setIcon, parseYaml } = require("obsidian");
+var { Plugin, ItemView, Modal, TFile, TFolder, Notice, PluginSettingTab, Setting, setIcon: setIcon2, parseYaml } = require("obsidian");
 var {
   VIEW_TYPE_SMART_KANBAN,
   SETTINGS_SCHEMA_VERSION,
@@ -3695,7 +4360,7 @@ var { SmartKanbanView } = require_view()({
   ItemView,
   TFile,
   Notice,
-  setIcon,
+  setIcon: setIcon2,
   VIEW_TYPE_SMART_KANBAN,
   normalizeDateInput,
   splitCsv,
@@ -4075,6 +4740,18 @@ module.exports = class SmartKanbanPlugin extends Plugin {
   async saveSettings() {
     await this.saveData(this.settings);
   }
+  async updateBoardConfig(boardId, updates) {
+    const board = boardId ? this.getBoard(boardId) : null;
+    if (board) {
+      Object.assign(board, updates);
+    } else {
+      Object.assign(this.settings, updates);
+      if (this.settings.defaultBoardConfig) {
+        Object.assign(this.settings.defaultBoardConfig, updates);
+      }
+    }
+    await this.saveSettings();
+  }
   async openFormModal(options) {
     return await new Promise((resolve) => {
       const modal = new SimpleFormModal(this.app, {
@@ -4308,6 +4985,7 @@ ${cleanedBody || `# ${title}
         category: normalizeFmValue(fm[eff.categoryField]),
         priority: normalizeFmValue(fm[eff.priorityField]),
         tags: collectTags(fm, cache, eff.tagsField),
+        url: normalizeFmValue(fm["url"]) || normalizeFmValue(fm["URL"]) || "",
         customFields,
         dueDate,
         dueTs: dueInfo ? dueInfo.sortValue : null,

@@ -470,6 +470,19 @@ module.exports = class SmartKanbanPlugin extends Plugin {
     await this.saveData(this.settings);
   }
 
+  async updateBoardConfig(boardId, updates) {
+    const board = boardId ? this.getBoard(boardId) : null;
+    if (board) {
+      Object.assign(board, updates);
+    } else {
+      Object.assign(this.settings, updates);
+      if (this.settings.defaultBoardConfig) {
+        Object.assign(this.settings.defaultBoardConfig, updates);
+      }
+    }
+    await this.saveSettings();
+  }
+
   async openFormModal(options) {
     return await new Promise((resolve) => {
       const modal = new SimpleFormModal(this.app, {
@@ -738,6 +751,7 @@ module.exports = class SmartKanbanPlugin extends Plugin {
         category: normalizeFmValue(fm[eff.categoryField]),
         priority: normalizeFmValue(fm[eff.priorityField]),
         tags: collectTags(fm, cache, eff.tagsField),
+        url: normalizeFmValue(fm["url"]) || normalizeFmValue(fm["URL"]) || "",
         customFields,
         dueDate,
         dueTs: dueInfo ? dueInfo.sortValue : null,

@@ -357,7 +357,7 @@
 .smart-kanban-board::-webkit-scrollbar-track { background: transparent; }
 
 
-/* ── Lane ── */
+/* ── Lane (Notion-style: very faint tinted bg) ── */
 .smart-kanban-lane {
   width: 280px;
   min-width: 260px;
@@ -365,23 +365,13 @@
   flex: 0 0 280px;
   overflow: hidden;
   overflow-wrap: anywhere;
-  background: color-mix(
-    in srgb,
-    var(--sk-lane-accent-bg, var(--sk-lane-bg, var(--background-secondary)))
-      var(--sk-lane-tint-strength, 10%),
-    var(--background-primary)
-  );
-  border: 1px solid
-    color-mix(
-      in srgb,
-      var(--sk-lane-accent-bg, var(--background-modifier-border)) 18%,
-      var(--background-modifier-border)
-    );
+  background: color-mix(in srgb, var(--sk-lane-accent-bg, transparent) 4%, var(--background-primary));
+  border: none;
   border-radius: var(--sk-radius-md);
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: 8px;
+  padding: 4px 6px;
 }
 
 .smart-kanban-lane.is-over-wip .smart-kanban-count {
@@ -389,24 +379,20 @@
 }
 
 
-/* ── Lane Header ── */
+/* ── Lane Header (Notion-style: pastel pill bg, dark colored text) ── */
 .smart-kanban-lane-header {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 8px 10px;
-  background: color-mix(
-    in srgb,
-    var(--sk-lane-accent-bg, var(--sk-lane-header-bg, var(--background-secondary)))
-      var(--sk-lane-header-tint-strength, 24%),
-    var(--background-primary)
-  );
-  border: 1px solid color-mix(in srgb, var(--sk-lane-accent-bg, var(--background-modifier-border)) 25%, var(--background-modifier-border));
-  border-radius: var(--sk-radius-sm);
+  justify-content: flex-start;
+  padding: 3px 10px;
+  background: color-mix(in srgb, var(--sk-lane-accent-bg, var(--background-secondary)) 15%, var(--background-primary));
+  border: none;
+  border-radius: var(--sk-radius-pill, 20px);
   cursor: pointer;
   user-select: none;
   gap: 6px;
   margin-bottom: 8px;
+  width: fit-content;
 }
 
 .smart-kanban-lane-header h3 {
@@ -512,19 +498,29 @@
 .smart-kanban-card {
   position: relative;
   overflow: visible;
-  background: var(--sk-card-bg, var(--background-primary));
-  color: var(--sk-card-text, inherit);
-  border: 1px solid color-mix(in srgb, var(--background-modifier-border) 70%, transparent);
+  background: #ffffff;
+  color: #37352f;
+  border: 1px solid rgba(0,0,0,0.06);
   border-radius: var(--sk-radius-md);
-  padding: 8px 10px 10px;
+  padding: 10px 12px 10px;
   cursor: grab;
   touch-action: none;
   transition: background var(--sk-dur), box-shadow var(--sk-dur);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+
+/* Dark theme: slightly lifted surface instead of pure white */
+.theme-dark .smart-kanban-card {
+  background: var(--background-secondary);
+  color: var(--text-normal);
+  border-color: var(--background-modifier-border);
 }
 
 .smart-kanban-card:hover {
-  background: var(--background-primary);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.theme-dark .smart-kanban-card:hover {
+  background: color-mix(in srgb, var(--background-secondary) 90%, white);
 }
 
 .smart-kanban-card:active { cursor: grabbing; }
@@ -1406,4 +1402,157 @@
 .sk-wip-add-btn {
   font-size: 0.8rem;
   padding: 5px 14px;
+}
+
+/* ═══ URL Preview (hidden by default, show on card hover) ═══ */
+.smart-kanban-card-url {
+  display: none;
+  font-size: 0.65rem;
+  color: var(--text-faint);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 4px;
+  padding: 2px 0;
+  opacity: 0.5;
+  cursor: pointer;
+}
+.smart-kanban-card:hover .smart-kanban-card-url {
+  display: block;
+}
+.smart-kanban-card-url:hover {
+  opacity: 1;
+  color: var(--interactive-accent);
+  text-decoration: underline;
+}
+
+/* ═══ Source badge (subtle gray) ═══ */
+.smart-kanban-badge-source {
+  background: color-mix(in srgb, var(--text-faint) 12%, transparent) !important;
+  color: var(--text-muted) !important;
+  font-size: 0.62rem !important;
+  padding: 1px 6px !important;
+  opacity: 0.7;
+}
+
+/* ═══ Bulk Actions ═══ */
+.smart-kanban-bulk-bar {
+  display: none;
+  padding: 6px 16px;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+  align-items: center;
+  gap: 8px;
+  border-radius: 6px;
+  margin: 4px 16px;
+  font-size: 0.8rem;
+  flex-wrap: wrap;
+}
+.smart-kanban-bulk-bar[style*="flex"] {
+  display: flex;
+}
+.smart-kanban-bulk-count {
+  font-weight: 600;
+  margin-right: 8px;
+}
+.smart-kanban-bulk-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255,255,255,0.15);
+  border: none;
+  color: inherit;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
+}
+.smart-kanban-bulk-btn:hover {
+  background: rgba(255,255,255,0.3);
+}
+.smart-kanban-bulk-btn .svg-icon {
+  width: 14px;
+  height: 14px;
+}
+.smart-kanban-card-checkbox {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  margin: 0 6px 0 0;
+  cursor: pointer;
+  accent-color: var(--interactive-accent);
+}
+.smart-kanban-card.is-selected {
+  outline: 2px solid var(--interactive-accent);
+  outline-offset: 1px;
+}
+
+/* ═══ Picker Modal ═══ */
+.smart-kanban-picker-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+.smart-kanban-picker-item {
+  padding: 6px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.smart-kanban-picker-item:hover {
+  background: var(--background-modifier-hover);
+}
+.smart-kanban-bulk-input {
+  padding: 6px 10px;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 4px;
+  font-size: 0.85rem;
+}
+
+/* ═══ Group-by controls ═══ */
+.smart-kanban-group-controls {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* ═══ Lane Color Picker (Notion-style) ═══ */
+.sk-lane-color-picker {
+  background: var(--background-primary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: 8px;
+  padding: 6px;
+  min-width: 160px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+}
+.sk-lane-color-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.82rem;
+}
+.sk-lane-color-item:hover {
+  background: var(--background-modifier-hover);
+}
+.sk-lane-color-swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  border: 1px solid rgba(0,0,0,0.06);
+}
+.sk-lane-color-label {
+  flex: 1;
+  color: var(--text-normal);
+}
+.sk-lane-color-check {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* ═══ Virtual scroll sentinel ═══ */
+.smart-kanban-scroll-sentinel {
+  height: 1px;
+  width: 100%;
 }

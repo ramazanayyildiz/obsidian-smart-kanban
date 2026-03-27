@@ -109,6 +109,8 @@ const DEFAULT_BOARD_CONFIG = {
   showRelativeDate: true,
   theme: { preset: "default", overrides: {}, laneColors: {} },
   cardOrder: {},
+  groupByField: "",
+  categoryDisplayDepth: 1,
 };
 
 const BOARD_CONFIG_KEYS = Object.freeze(Object.keys(DEFAULT_BOARD_CONFIG));
